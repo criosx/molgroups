@@ -1,0 +1,4 @@
+You can call the rect class and its methods from the python interpreter using 
+import rect
+
+https://cython.readthedocs.io/en/latest/src/userguide/wrapping_CPlusPlus.html

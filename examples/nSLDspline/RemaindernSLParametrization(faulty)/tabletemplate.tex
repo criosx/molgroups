@@ -1,0 +1,39 @@
+\documentclass[11pt]{article}
+\pagestyle{empty}
+\marginparwidth = 0pt
+\oddsidemargin = 0pt
+\hoffset=0pt
+\usepackage{multirow}
+\begin{document}
+\renewcommand{\arraystretch}{1.1}
+
+\begin{tabular}[t]{|p{6.5cm}|p{2.6cm}|p{5.0cm}|} \hline
+\bf{Parameter} & \bf{neat bilayer} & \bf{rinse}  \\ \hline
+\multicolumn{3}{|l|}{\textit{Substrate}} \\ \hline
+$d$ silicon oxide &\multicolumn{2}{|c|}{ d\_oxide } \\ \hline
+$d$ chromium &\multicolumn{2}{|c|}{ d\_Cr } \\ \hline
+$\rho$ chromium &\multicolumn{2}{|c|}{ rho\_Cr } \\ \hline
+chromium roughness &\multicolumn{2}{|c|}{ rough\_cr\_au } \\ \hline
+$d$ gold &\multicolumn{2}{|c|}{ d\_gold } \\ \hline
+$\rho$ gold &\multicolumn{2}{|c|}{ rho\_Au } \\ \hline
+global roughness &\multicolumn{2}{|c|}{ global\_rough } \\ \hline
+
+\multicolumn{3}{|l|}{\textit{Lipid bilayer}} \\ \hline
+$d$ tether / 1.3 &\multicolumn{2}{|c|}{ l\_tether } \\ \hline
+$nf$ tether &\multicolumn{2}{|c|}{ nf\_tether } \\ \hline
+$\beta$Me molecules per tether &\multicolumn{2}{|c|}{ mult\_tether } \\ \hline
+$d$ lipid leaflet / 1.12 & l\_lipid1 l\_lipid2 & change :  dl\_lipid\_gcrinse1   \\ \hline
+Bilayer completeness &  vf\_bilayer & vf\_bilayer\_gcrinse1 \\ \hline
+Bilayer roughness &\multicolumn{2}{|c|}{ sigma } \\ \hline
+
+\multicolumn{3}{|l|}{\textit{Protein}} \\ \hline
+support 0 (pos, area frac, glycan frac) & & dp\_on0 , 0 (fix), 0 (fix)   \\ \hline
+support 1 (pos, area frac, glycan frac)  & & dp\_on1 , vf\_on1 , frac2\_on1   \\ \hline
+support 2 (pos, area frac, glycan frac)  & & dp\_on2 , vf\_on2 , frac2\_on2   \\ \hline
+support 3 (pos, area frac, glycan frac)  & & dp\_on3 , vf\_on3 , frac2\_on3   \\ \hline
+support 4 (pos, area frac, glycan frac)  & & dp\_on4 , vf\_on4 , frac2\_on4   \\ \hline
+support 5 (pos, area frac, glycan frac)  & & dp\_on5 , 0 (fix) , 0 (fix)   \\ \hline
+Volume fraction multipliers & & second rinse: fraction\_rinse2   \\ \hline
+\end{tabular}
+
+\end{document}
