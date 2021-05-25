@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
 import scipy.fft
-import molgroups as mol
+from Diffraction.Python.Diffraction_fitting_fp import molgroups as mol
 
 # Define model function
 def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
