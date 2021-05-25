@@ -36,7 +36,7 @@ class nSLDObj():
             dnormsum = 0
             dsum = 0
             for  i in range(self.iNumberOfConvPoints):
-                dd = 8 / float(iNumberOfConvPoints*i) - 4
+                dd = 8 / float(self.iNumberOfConvPoints*i) - 4
                 dgauss = numpy.exp((-0.5)*dd*dd)       # (sigma_convolution)^2/(sigma_convolution)^2 cancels
                 dnormsum += dgauss
                 dsum += self.fnGetArea(dz + dd * self.dSigmaConvolution) * dgauss
@@ -187,7 +187,7 @@ class nSLDObj():
                 if (aArea[i]>dMaxArea):
                     dMaxArea = aArea[i]
                 anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                aAbsorb[i] = aAbsorb[i] + fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
+                aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
                 # printf("Bin %i Area %f total %f nSL %f total %f \n", i, dAreaInc, aArea[i], fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
             d = d + stepsize
         return dMaxArea
@@ -228,7 +228,7 @@ class nSLDObj():
         dUpperLimit = self.fnGetUpperLimit()
         if dUpperLimit==0:
             dUpperLimit = float(dimension)*stepsize
-        d = floor(dLowerLimit / stepsize + 0.5) * stepsize
+        d = math.floor(dLowerLimit / stepsize + 0.5) * stepsize
         
         while d<=dUpperLimit:
             i = int(d/stepsize)
@@ -254,7 +254,7 @@ class nSLDObj():
                     # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
                     aArea[i] = aArea[i] + dAreaInc * dprefactor
                     anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                    aAbsorb[i] = aAbsorb[i] + fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
+                    aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
             d = d+stepsize
 
 
@@ -306,7 +306,7 @@ class Box2Err(nSLDObj):
             if self.bProtonExchange:
                 if bulknsld == 0.:
                     bulknsld = self.nsldbulk_store
-                return ((bulknsld+0.56e-6)*sel.fnSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol
+                return ((bulknsld+0.56e-6)*self.nSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol
             else:
                 return self.nSL/self.vol
         else:
@@ -322,7 +322,7 @@ class Box2Err(nSLDObj):
     def fnSetnSL(self, _nSL, _nSL2):
         self.nSL = _nSL
         self.nSL2 = _nSL2
-        self.bProtonExchange = true
+        self.bProtonExchange = True
 
     def fnSetSigma(self, sigma1, sigma2=0.):
         self.sigma1 = sigma1
@@ -696,16 +696,16 @@ class BLM_quaternary(nSLDObj):
         return self.normarea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
-        headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
-        headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
-        headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
-        lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
-        methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
-        methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
-        lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
-        headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
-        headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
-        headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
-        defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
-        defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
-        fnWriteConstant(fp, "blm_normarea", normarea, 0, dimension, stepsize)
+        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
+        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
+        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
+        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
+        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
+        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
+        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
+        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
+        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
+        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
+        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
+        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
+        fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
