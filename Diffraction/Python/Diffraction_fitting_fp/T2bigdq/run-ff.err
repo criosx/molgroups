@@ -1,0 +1,14 @@
+.bulknsld = 9.4114e-06
+.dq = 0
+.l_lipid = 11.3603 in [9,13]
+.prefactor = 17000
+.sigma = 2
+.vf_bilayer = 1
+
+[chisq=4.4500(12), nllf=1873.46]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1              l_lipid 11.362(11) 11.3619 11.3603 [ 11.352  11.372] [ 11.340  11.382]
+
+Statistics and plots based on 1910 samples (90.5% of total samples drawn)
+/Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T

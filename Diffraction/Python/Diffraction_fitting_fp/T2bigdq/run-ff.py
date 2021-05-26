@@ -9,7 +9,6 @@ import molgroups as mol
 
 # Define model function
 def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
-
     #TODO: Think about how to set those variables more conveniently
     maxarea = 100
     stepsize = 0.5
@@ -21,12 +20,12 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
     anSLD = np.zeros(dimension).tolist()
 
     bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer)
-    dd, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
+    dMaxArea, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
 
     #TODO: speedup
     for i in range(len(aArea)):
         if aArea[i] != 0:
-            anSLD[i] = anSL[i] / (aArea[i]*stepsize) * aArea[i]/dd + bulknsld * (1 - aArea[i]/dd)
+            anSLD[i] = anSL[i] / (aArea[i]*stepsize) * aArea[i]/dMaxArea + bulknsld * (1 - aArea[i]/dMaxArea)
         else:
             anSLD[i] = bulknsld
 
@@ -83,11 +82,11 @@ dq = 0.
 #----------------------------------------------------------------------------------------
 M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq)
 M1.l_lipid.range(9,13)
-M1.vf_bilayer.range(0.95,1.0)
-M1.sigma.range(1.0, 4.0)
-M1.bulknsld.range(9e-6,10e-6)
-M1.prefactor.range(15000,40000)
-M1.dq.range(-0.01, 0.01)
+# M1.vf_bilayer.range(.95, 1.0)
+# M1.sigma.range(1.0, 4.0)
+# M1.bulknsld.range(9e-6,10e-6)
+# M1.prefactor.range(10000,20000)
+# M1.dq.range(-0.01, 0.1)
 
 model = M1
 problem = FitProblem(model)
