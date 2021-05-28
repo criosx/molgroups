@@ -77,11 +77,11 @@ class nSLDObj():
                 dAreaInc = self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror)
                 dnSLDInc = (self.fnGetnSLD(d) * self.fnGetConvolutedArea(d) + self.fnGetnSLD(dmirror) * self.fnGetConvolutedArea(dmirror))
                 dnSLDInc /= (self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror))
-                # printf("Bin %i Area %f nSLD %e nSL %e \n", i, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize);
+                # printf("Bin %i Area %f nSLD %e nSL %e \n", i, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
             else:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 dnSLDInc = self.fnGetnSLD(d)
-                # printf("Bin %i z %g Area %f nSLD %e nSL %e \n", i, d, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize);
+                # printf("Bin %i z %g Area %f nSLD %e nSL %e \n", i, d, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
                 
             f.write(str(d)+" "+str(dAreaInc)+" "+str(dAreaInc*stepsize)+"\n")
         f.write("\n")
@@ -161,7 +161,7 @@ class nSLDObj():
                 if (aArea[i]>dMaxArea):
                     dMaxArea = aArea[i]
                 anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc*stepsize * dprefactor
-                # printf("Bin %i AreaInc %g total %g MaxArea %g nSL %f total %f \n", i, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                # printf("Bin %i AreaInc %g total %g MaxArea %g nSL %f total %f \n", i, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
             d = d + stepsize
         return dMaxArea, aArea, anSL
 
@@ -175,20 +175,20 @@ class nSLDObj():
         while d <= dUpperLimit:
             i = int(d / stepsize)
             dprefactor = 1
-            # printf("Here we are %i, dimension %i \n", i, dimension);
+            # printf("Here we are %i, dimension %i \n", i, dimension)
             if (i<0) and self.bWrapping:
                 i = -1 * i
             if (i == 0) and self.bWrapping:
                 dprefactor = 2                                            #avoid too low filling when mirroring
             if 0 <= i < dimension:
-                # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                 dAreaInc = self.fnGetConvolutedArea(d)
                 aArea[i] = self.aArea[i] + dAreaInc * dprefactor
                 if (aArea[i]>dMaxArea):
                     dMaxArea = aArea[i]
                 anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
                 aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
-                # printf("Bin %i Area %f total %f nSL %f total %f \n", i, dAreaInc, aArea[i], fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                # printf("Bin %i Area %f total %f nSL %f total %f \n", i, dAreaInc, aArea[i], fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
             d = d + stepsize
         return dMaxArea
         
@@ -217,7 +217,7 @@ class nSLDObj():
                         anSL[i] = anSL[i] * (1-((temparea-dMaxArea)/aArea[i]))    #eliminate the overfilled portion using original content
                         anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
                         aArea[i] = dMaxArea
-                        # printf("Replace: Bin %i temparea %g Areainc %g area now %g dMaxArea %g nSLD %g nSLinc %g nSL now %g \n", i, temparea, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                        # printf("Replace: Bin %i temparea %g Areainc %g area now %g dMaxArea %g nSLD %g nSLinc %g nSL now %g \n", i, temparea, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                     else:                                                         #overfill is larger!!, this is non-physical
                         anSL[i] = self.fnGetnSLD(d) * dMaxArea*stepsize
                         aArea[i] = dMaxArea
@@ -233,7 +233,7 @@ class nSLDObj():
         while d<=dUpperLimit:
             i = int(d/stepsize)
             dprefactor = 1
-            # printf("Here we are %i, dimension %i, maxarea %f \n", i, dimension, dMaxArea);
+            # printf("Here we are %i, dimension %i, maxarea %f \n", i, dimension, dMaxArea)
             if i < 0 and self.bWrapping:
                 i = -1 * i
             if i == 0 and self.bWrapping:
@@ -242,7 +242,7 @@ class nSLDObj():
                 dAreaInc = self.fnGetConvolutedArea(d)
                 temparea = dAreaInc * dprefactor+aArea[i]
                 if temparea>dMaxArea:
-                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                     # eliminate the overfilled portion using original content
                     anSL[i] = anSL[i] * (1-((temparea-dMaxArea)/aArea[i]))
                     anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
@@ -251,7 +251,7 @@ class nSLDObj():
                     aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize*dprefactor
                     aArea[i] = dMaxArea
                 else:
-                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i]);
+                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                     aArea[i] = aArea[i] + dAreaInc * dprefactor
                     anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
                     aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
@@ -339,10 +339,96 @@ class Box2Err(nSLDObj):
                  + str(self.nf)+" \n")
         nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
 
+# ------------------------------------------------------------------------------------------------------
+# Headgroups
+# ------------------------------------------------------------------------------------------------------
+class PC(nSLDObj):
+    def __init__(self):
+        super.__init__()
+        self.z
+        self.cg = Box2Err()
+        self.phosphate = Box2Err()
+        self.choline = Box2Err()
+        self.cg.l = 4.21 
+        self.phosphate.l = 3.86
+        self.choline.l = 6.34
+        self.cg.sigma1, self.cg.sigma2 = 2,53, 2.29
+        self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
+        self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
+        self.l = 9.575
+        self.cg.vol=147 
+        self.phosphate.vol=54 
+        self.choline.vol=120
+        self.cg.nSL=3.7755e-4 
+        self.phosphate.nSL=2.8350e-4 
+        self.choline.nSL=-6.0930e-5
+        self.cg.nf=1 
+        self.phosphate.nf=1 
+        self.choline.nf=1
+        self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
+        self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
+        super.fnAdjustParameters()
+
+    def fnAdjustParameters(self):
+        self.cg.z -= 0.5*self.l+0.5*self.cg.l
+        self.choline.z+=0.5*self.l-0.5*self.choline.l
+        self.phosphate.z=(self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
+    def fnGetLowerLimit(self):
+        return self.cg.fnGetLowerLimit()
+    def fnGetUpperLimit(self):
+        return self.choline.fnGetUpperLimit()
+    def fnGetTotalnSL(self):
+        return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
+    def fnGetArea(self, z):
+        return (self.cg.fnGetArea(self.dz)+self.phosphate.fnGetArea(self.dz)+self.choline.fnGetArea(self.dz))*self.nf
+    def fnGetnSLD(self, z):
+        cgarea=self.cg.fnGetArea(self.dz)
+        pharea=self.phosphate.fnGetArea(self.dz)
+        charea=self.choline.fnGetArea(self.dz)
+        sum=cgarea+pharea+charea
+    
+        if (sum == 0):
+            return 0
+        else:
+            return (self.cg.fnGetnSLD(self.dz)*cgarea+\
+                self.phosphate.fnGetnSLD(self.dz)*\
+                pharea+self.choline.fnGetnSLD(self.dz)*charea)/sum
+    def fnGetZ(self): 
+        return self.z
+    def fnSetSigma(self, sigma):
+        self.cg.sigma1=sigma
+        self.cg.sigma2=sigma
+        self.phosphate.sigma1=sigma
+        self.phosphate.sigma2=sigma
+        self.choline.sigma1=sigma
+        self.choline.sigma2=sigma
+    def fnSetZ(self, dz):
+        self.z = dz
+        self.fnAdjustParameters()
+    def fnWritePar2File (self, fp, cName, dimension, stepsize):
+        pass
+
+class PCm(PC):
+    def __init__ (self):
+        super.__init__()
+        self.cg.sigma2=2.53
+        self.cg.sigma1=2.29
+        self.phosphate.sigma2=2.29
+        self.phosphate.sigma1=2.02
+        self.choline.sigma2=2.02
+        self.choline.sigma1=2.26
+        super.fnAdjustParameters()
+    def fnAdjustParameters(self):
+        self.cg.z+=0.5*self.l-0.5*self.cg.l
+        self.choline.z-=0.5*self.l+0.5*self.choline.l
+        self.phosphate.z=(self.cg.z-0.5*self.cg.l+self.choline.z+self.choline.l*0.5)/2
+    def fnWritePar2File (self,fp, cName, dimension, stepsize):
+        pass
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
 # ------------------------------------------------------------------------------------------------------
+
 class BLM_quaternary(nSLDObj):
     def __init__(self):
         
@@ -453,7 +539,7 @@ class BLM_quaternary(nSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        # printf("Enter AdjustParameters \n");
+        # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
         
         if self.l_lipid1 <= 0:
@@ -489,12 +575,12 @@ class BLM_quaternary(nSLDObj):
         c_A_ohc = 1
         c_V_ohc = 1
         
-        # printf("ssBLM: normarea %lf \n",normarea);
+        # printf("ssBLM: normarea %lf \n",normarea)
         self.lipid2.l = l_ohc
         self.lipid2.vol = V_ohc
         self.lipid2.nSL = nSL_ohc
         self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
-        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc);
+        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
         
         # outer methyl
         nf_om_lipid = nf_ohc_lipid
@@ -558,7 +644,7 @@ class BLM_quaternary(nSLDObj):
         self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
         self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
         self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
-        # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
+        # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
         
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
@@ -570,7 +656,7 @@ class BLM_quaternary(nSLDObj):
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
-        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME->nf, tether->nf, tetherg->nf, lipid1->nf, headgroup1->nf, headgroup1_2->nf, headgroup1_3->nf, methyl1->nf, methyl2->nf, lipid2->nf, headgroup2->nf, headgroup2_2->nf, headgroup2_3->nf);
+        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
         
         # defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
@@ -578,13 +664,13 @@ class BLM_quaternary(nSLDObj):
         
         if self.radius_defect<(0.5*(hclength+hglength)):
             self.radius_defect = 0.5 * (hclength+hglength)
-        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength);
+        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
         
         volhalftorus = 3.14159265359 * 3.14159265359 * (self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
         volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
-        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder);
+        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
         defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
-        # printf("defectarea %lf \n", defectarea);
+        # printf("defectarea %lf \n", defectarea)
         
         self.defect_hydrocarbon.vol = defectarea * hclength
         self.defect_hydrocarbon.l = hclength
@@ -615,7 +701,7 @@ class BLM_quaternary(nSLDObj):
 
     # get nSLD from molecular subgroups
     def fnGetnSLD(self, dz):
-        # printf("Enter fnGetnSLD \n");
+        # printf("Enter fnGetnSLD \n")
         lipid1area = self.lipid1.fnGetArea(dz)
         headgroup1area = self.headgroup1.fnGetArea(dz)
         headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
@@ -632,7 +718,7 @@ class BLM_quaternary(nSLDObj):
         sum  = lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
         sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
         
-        # printf("%e \n", defect_headgroup->fnGetnSLD(dz));
+        # printf("%e \n", defect_headgroup.fnGetnSLD(dz))
         if sum==0:
             return 0
         else:
@@ -694,6 +780,9 @@ class BLM_quaternary(nSLDObj):
     def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
         _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
         return self.normarea, aArea, anSL
+    
+    def fnWriteConstant(self, fp, name, dimension, stepsize):
+        pass
 
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
@@ -708,4 +797,4 @@ class BLM_quaternary(nSLDObj):
         self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
         self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
         self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
-        fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
