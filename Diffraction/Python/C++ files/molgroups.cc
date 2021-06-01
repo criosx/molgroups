@@ -782,8 +782,8 @@ void PCm::fnAdjustParameters(){
 };
 
 //Use limits of molecular subgroups
-double PCm::fnGetLowerLimit() {return cg->fnGetLowerLimit();};
-double PCm::fnGetUpperLimit() {return choline->fnGetUpperLimit();};
+double PCm::fnGetLowerLimit() {return choline->fnGetLowerLimit();};
+double PCm::fnGetUpperLimit() {return cg->fnGetUpperLimit();};
 
 void   PCm::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
