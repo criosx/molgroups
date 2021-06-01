@@ -86,7 +86,7 @@ def choose_parameters():
     M1.l_lipid.range(9,15)
     # M1.vf_bilayer.range(.95, 1.0)
     M1.sigma.range(0.0, 4.0)
-    M1.bulknsld.range(9e-6,14e-6)
+    M1.bulknsld.range(9e-6,12e-6)
     M1.prefactor.range(10000,20000)
     M1.dq.range(-0.01, 0.1)
     return M1
