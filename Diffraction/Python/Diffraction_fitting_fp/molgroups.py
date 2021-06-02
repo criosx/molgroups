@@ -344,7 +344,7 @@ class Box2Err(nSLDObj):
 # ------------------------------------------------------------------------------------------------------
 class PC(nSLDObj):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         self.z
         self.cg = Box2Err()
         self.phosphate = Box2Err()
@@ -352,7 +352,7 @@ class PC(nSLDObj):
         self.cg.l = 4.21 
         self.phosphate.l = 3.86
         self.choline.l = 6.34
-        self.cg.sigma1, self.cg.sigma2 = 2,53, 2.29
+        self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
         self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
         self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
         self.l = 9.575
@@ -367,34 +367,41 @@ class PC(nSLDObj):
         self.choline.nf=1
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
-        super.fnAdjustParameters()
+        self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
         self.cg.z -= 0.5*self.l+0.5*self.cg.l
         self.choline.z+=0.5*self.l-0.5*self.choline.l
         self.phosphate.z=(self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
+    
     def fnGetLowerLimit(self):
         return self.cg.fnGetLowerLimit()
+    
     def fnGetUpperLimit(self):
         return self.choline.fnGetUpperLimit()
+    
     def fnGetTotalnSL(self):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
-    def fnGetArea(self, z):
-        return (self.cg.fnGetArea(self.dz)+self.phosphate.fnGetArea(self.dz)+self.choline.fnGetArea(self.dz))*self.nf
-    def fnGetnSLD(self, z):
-        cgarea=self.cg.fnGetArea(self.dz)
-        pharea=self.phosphate.fnGetArea(self.dz)
-        charea=self.choline.fnGetArea(self.dz)
+    
+    def fnGetArea(self, dz):
+        return (self.cg.fnGetArea(dz)+self.phosphate.fnGetArea(dz)+self.choline.fnGetArea(dz))*self.nf
+    
+    def fnGetnSLD(self, dz, bulknsld):
+        cgarea=self.cg.fnGetArea(dz)
+        pharea=self.phosphate.fnGetArea(dz)
+        charea=self.choline.fnGetArea(dz)
         sum=cgarea+pharea+charea
     
         if (sum == 0):
             return 0
         else:
-            return (self.cg.fnGetnSLD(self.dz)*cgarea+\
-                self.phosphate.fnGetnSLD(self.dz)*\
-                pharea+self.choline.fnGetnSLD(self.dz)*charea)/sum
+            return (self.cg.fnGetnSLD(dz)*cgarea+\
+                self.phosphate.fnGetnSLD(dz)*\
+                pharea+self.choline.fnGetnSLD(dz)*charea)/sum
+    
     def fnGetZ(self): 
         return self.z
+    
     def fnSetSigma(self, sigma):
         self.cg.sigma1=sigma
         self.cg.sigma2=sigma
@@ -402,22 +409,24 @@ class PC(nSLDObj):
         self.phosphate.sigma2=sigma
         self.choline.sigma1=sigma
         self.choline.sigma2=sigma
+    
     def fnSetZ(self, dz):
         self.z = dz
         self.fnAdjustParameters()
+    
     def fnWritePar2File (self, fp, cName, dimension, stepsize):
         pass
 
 class PCm(PC):
     def __init__ (self):
-        super.__init__()
+        super().__init__()
         self.cg.sigma2=2.53
         self.cg.sigma1=2.29
         self.phosphate.sigma2=2.29
         self.phosphate.sigma1=2.02
         self.choline.sigma2=2.02
         self.choline.sigma1=2.26
-        super.fnAdjustParameters()
+        self.fnAdjustParameters()
     def fnAdjustParameters(self):
         self.cg.z+=0.5*self.l-0.5*self.cg.l
         self.choline.z-=0.5*self.l+0.5*self.choline.l
@@ -437,12 +446,12 @@ class BLM_quaternary(nSLDObj):
     def __init__(self):
         
         super().__init__()
-        self.headgroup1 = Box2Err()
+        self.headgroup1 = PCm()
         self.lipid1 = Box2Err()
         self.methyl1 = Box2Err()
         self.methyl2 = Box2Err()
         self.lipid2 = Box2Err()
-        self.headgroup2 = Box2Err()                          # PC head group
+        self.headgroup2 = PC()                          # PC head group
         self.headgroup1_2 = Box2Err()                        # second headgroups
         self.headgroup2_2 = Box2Err()
         self.headgroup1_3 = Box2Err()
@@ -687,7 +696,7 @@ class BLM_quaternary(nSLDObj):
         self.defect_headgroup.vol = defectratio * (self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
         self.defect_headgroup.l = hclength + hglength
         self.defect_headgroup.z = self.headgroup1.fnGetZ() - 0.5 * self.headgroup1.l + 0.5 * (hclength + hglength)
-        self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetnSL(self.bulknsld) * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
+        self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetTotalnSL()*self.headgroup2.nf * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
@@ -802,6 +811,44 @@ class BLM_quaternary(nSLDObj):
         self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
         self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
         self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+
+class ssBLM_quaternary(nSLDObj):
+    def __init__(self):
+        self.substrate  = Box2Err()
+        self.siox       = Box2Err()
+        self.headgroup1 =	PCm()                                                    #mirrored PC head group
+        self.lipid1     =	Box2Err()
+        self.methyl1    =	Box2Err()
+        self.methyl2	   =	Box2Err()
+        self.lipid2	   = Box2Err()
+        self.headgroup2 = PC()                                                          #PC head group
+        self.headgroup1_2 = Box2Err()                                                 #second headgroups
+        self.headgroup2_2 = Box2Err()
+        self.headgroup1_3 = Box2Err()
+        self.headgroup2_3 = Box2Err()
+        self.defect_hydrocarbon = Box2Err()
+        self.defect_headgroup    = Box2Err()
+  
+    def fnAdjustParameters(self):
+        pass
+    def fnGetLowerLimit(self):
+        pass
+    def fnGetUpperLimit(self):
+        pass
+    def fnGetArea(self, z):
+        pass
+    def fnGetnSLD(self, z):
+        pass
+    def fnSet(self, sigma, global_rough, rho_substrate, bulknsld, rho_siox, l_siox,
+         l_submembrane, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0, nf_lipid3=0,
+              nf_chol=0, hc_substitution_1=0, hc_substitution_2=0, radius_defect=100):
+            pass
+    def fnSetSigma(self, sigma):
+        pass
+    def fnWritePar2File (self, fp, cName, dimension, stepsize):
+        pass
+    def fnWriteProfile(self, aArea, anSLD, dimension, stepsize, dMaxArea):
+        pass
 
 class Hermite(object):
     def __init__(self, n, dstartposition, dnSLD, dnormarea):
