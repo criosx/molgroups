@@ -370,9 +370,9 @@ class PC(nSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        self.cg.z = self.z - 0.5*self.l+0.5*self.cg.l
-        self.choline.z= self.z + 0.5*self.l-0.5*self.choline.l
-        self.phosphate.z=(self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
+        self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
+        self.choline.z = self.z + 0.5*self.l - 0.5*self.choline.l
+        self.phosphate.z = (self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
     
     def fnGetLowerLimit(self):
         return self.cg.fnGetLowerLimit()
@@ -428,9 +428,9 @@ class PCm(PC):
         self.choline.sigma1=2.26
         self.fnAdjustParameters()
     def fnAdjustParameters(self):
-        self.cg.z+=0.5*self.l-0.5*self.cg.l
-        self.choline.z-=0.5*self.l+0.5*self.choline.l
-        self.phosphate.z=(self.cg.z-0.5*self.cg.l+self.choline.z+self.choline.l*0.5)/2
+        self.cg.z = self.z + 0.5*self.l-0.5*self.cg.l
+        self.choline.z = self.z - 0.5*self.l+0.5*self.choline.l
+        self.phosphate.z = (self.cg.z-0.5*self.cg.l+self.choline.z+self.choline.l*0.5)/2
     def fnGetLowerLimit(self):
         return self.choline.fnGetLowerLimit()
     def fnGetUpperLimit(self): 
