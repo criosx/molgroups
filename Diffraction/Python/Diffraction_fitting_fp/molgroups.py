@@ -370,8 +370,8 @@ class PC(nSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        self.cg.z -= 0.5*self.l+0.5*self.cg.l
-        self.choline.z+=0.5*self.l-0.5*self.choline.l
+        self.cg.z = self.z - 0.5*self.l+0.5*self.cg.l
+        self.choline.z= self.z + 0.5*self.l-0.5*self.choline.l
         self.phosphate.z=(self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
     
     def fnGetLowerLimit(self):
