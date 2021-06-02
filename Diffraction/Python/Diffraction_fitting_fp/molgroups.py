@@ -802,3 +802,229 @@ class BLM_quaternary(nSLDObj):
         self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
         self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
         self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+
+class Hermite(object):
+    def __init__(self, n, dstartposition, dnSLD, dnormarea):
+        self.numberofcontrolpoints = n
+        self.nSLD=dnSLD
+        self.normarea=dnormarea
+        self.monotonic=1
+        self.damping=1
+        self.dampthreshold=0.001
+        self.dampFWHM=0.0002
+        self.damptrigger=0.04
+        
+        self.dp     = [0.]*n
+        self.vf     = [0.]*n
+        self.damp   = [0.]*n
+        
+    def fnGetArea(self, dz): 
+        temp = self.fnGetSplineArea(dz, self.dp, self.vf, self.damping)*self.normarea*self.nf
+        return max(temp, 0)
+
+    def fnGetnSLD(self, dz): 
+        return self.nSLD
+
+    def fnGetLowerLimit(self): 
+        return self.dp[0]
+
+    def fnGetUpperLimit(self): 
+        return self.dp[-1]
+
+    def fnGetVolume(self, dz1, dz2): 
+        return self.fnGetSplineIntegral(dz1, dz2, self.dp, self.vf, self.damping)*self.normarea*self.nf
+
+    def fnSetNormarea(self, dnormarea): 
+        self.normarea = dnormarea
+
+    def fnSetnSLD(self, dnSLD): 
+        self.nSLD = dnSLD
+
+    def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnf): 
+        for i in range(self.numberofcontrolpoints):
+            self.vf[i] = max(0, dVf[i])
+            self.dp[i] = dStart + dSpacing*i + dDp[i]
+        self.nf = dnf
+
+    def fnSetSigma(self, sigma): 
+        pass
+
+    def fnWritePar2File(self, fp, cName, dimension, stepsize): 
+        pass
+
+    def fnGetSplineAntiDerivative(self, dz, dp, dh): 
+        interval = self.fnGetSplinePars(dz, dp, dh, self.m0, self.m1, self.p0, self.p1) 
+        if (0 <= interval < self.numberofcontrolpoints-1):
+            dd=dp[interval+1]-dp[interval] 
+            t=(dz-dp[interval])/dd 
+            t_2=t*t 
+            t_3=t_2*t 
+            t_4=t_3*t 
+            h00= (1/2)*t_4-      t_3          +t 
+            h01=(-1/2)*t_4+      t_3             
+            h10= (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
+            h11= (1/4)*t_4-(1/3)*t_3             
+            return dd*(h00*self.p0 + h10*dd*self.m0 + h01*self.p1 + h11*dd*self.m1)         
+        return 0
+
+    def fnGetSplineArea(self, dz, dp, dh, damping): 
+        dampfactor=1 
+        for i in range (0, self.numberofcontrolpoints):
+            if (damping==0):
+                self.damp[i]=dh[i] 
+            else:
+                self.damp[i]=dh[i]*dampfactor 
+                if (dh[i] >= self.damptrigger):
+                    dampfactor=dampfactor*(1/(1 + math.exp(-2.1*(dh[i]- self.dampthreshold)/self.dampFWHM))) 
+
+        interval=self.fnGetSplinePars(self, dz, dp, self.damp, self.m0, self.m1, self.p0, self.p1) 
+
+        if (0 <= interval < self.numberofcontrolpoints-1):
+            
+            dd=dp[interval+1]-dp[interval] 
+            t=(dz-dp[interval])/dd 
+            t_2=t*t 
+            t_3=t_2*t 
+            h00=   2*t_3-3*t_2+1 
+            h10=     t_3-2*t_2+t 
+            h01=(-2)*t_3+3*t_2 
+            h11=     t_3-t_2 
+            
+            return h00*self.p0+h10*dd*self.m0+h01*self.p1+h11*dd*self.m1 
+
+        return 0   
+
+    def fnGetSplinePars(self, d, dp, dh, m0, m1, p0, p1): 
+        interval=-1 
+        for i in range(self.numberofcontrolpoints):
+            if ((dp[i]<=self.dz) and (dp[i+1]>self.dz)):
+                # printf("Found interval %i \n", i)
+                interval = i
+        if (self.dz==dp[-1]):
+            interval=self.numberofcontrolpoints-2 
+        
+        if (interval>=0):                                           #tangent calculation
+            if (self.monotonic==1):                                     #Monotonic cubic spline, see Wikipedia
+                
+                if (dh[interval]==dh[interval+1]):
+                    m0=0 
+                    m1=0 
+                else:
+                    if (interval==0):
+                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
+                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
+                        k2=(dh[interval+3]-dh[interval+2])/(dp[interval+3]-dp[interval+2]) 
+                        km1=k0 
+
+                    elif (interval==(self.numberofcontrolpoints-2)):
+                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
+                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
+                        k1=k0 
+                        k2=k0 
+
+                    elif (interval==(self.numberofcontrolpointss-3)):
+                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
+                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
+                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
+                        k2=k0 
+
+                    else:
+                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
+                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
+                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
+                        k2=(dh[interval+3]-dh[interval+2])/(dp[interval+3]-dp[interval+2]) 
+
+                    
+                    m0=(k0+km1)/2 
+                    m1=(k1+k0)/2 
+                    m2=(k2+k1)/2 
+                    
+                    if (k0==0):
+                        m0=0 
+                        m1=0 
+
+                    else :
+                        alpha0=m0/k0  
+                        beta0=m1/k0                     
+                        if ((alpha0<0) or (beta0<0)):
+                            m0=0 
+    
+                        elif ((alpha0*alpha0+beta0*beta0)>9):
+                            tau=3/math.sqrt(alpha0*alpha0+beta0*beta0) 
+                            m0=tau*alpha0*k0 
+                            m1=tau*beta0*k0 
+    
+
+                    if (k1==0):
+                        m1=0 
+                        m2=0 
+
+                    else :                        
+                        alpha1=m1/k1  
+                        beta1=m2/k1 
+                        if ((alpha1<0) or (beta1<0)):
+                            m1=0 
+    
+                        elif ((alpha1*alpha1+beta1*beta1)>9):
+                            tau=3/math.sqrt(alpha1*alpha1+beta1*beta1) 
+                            m1=tau*alpha1*k1 
+                            m2=tau*beta1*k1 
+
+            else:                                                    #Catmull-Rom spline, see Wikipedia
+                if (interval==0):
+                    m0=0 
+                    m1=(dh[2]-dh[0])/(dp[2]-dp[0]) 
+
+                elif (interval==(self.numberofcontrolpoints-2)):
+                    m0=(dh[interval+1]-dh[interval-1])/(dp[interval+1]-dp[interval-1]) 
+                    m1=0 
+
+                else:
+                    m0=(dh[interval+1]-dh[interval-1])/(dp[interval+1]-dp[interval-1]) 
+                    m1=(dh[interval+2]-dh[interval])/(dp[interval+2]-dp[interval]) 
+  
+            p0=dh[interval] 
+            p1=dh[interval+1] 
+    
+        return interval 
+        
+    def fnGetSplineIntegral(self, dz1, dz2, dp, dh, damping): 
+        if (dz1>dz2):
+            temp=dz2 
+            dz2=dz1 
+            dz1=temp 
+        
+        #check for boundaries
+        if (dz1<dp[0]):
+            dz1=dp[0]
+        if (dz2>dp[-1]):
+            dz2=dp[-1] 
+        integral=0  
+        d=dz1 
+        while (d<=dz2):
+            integral+=self.fnGetSplineArea(d,dp,dh, damping)*0.5 
+            d+=0.5 
+        
+        return integral 
+
+    def fnGetSplineProductIntegral(self, dz1, dz2, dp, dh1, dh2, damping1, damping2): 
+        if (dz1>dz2) :
+            temp=dz2 
+            dz2=dz1 
+            dz1=temp 
+        
+        #check for boundaries
+        if (dz1<dp[0]):
+            dz1=dp[0] 
+        if (dz2>self.dp[-1]):
+            dz2=self.dp[-1] 
+        
+        integral=0  
+        d=dz1 
+        while (d<=dz2):
+            integral+=self.fnGetSplineArea(d,dp,dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
+             #printf("d %g damping1 %i area1 %g damping2 %i area2 %g \n", d, damping1, fnGetSplineArea(d,dp,dh1, damping1), damping2, fnGetSplineArea(d,dp,dh2, damping2)) 
+            d+=0.5 
+        
+        return integral 
+    
