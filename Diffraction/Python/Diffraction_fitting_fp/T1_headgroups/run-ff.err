@@ -1,20 +1,20 @@
-.bulknsld = 9.80277e-06 in [9e-06,1e-05]
-.dq = -0.00732191 in [-0.01,0.01]
-.l_lipid = 10.2099 in [9,13]
-.prefactor = 32688.9 in [15000,40000]
-.sigma = 2.20555 in [1,4]
-.vf_bilayer = 0.979754 in [0.95,1]
+.bulknsld = 9.00004e-06 in [9e-06,1e-05]
+.dq = -0.0099992 in [-0.01,0.01]
+.l_lipid = 11.6311 in [9,13]
+.prefactor = 30950 in [15000,40000]
+.sigma = 3.99948 in [1,4]
+.vf_bilayer = 0.999943 in [0.95,1]
 
-[chisq=120.2114(84), nllf=50308.5]
+[chisq=30.7568(84), nllf=12871.7]
               Parameter       mean  median    best [   68% interval] [   95% interval]
- 1             bulknsld 9.66(28)e-6 0.000009779 0.000009803 [0.00000932 0.00000995] [0.00000908 0.00000999]
- 2                   dq 4.3(63)e-3  0.0071 -0.0073 [ -0.003   0.010] [ -0.010   0.010]
- 3              l_lipid    9.9(11)   9.157  10.210 [   9.01   11.32] [   9.00   12.50]
- 4            prefactor 29.1(52)e3   28540   32690 [  25900   35100] [  17300   39800]
- 5                sigma   1.86(67)   1.620   2.206 [   1.32    2.59] [   1.14    3.93]
- 6           vf_bilayer  0.977(16)  0.9788  0.9798 [  0.959   0.997] [  0.952   1.000]
+ 1             bulknsld 9.0008(32)e-6 0.00000900022 0.00000900004 [0.0000090000 0.0000090008] [0.0000090000 0.0000090039]
+ 2                   dq -0.009992(19) -0.0099964 -0.0099992 [-0.009999 -0.009990] [-0.010000 -0.009946]
+ 3              l_lipid 11.6241(81) 11.6254 11.6311 [ 11.616  11.632] [ 11.606  11.635]
+ 4            prefactor 30.96(10)e3 30956.7 30950.0 [  30865   31052] [  30793   31162]
+ 5                sigma 3.9980(25) 3.99873 3.99948 [ 3.9966  3.9997] [ 3.9916  3.9999]
+ 6           vf_bilayer 0.99927(88) 0.99957 0.99994 [ 0.9987  0.9999] [ 0.9970  1.0000]
 
-Statistics and plots based on 9660 samples (76.2% of total samples drawn)
+Statistics and plots based on 6655 samples (57.1% of total samples drawn)
 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
   pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
