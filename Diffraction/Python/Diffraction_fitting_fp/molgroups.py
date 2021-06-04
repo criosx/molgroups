@@ -380,7 +380,7 @@ class PC(nSLDObj):
     def fnGetUpperLimit(self):
         return self.choline.fnGetUpperLimit()
     
-    def fnGetTotalnSL(self):
+    def fnGetnSL(self):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
     
     def fnGetArea(self, dz):
