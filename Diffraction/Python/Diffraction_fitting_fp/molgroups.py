@@ -289,12 +289,11 @@ class Box2Err(nSLDObj):
         else:
             return 0.
 
-    def fnGetnSL(self, bulknsld):
+    def fnGetnSL(self, bulknsld=0.):
         if self.bProtonExchange:
-            if self.vol != 0:
-                return ((bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
-            else:
+            if self.vol == 0: 
                 return 0.
+            return ((bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
         else:
             return self.nSL
 
@@ -348,6 +347,7 @@ class PC(nSLDObj):
         self.cg = Box2Err()
         self.phosphate = Box2Err()
         self.choline = Box2Err()
+        self.groups = {"pc_cg": self.cg, "pc_ph": self.phosphate, "pc_ch": self.choline}
         self.cg.l = 4.21 
         self.phosphate.l = 3.86
         self.choline.l = 6.34
@@ -386,9 +386,12 @@ class PC(nSLDObj):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
     
     def fnGetArea(self, dz):
-        return (self.cg.fnGetArea(dz)+self.phosphate.fnGetArea(dz)+self.choline.fnGetArea(dz))*self.nf
+        sum = 0
+        for group in self.groups:
+            sum += self.groups[group].fnGetArea(dz)
+        return sum * self.nf
     
-    def fnGetnSLD(self, dz, bulknsld):
+    def fnGetnSLD(self, dz):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
         charea=self.choline.fnGetArea(dz)
@@ -451,12 +454,12 @@ class PCm(PC):
 class BLM_quaternary(nSLDObj):
     def __init__(self):
         super().__init__()
-        self.headgroup1 = PCm()
+        self.headgroup1 = Box2Err() #PCm()
         self.lipid1 = Box2Err()
         self.methyl1 = Box2Err()
         self.methyl2 = Box2Err()
         self.lipid2 = Box2Err()
-        self.headgroup2 = PC()                          # PC head group
+        self.headgroup2 = Box2Err() #PC()                          # PC head group
         self.headgroup1_2 = Box2Err()                        # second headgroups
         self.headgroup2_2 = Box2Err()
         self.headgroup1_3 = Box2Err()
@@ -715,10 +718,9 @@ class BLM_quaternary(nSLDObj):
 
     # Return value is area at position z
     def fnGetArea(self, dz):
-        result  = self.lipid1.fnGetArea(dz) + self.headgroup1.fnGetArea(dz) + self.methyl1.fnGetArea(dz)
-        result += self.methyl2.fnGetArea(dz) + self.lipid2.fnGetArea(dz) + self.headgroup2.fnGetArea(dz)
-        result += self.headgroup1_2.fnGetArea(dz) + self.headgroup2_2.fnGetArea(dz) + self.headgroup1_3.fnGetArea(dz)
-        result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(dz) + self.defect_headgroup.fnGetArea(dz)
+        result = 0
+        for group in self.groups:
+            result += self.groups[group].fnGetArea(dz)
         return result
 
     # return value of center of the membrane
@@ -728,40 +730,19 @@ class BLM_quaternary(nSLDObj):
     # get nSLD from molecular subgroups
     def fnGetnSLD(self, dz):
         # printf("Enter fnGetnSLD \n")
-        lipid1area = self.lipid1.fnGetArea(dz)
-        headgroup1area = self.headgroup1.fnGetArea(dz)
-        headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
-        headgroup1_3_area = self.headgroup1_3.fnGetArea(dz)
-        methyl1area = self.methyl1.fnGetArea(dz)
-        methyl2area = self.methyl2.fnGetArea(dz)
-        lipid2area = self.lipid2.fnGetArea(dz)
-        headgroup2area = self.headgroup2.fnGetArea(dz)
-        headgroup2_2_area = self.headgroup2_2.fnGetArea(dz)
-        headgroup2_3_area = self.headgroup2_3.fnGetArea(dz)
-        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetArea(dz)
-        defect_headgroup_area = self.defect_headgroup.fnGetArea(dz)
-        
-        sum  = lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
-        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
-        
-        # printf("%e \n", defect_headgroup.fnGetnSLD(dz))
-        if sum==0:
-            return 0
-        else:
-            result  = self.headgroup1.fnGetnSLD(dz, self.bulknsld) * headgroup1area
-            result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
-            result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
-            result += self.lipid1.fnGetnSLD(dz) * lipid1area
-            result += self.methyl1.fnGetnSLD(dz) * methyl1area
-            result += self.methyl2.fnGetnSLD(dz) * methyl2area
-            result += self.lipid2.fnGetnSLD(dz) * lipid2area
-            result += self.headgroup2.fnGetnSLD(dz, self.bulknsld) * headgroup2area
-            result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
-            result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
-            result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
-            result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
-            result /= sum
+        result = 0
+        sum = self.fnGetArea(dz)
+        if sum == 0:
             return result
+        bulk = {"blm_headgroup1_1", "blm_headgroup1_2", "blm_headgroup2_1", "blm_headgroup2_2"}
+        for group in self.groups:
+            group_area = self.groups[group].fnGetArea(dz)
+            if group in bulk:
+                result += group_area * self.groups[group].fnGetnSLD(dz, self.bulknsld) 
+            else:
+                result += group_area * self.groups[group].fnGetnSLD(dz)
+        result /= sum
+        return result
 
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
@@ -811,18 +792,8 @@ class BLM_quaternary(nSLDObj):
         pass
 
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
-        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
-        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
-        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
-        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
-        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
-        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
-        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
-        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
-        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
-        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
-        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
-        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
+        for group in self.groups:
+            self.groups[group].fnWritePar2File(fp, group, dimension, stepsize)
         self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
 
 class ssBLM_quaternary(BLM_quaternary):
@@ -846,21 +817,15 @@ class ssBLM_quaternary(BLM_quaternary):
 
     def fnAdjustParameters(self):
         super().fnAdjustParameters()
-        self.substrate.vol=normarea*substrate.l
-        self.substrate.nSL=rho_substrate*substrate.vol
-        self.siox.l=l_siox
-        self.siox.vol=normarea*siox.l
-        self.siox.nSL=rho_siox*siox.vol
-        self.siox.z=substrate.l+0.5*siox.l
+        self.substrate.vol=self.normarea*self.substrate.l
+        self.substrate.nSL=self.rho_substrate*self.substrate.vol
+        self.siox.l=self.l_siox
+        self.siox.vol=self.normarea*self.siox.l
+        self.siox.nSL=self.rho_siox*self.siox.vol
+        self.siox.z=self.substrate.l+0.5*self.siox.l
     
     def fnGetLowerLimit(self):
         return self.substrate.fnGetLowerLimit()
-
-    def fnGetArea(self, dz):
-        return super().getArea(dz) + self.substrate.fnGetArea(dz) + self.siox.fnGetArea(dz)
-
-    def fnGetnSLD(self, dz):
-        pass
 
     def fnSet(self, sigma, global_rough, rho_substrate, bulknsld, rho_siox, l_siox,
          l_submembrane, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0, nf_lipid3=0,
@@ -881,6 +846,7 @@ class ssBLM_quaternary(BLM_quaternary):
 
     def fnWritePar2File (self, fp, cName, dimension, stepsize):
         pass
+    
     def fnWriteProfile(self, aArea, anSLD, dimension, stepsize, dMaxArea):
         pass
 
@@ -1005,7 +971,7 @@ class Hermite(object):
                         k1=k0 
                         k2=k0 
 
-                    elif (interval==(self.numberofcontrolpointss-3)):
+                    elif (interval==(self.numberofcontrolpoints-3)):
                         km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
                         k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
                         k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
