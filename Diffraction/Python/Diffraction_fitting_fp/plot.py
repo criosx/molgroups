@@ -23,8 +23,10 @@ def savefile(filename):
 
 def main():
     graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1/run-ff.dat")
+    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1_headgroups/run-ff.dat")
+    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2_headgroups/run-ff.dat")
     graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2/run-ff.dat")
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2bigdq/run-ff.dat")
+    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T3/run-ff.dat")
 
 if __name__ == "__main__":
     main()

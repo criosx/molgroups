@@ -80,15 +80,16 @@ dq = 0.
 
 # Set up model
 #----------------------------------------------------------------------------------------
-M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq)
-M1.l_lipid.range(9,13)
-# M1.vf_bilayer.range(.95, 1.0)
-M1.sigma.range(1.0, 4.0)
-M1.bulknsld.range(9e-6,10e-6)
-M1.prefactor.range(10000,20000)
-M1.dq.range(-0.01, 0.1)
 
-model = M1
+def choose_parameters():
+    M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq)
+    M1.l_lipid.range(9,13)
+    # M1.vf_bilayer.range(0.95,1.0)
+    M1.sigma.range(1.0, 4.0)
+    M1.bulknsld.range(9e-6,10e-6)
+    M1.prefactor.range(15000,40000)
+    M1.dq.range(-0.01, 0.01)
+    return M1
+
+model = choose_parameters()
 problem = FitProblem(model)
-
-
