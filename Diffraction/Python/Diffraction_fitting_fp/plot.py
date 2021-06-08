@@ -3,7 +3,7 @@ import numpy as np
 import sys
 sys.path.append(".")
 
-def graphFromFile(filename):
+def graphBumpsResults(filename):
     data = np.loadtxt(filename, delimiter=None)
     q, F, dq, Fy= data[:, 0], data[:, 1], data[:, 2], data[:, 3]
     fig, axes = plt.subplots(2, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
@@ -24,12 +24,16 @@ def graphFromFile(filename):
 def savefile(filename):
     return filename.split(".")[0]+".pdf"
 
+def graphGroups(bilayer):
+    for group in bilayer.groups:
+        bilayer.groups[group].fnWriteProfile(bilayer.aArea, bilayer.anSL, stepsize, dMaxArea)
+
 def main():
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1/run-ff.dat")
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1_headgroups/run-ff.dat")
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2_headgroups/run-ff.dat")
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2/run-ff.dat")
-    graphFromFile("molgroups/Diffraction/Python/Diffraction_fitting_fp/T3/run-ff.dat")
+    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1/run-ff.dat")
+    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1_headgroups/run-ff.dat")
+    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2_headgroups/run-ff.dat")
+    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2/run-ff.dat")
+    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T3/run-ff.dat")
 
 if __name__ == "__main__":
     main()

@@ -454,12 +454,12 @@ class PCm(PC):
 class BLM_quaternary(nSLDObj):
     def __init__(self):
         super().__init__()
-        self.headgroup1 = Box2Err() #PCm()
+        self.headgroup1 = PCm() #Box2Err() 
         self.lipid1 = Box2Err()
         self.methyl1 = Box2Err()
         self.methyl2 = Box2Err()
         self.lipid2 = Box2Err()
-        self.headgroup2 = Box2Err() #PC()                          # PC head group
+        self.headgroup2 = PC() #Box2Err() #PC()                          # PC head group
         self.headgroup1_2 = Box2Err()                        # second headgroups
         self.headgroup2_2 = Box2Err()
         self.headgroup1_3 = Box2Err()
