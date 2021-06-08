@@ -395,14 +395,12 @@ class PC(nSLDObj):
     def fnGetArea(self, dz):
         return (self.cg.fnGetArea(dz)+self.phosphate.fnGetArea(dz)+self.choline.fnGetArea(dz))*self.nf
     
-    def fnGetnSLD(self, dz, bulknsld):
+    def fnGetnSLD(self, dz, bulknsld = 0):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
         charea=self.choline.fnGetArea(dz)
         sum=cgarea+pharea+charea
         #bulknsld=-0.56e-6  
-
-
         if (sum == 0):
             return 0
         else:
@@ -449,19 +447,40 @@ class PCm(PC):
     def fnWritePar2File (self,fp, cName, dimension, stepsize):
         pass
 
-    def fnGetnSLD(self, dz, bulknsld):
+    def fnGetnSLD(self, dz, bulknsld = 0):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
         charea=self.choline.fnGetArea(dz)
         sum=cgarea+pharea+charea
-    
+        #bulknsld=-0.56e-6  
         if (sum == 0):
             return 0
         else:
             return (self.cg.fnGetnSLD(dz)*cgarea+\
                 self.phosphate.fnGetnSLD(dz)*\
                 pharea+self.choline.fnGetnSLD(dz)*charea)/sum
+        
+        """
+        
+        if (sum == 0):
+            return 0
+        elif sum!=0:
+            if self.vol != 0:
+                if self.bProtonExchange:
+                    if bulknsld == 0.:
+                        bulknsld = self.nsldbulk_store
+                     return ((bulknsld+0.56e-6)*self.nSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol
+                    return (self.cg.fnGetnSLD(dz)*cgarea+\
+                    self.phosphate.fnGetnSLD(dz)*\
+                    pharea+self.choline.fnGetnSLD(dz)*charea)/sum
+        elif bulknsld != 0:
+            self.nsldbulk_store = bulknsld
+        if sum !=0   
+        
+       """
 
+        
+            
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
 # ------------------------------------------------------------------------------------------------------
@@ -469,12 +488,12 @@ class BLM_quaternary(nSLDObj):
     def __init__(self):
         
         super().__init__()
-        self.headgroup1 = Box2Err()
+        self.headgroup1 = PCm()
         self.lipid1 = Box2Err()
         self.methyl1 = Box2Err()
         self.methyl2 = Box2Err()
         self.lipid2 = Box2Err()
-        self.headgroup2 = Box2Err()                          # PC head group
+        self.headgroup2 = PC()                          # PC head group
         self.headgroup1_2 = Box2Err()                        # second headgroups
         self.headgroup2_2 = Box2Err()
         self.headgroup1_3 = Box2Err()
@@ -875,7 +894,21 @@ class ssBLM_quaternary(nSLDObj):
         self.nslacyllipid=-2.67e-4
         self.volmethyllipid=98.8
         self.nslmethyllipid=-9.15e-5
-	
+
+
+
+        self.volacyllipid_2 = 925
+        self.nslacyllipid_2 = -2.67e-4
+        self.volmethyllipid_2 = 98.8
+        self.nslmethyllipid_2 = -9.15e-5
+        self.volacyllipid_3 = 925
+        self.nslacyllipid_3 = -2.67e-4
+        self.volmethyllipid_3 = 98.8
+        self.nslmethyllipid_3 = -9.15e-5
+
+
+
+
         self.hc_substitution_1=0
         self.hc_substitution_2=0
         self.headgroup1_2.vol=330       #was 330
@@ -992,9 +1025,9 @@ class ssBLM_quaternary(nSLDObj):
         #def ssBLM_quaternary::fnAdjustParameters()
         #def fnAdjustParameters(self):  
         #printf("Enter AdjustParameters \n");
-    
 
-        #outer hydrocarbons
+
+       # outer hydrocarbons
         l_ohc = self.l_lipid2
         nf_ohc_lipid  = 1 - self.nf_lipid_2 - self.nf_lipid_3 - self.nf_chol
         nf_ohc_lipid_2 = self.nf_lipid_2
@@ -1002,39 +1035,35 @@ class ssBLM_quaternary(nSLDObj):
         nf_ohc_chol = self.nf_chol
         V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
         nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
-    
+        
         self.normarea = V_ohc / l_ohc
         c_s_ohc = self.vf_bilayer
         c_A_ohc = 1
         c_V_ohc = 1
-    
-    #printf("ssBLM: normarea %lf \n",normarea);
-
+        
+        # printf("ssBLM: normarea %lf \n",normarea);
         self.lipid2.l = l_ohc
-        #self.lipid2.vol = V_ohc
+        self.lipid2.vol = V_ohc
         self.lipid2.nSL = nSL_ohc
         self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
-    
-    #printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc);
-    
-    #outer methyl
+        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc);
+        
+        # outer methyl
         nf_om_lipid = nf_ohc_lipid
         nf_om_lipid_2 = nf_ohc_lipid_2
         nf_om_lipid_3 = nf_ohc_lipid_3
         V_om = nf_om_lipid * self.volmethyllipid + nf_om_lipid_2 * self.volmethyllipid_2 + nf_om_lipid_3 * self.volmethyllipid_3
         l_om = l_ohc * V_om / V_ohc
         nSL_om = nf_om_lipid * self.nslmethyllipid + nf_om_lipid_2 * self.nslmethyllipid_2 + nf_om_lipid_3 * self.nslmethyllipid_3
-    
-        c_s_om=c_s_ohc
-        c_A_om=1
-        c_V_om=1
-    
+        
+        c_s_om = c_s_ohc
+        c_A_om = 1
+        c_V_om = 1
+        
         self.methyl2.l = l_om
         self.methyl2.vol = V_om
         self.methyl2.nSL = nSL_om
-        self.methyl2.nf = c_s_om * c_A_om * c_V_om
-    
-    
+        self.methyl2.nf = c_s_om * c_A_om * c_V_om  
    # inner hydrocarbons
         l_ihc = self.l_lipid1
         
@@ -1048,14 +1077,13 @@ class ssBLM_quaternary(nSLDObj):
         c_s_ihc = self.vf_bilayer
         c_A_ihc = self.normarea * l_ihc / V_ihc
         c_V_ihc = 1
-    
-    
+        
         self.lipid1.l = l_ihc
         self.lipid1.vol = V_ihc
         self.lipid1.nSL = nSL_ihc
         self.lipid1.nf = c_s_ihc * c_A_ihc * c_V_ihc
-    
-    # inner methyl
+        
+        # inner methyl
         nf_im_lipid = nf_ihc_lipid
         nf_im_lipid_2 = nf_ihc_lipid_2
         nf_im_lipid_3 = nf_ihc_lipid_3
@@ -1076,27 +1104,14 @@ class ssBLM_quaternary(nSLDObj):
         self.headgroup2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid * (1 - self.hc_substitution_2)
         self.headgroup2_2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_2 * (1 - self.hc_substitution_2)
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
-    
-    #inner headgroups
-    #the philosophy is that penetrating material into the inner hydrocarbons (hc_substitution_1)
-    #only replaces lipid molecules but not tether molecules
-    #temp=1-nf_tether-hc_substitution_1;
-  #if (temp<0){temp=0;}
-    #if (nf_tether!=1) {
-    #    temp=temp/(1-nf_tether);
-    #}
-    #else {
-    #   temp=1;
-    #}
-    
-    # inner and outer PC headgroups
+        
+        # inner headgroups
         self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
         self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
         self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
         # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
     
-    
-    #substrate 
+#substrate 
         self.substrate.vol=self.normarea*self.substrate.l
         self.substrate.nSL=self.rho_substrate*self.substrate.vol
         self.siox.l= self.l_siox
@@ -1105,6 +1120,10 @@ class ssBLM_quaternary(nSLDObj):
     
     #set all lengths
         self.siox.z=self.substrate.l+0.5*self.siox.l
+        self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
+
+
+
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
@@ -1115,9 +1134,8 @@ class ssBLM_quaternary(nSLDObj):
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
-    
-    #printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf);
-    
+        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME->nf, tether->nf, tetherg->nf, lipid1->nf, headgroup1->nf, headgroup1_2->nf, headgroup1_3->nf, methyl1->nf, methyl2->nf, lipid2->nf, headgroup2->nf, headgroup2_2->nf, headgroup2_3->nf);
+        
     # defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
         hglength = self.headgroup1.l + self.headgroup2.l
