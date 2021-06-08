@@ -24,7 +24,7 @@ sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer = 2.0, 9.4114E-06, 50, 1
 
 bilayer.fnSet(sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer)
 
-dd, aArea, anSL = bilayer.fnWriteProfile(aArea, anSLD, dimension, stepsize, maxarea)
+dd, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
 
 for i in range(len(aArea)):
     if aArea[i] != 0:
@@ -49,13 +49,21 @@ axes[1].set_xlabel('z (Å)')
 axes[1].tick_params(axis='both', which='major')
 
 axes[2].plot(x, anSLD)
+axes[0].legend(['SLD'])
 axes[2].set_ylabel('SLD (1/Å^2)')
 axes[2].set_xlabel('z (Å)')
 axes[2].tick_params(axis='both', which='major')
-plt.show()
+# plt.show()
 
+def getnSLD(anSL, aArea):
+    for i in range(len(anSL)):
+        if anSL[i] == 0 or aArea[i] == 0:
+            anSLD[i] = 0
+        else:
+            anSLD[i] = anSL[i]/(aArea[i]*stepsize)
+    return anSLD
 
-fig2, ax = plt.subplots(1, 2)
+fig2, ax = plt.subplots(1, 3)
 counter = 0 
 bm = {"headgroup" : ("blm_headgroup1", "blm_headgroup2"), "lipid" : ("blm_lipid1", "blm_lipid2"), 
 "methyl" :("blm_methyl1", "blm_methyl1")}
@@ -63,8 +71,11 @@ ax[0].set_ylabel('Area (Å^2')
 ax[0].set_xlabel('z (Å)')
 ax[1].set_ylabel('SL (Å)')
 ax[1].set_xlabel('z (Å)')
+ax[2].set_ylabel('SLD (Å)')
+ax[2].set_xlabel('z (Å)')
 ax[0].plot(x, aArea)
 ax[1].plot(x, anSL)
+ax[2].plot(x, getnSLD(anSL, aArea))
 legend = ["total"]
 for label in bm:
     aArea = np.zeros(dimension)
@@ -75,8 +86,10 @@ for label in bm:
         _, half_area, half_nSL = group.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
         anSL += half_nSL
         aArea += half_area
+    anSLD = getnSLD(anSL, aArea)
     ax[0].plot(x, aArea)
     ax[1].plot(x, anSL)
+    ax[2].plot(x, anSLD)
     legend.append(label)
 ax[0].legend(legend)
 ax[1].legend(legend)
