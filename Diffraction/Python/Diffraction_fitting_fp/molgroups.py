@@ -971,7 +971,7 @@ class ssBLM_quaternary(nSLDObj):
         self.l_lipid2 = 11.
         self.bulknsld = -0.56e-6
         self.normarea = 60.
-        self.startz = 50.
+        self.l_submembrane = 10.
         self.sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
@@ -1146,7 +1146,7 @@ class ssBLM_quaternary(nSLDObj):
     
     #set all lengths
         self.siox.z=self.substrate.l+0.5*self.siox.l
-        self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
+        self.lipid1.z= self.substrate.l + self.siox.l + self.l_submembrane + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
