@@ -4,8 +4,7 @@ import sys
 sys.path.append(".")
 
 def graphBumpsResults(filename):
-    data = np.loadtxt(filename, delimiter=None)
-    q, F, dq, Fy= data[:, 0], data[:, 1], data[:, 2], data[:, 3]
+    q, F, dq, Fy= np.loadtxt(filename, skiprows=1).T
     fig, axes = plt.subplots(2, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
     # fig.set_size_inches(10, 5.5)
     axes[0].plot(q, Fy, zorder=2)
@@ -16,8 +15,8 @@ def graphBumpsResults(filename):
     axes[0].tick_params(axis='both', which='major', labelsize=10)
     axes[1].plot(q, (Fy-F)/dq)
     axes[1].plot(q, q*0, color='black')
-    # axes[0].set_ylabel('(f(q) - F) / dq', fontsize=10)
-    axes[0].set_xlabel('q (1/Å)', fontsize=10)
+    axes[1].set_ylabel('(f(q) - F) / dq', fontsize=10)
+    axes[1].set_xlabel('q (1/Å)', fontsize=10)
     fig.savefig(savefile(filename))
     plt.draw()
 

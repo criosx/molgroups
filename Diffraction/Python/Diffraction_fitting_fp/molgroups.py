@@ -298,7 +298,7 @@ class Box2Err(nSLDObj):
             return self.nSL
 
     # constant nSLD
-    def fnGetnSLD(self, dz, bulknsld = 0.):
+    def fnGetnSLD(self, dz, bulknsld=0):
         if bulknsld != 0:
             self.nsldbulk_store = bulknsld
         if self.vol != 0:
@@ -796,7 +796,7 @@ class BLM_quaternary(nSLDObj):
             self.groups[group].fnWritePar2File(fp, group, dimension, stepsize)
         self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
 
-class ssBLM_quaternary(BLM_quaternary):
+class child_ssBLM_quaternary(BLM_quaternary):
     def __init__(self):
         super().__init__()
         self.substrate  = Box2Err()
