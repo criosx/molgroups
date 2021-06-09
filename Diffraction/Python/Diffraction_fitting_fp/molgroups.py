@@ -711,7 +711,7 @@ class BLM_quaternary(nSLDObj):
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
-        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME->nf, tether->nf, tetherg->nf, lipid1->nf, headgroup1->nf, headgroup1_2->nf, headgroup1_3->nf, methyl1->nf, methyl2->nf, lipid2->nf, headgroup2->nf, headgroup2_2->nf, headgroup2_3->nf);
+        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf);
         
         # defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
@@ -773,7 +773,7 @@ class BLM_quaternary(nSLDObj):
         sum  = lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
         sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
         
-        # printf("%e \n", defect_headgroup->fnGetnSLD(dz));
+        # printf("%e \n", defect_headgroup.fnGetnSLD(dz));
         if sum==0:
             return 0
         else:
@@ -855,8 +855,6 @@ class BLM_quaternary(nSLDObj):
 ##---start of modfied code-----
 
 
-
-
 class ssBLM_quaternary(nSLDObj):
     def __init__(self):
 
@@ -907,7 +905,28 @@ class ssBLM_quaternary(nSLDObj):
         self.nslmethyllipid_3 = -9.15e-5
 
 
+        self.volchol = 630
+        self.nslchol = 1.3215e-4
 
+        self.headgroup1.vol = 330
+        self.headgroup1_2.vol = 330
+        self.headgroup1_3.vol = 330
+        self.headgroup2.vol = 330
+        self.headgroup2_2.vol = 330
+        self.headgroup2_3.vol = 330
+        self.headgroup1.nSL = 6.0012e-4
+        self.headgroup1_2.nSL = 6.0012e-4
+        self.headgroup1_3.nSL = 6.0012e-4
+        self.headgroup2.nSL = 6.0012e-4
+        self.headgroup2_2.nSL = 6.0012e-4
+        self.headgroup2_3.nSL = 6.0012e-4
+        self.headgroup1.l = 9.5
+        self.headgroup1_2.l = 9.5
+        self.headgroup1_3.l = 9.5
+        self.headgroup2.l = 9.5
+        self.headgroup2_2.l = 9.5
+        self.headgroup2_3.l = 9.5
+        
 
         self.hc_substitution_1=0
         self.hc_substitution_2=0
@@ -957,9 +976,13 @@ class ssBLM_quaternary(nSLDObj):
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0 
+        self.global_rough = 2.0
+        
         
         self.fnAdjustParameters()
 
+
+# is this necessary?
     def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3, lh3, vc, nc):
         self.volacyllipid = va1
         self.nslacyllipid = na1
@@ -995,7 +1018,7 @@ class ssBLM_quaternary(nSLDObj):
         self.headgroup2.l = lh1
         self.headgroup2_2.l = lh2
         self.headgroup2_3.l = lh3
-        
+       
         self.fnAdjustParameters()
 
 
@@ -1026,6 +1049,9 @@ class ssBLM_quaternary(nSLDObj):
         #def fnAdjustParameters(self):  
         #printf("Enter AdjustParameters \n");
 
+        self.substrate.fnSetSigma(self.global_rough)
+        self.siox.fnSetSigma(self.global_rough)
+        self.fnSetSigma(self.sigma)
 
        # outer hydrocarbons
         l_ohc = self.l_lipid2
@@ -1120,10 +1146,6 @@ class ssBLM_quaternary(nSLDObj):
     
     #set all lengths
         self.siox.z=self.substrate.l+0.5*self.siox.l
-        self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
-
-
-
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
@@ -1262,9 +1284,9 @@ class ssBLM_quaternary(nSLDObj):
     #printf("Exit fnSet \n");
 
     def fnSetSigma(self, sigma):
-        #self.substrate.sigma2=global_rough
-        #self.siox.sigma1=global_rough
-        #self.siox.sigma2=global_rough
+        self.substrate.sigma2=self.global_rough
+        self.siox.sigma1=self.global_rough
+        self.siox.sigma2=self.global_rough
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
@@ -1308,6 +1330,9 @@ class ssBLM_quaternary(nSLDObj):
         self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
         self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
         self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+
+
+
 
 
 
