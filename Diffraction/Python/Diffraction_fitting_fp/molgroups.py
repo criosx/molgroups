@@ -369,12 +369,20 @@ class PC(nSLDObj):
         self.choline.nf=1
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
+        self.ph_relative_pos = .5
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
         self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
         self.choline.z = self.z + 0.5*self.l - 0.5*self.choline.l
-        self.phosphate.z = (self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
+        z0 = self.cg.z-0.5*self.cg.l
+        z1 = self.choline.z+self.choline.l*0.5
+        self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
+    
+    def fnSet(self, l=9.575, ph_relative_pos=.5):
+        self.l = l
+        self.ph_relative_pos=ph_relative_pos
+        self.fnAdjustParameters()
     
     def fnGetLowerLimit(self):
         return self.cg.fnGetLowerLimit()
@@ -395,8 +403,7 @@ class PC(nSLDObj):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
         charea=self.choline.fnGetArea(dz)
-        sum=cgarea+pharea+charea
-    
+        sum = self.fnGetArea(dz)/self.nf
         if (sum == 0):
             return 0
         else:
@@ -432,11 +439,13 @@ class PCm(PC):
         self.choline.sigma2=2.02
         self.choline.sigma1=2.26
         self.fnAdjustParameters()
-
+        
     def fnAdjustParameters(self):
         self.cg.z = self.z + 0.5*self.l-0.5*self.cg.l
         self.choline.z = self.z - 0.5*self.l+0.5*self.choline.l
-        self.phosphate.z = (self.cg.z-0.5*self.cg.l+self.choline.z+self.choline.l*0.5)/2
+        z0 = self.choline.z-self.choline.l*0.5 
+        z1 = self.cg.z+0.5*self.cg.l
+        self.phosphate.z = z0 + (z1 - z0) * (1-self.ph_relative_pos)
 
     def fnGetLowerLimit(self):
         return self.choline.fnGetLowerLimit()
@@ -567,6 +576,7 @@ class BLM_quaternary(nSLDObj):
         
         self.fnAdjustParameters()
 
+
     def fnAdjustParameters(self):
         # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
@@ -677,12 +687,14 @@ class BLM_quaternary(nSLDObj):
         
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
+        self.headgroup1.fnAdjustParameters()
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
         self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
         self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
         self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
+        self.headgroup2.fnAdjustParameters()
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
         # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)

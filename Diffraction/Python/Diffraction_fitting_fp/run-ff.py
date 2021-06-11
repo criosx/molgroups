@@ -8,7 +8,7 @@ sys.path.append(".")
 import molgroups as mol
 
 # Define model function
-def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
+def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq, rel_pos):
     #TODO: Think about how to set those variables more conveniently
     maxarea = 100
     stepsize = 0.5
@@ -19,7 +19,11 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
     anSL  = np.zeros(dimension).tolist()
     anSLD = np.zeros(dimension).tolist()
 
-    bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer)
+    nf_lipid_2 = .1
+
+    bilayer.headgroup1.fnSet(lh1, rel_pos)
+    # bilayer.headgroup2.fnSet(lh1, rel_pos) 
+    bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer, nf_lipid_2)
     dMaxArea, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
 
     #TODO: speedup
@@ -51,11 +55,12 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
 
 # Load experimental data
 
-F2 = np.loadtxt("dopc.dat", delimiter=None, skiprows=1)
+# F2 = np.loadtxt("Experimental_form_factors/dopc.dat", skiprows=1)
+F2 = np.loadtxt("Experimental_form_factors/MAMcontrol.dat", skiprows=1)
 F2 = np.abs(F2)
 form_exp = F2[:,1]
 dform_exp = np.zeros(len(form_exp))
-#TODO: Talk to Stephanie about error bars
+#constant error bar estimate of .05 Å
 for i in range(len(form_exp)):
     dform_exp[i] = 0.05
 q_exp = F2[:,0]
@@ -70,32 +75,47 @@ vc, nc = 0, 0
 bilayer.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 
 bilayer2 = mol.BLM_quaternary()
-na1, nh1, nm1, va1, vm1, vh1, lh1 = 0.00760, 0.00461, 0.000468, 972.00, 98, 331.00, 9.56
-na2, nh2, nm2, va2, vm2, vh2, lh2 = 0, 0, 0, 0, 0, 0, 0
+na1, nh1, nm1, va1, vm1, vh1, lh1 = 7.2038E-03, 0.00461, 4.7211E-04, 925, 98.8, 331.00, 9.56
+na2, nh2, nm2, va2, vm2, vh2, lh2 = 6.1908e-3, 7.6286e-3, 4.7211E-04, 1025, 98.8, 500, 12.0
 na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
 vc, nc = 0, 0
 bilayer2.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 # Define variables
 #----------------------------------------------------------------------------------------
+# l_lipid = 11.6
+# vf_bilayer = 1.0
+# sigma = 2.0
+# bulknsld = 9.4114E-06
+# prefactor = 15000
+# dq = 0.
+# rel_pos = .5
+# Set up model
 l_lipid = 11.6
 vf_bilayer = 1.0
 sigma = 2.0
 bulknsld = 9.4114E-06
-prefactor = 17000
+prefactor = 80000
 dq = 0.
-
-# Set up model
+rel_pos = .5
 #----------------------------------------------------------------------------------------
 
-def choose_parameters():
-    M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq)
-    M1.l_lipid.range(9,13)
-    # M1.vf_bilayer.range(0.95,1.0)
-    M1.sigma.range(1.0, 4.0)
-    M1.bulknsld.range(9e-6,10e-6)
-    M1.prefactor.range(15000,40000)
-    M1.dq.range(-0.01, 0.01)
-    return M1
+M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos)
+M1.l_lipid.range(9,13)
+# M1.vf_bilayer.range(0.95,1.0)
+M1.sigma.range(1.0, 4.0)
+M1.bulknsld.range(9e-6,10e-6)
+M1.prefactor.range(10000,20000)
+M1.dq.range(-0.01, 0.01)
+# M1.rel_pos.range(0, 1)
 
-model = choose_parameters()
+M2 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid= l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos)
+M2.l_lipid.range(9,14)
+M2.vf_bilayer.range(0.7,1.0)
+M2.sigma.range(1.0, 4.0)
+M2.bulknsld.range(9e-6,10e-6)
+M2.prefactor.range(30000,1000000)
+M2.dq.range(-0.01, 0.01)
+# M1.rel_pos.range(0, 1)
+
+model = M2
 problem = FitProblem(model)
