@@ -1071,10 +1071,8 @@ class Hermite(object):
             dz1=temp 
         
         #check for boundaries
-        if (dz1<dp[0]):
-            dz1=dp[0] 
-        if (dz2>self.dp[-1]):
-            dz2=self.dp[-1] 
+        dz1 = max(dp[0], dz1)
+        dz2 = min(dz2, dp[-1])
         
         integral=0  
         d=dz1 

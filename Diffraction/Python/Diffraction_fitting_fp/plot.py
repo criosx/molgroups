@@ -23,13 +23,13 @@ def graphBumpsResults(filename):
     plt.draw()
 
 def getnSLD(anSL, aArea, dimension, stepsize):
-        anSLD = np.zeros(dimension)
-        for i in range(len(anSL)):
-            if anSL[i] == 0 or aArea[i] == 0:
-                anSLD[i] = 0
-            else:
-                anSLD[i] = anSL[i]/(aArea[i]*stepsize)
-        return anSLD
+    anSLD = np.zeros(dimension)
+    for i in range(len(anSL)):
+        if anSL[i] == 0 or aArea[i] == 0:
+            anSLD[i] = 0
+        else:
+            anSLD[i] = anSL[i]/(aArea[i]*stepsize)
+    return anSLD
 
 def graphBilayer(bilayer, dimension, stepsize, maxarea, bulknsld, show=False, savefile=None):
     dd, aArea, anSL = bilayer.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
