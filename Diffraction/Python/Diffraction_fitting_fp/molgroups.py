@@ -758,7 +758,10 @@ class BLM_quaternary(nSLDObj):
 
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
-        return self.headgroup1.fnGetLowerLimit()
+        a = self.headgroup1.fnGetLowerLimit()
+        b = self.headgroup1_2.fnGetLowerLimit()
+        c = self.headgroup1_3.fnGetLowerLimit()
+        return min([a, b, c])
         
     def fnGetUpperLimit(self):
         a = self.headgroup2.fnGetUpperLimit()

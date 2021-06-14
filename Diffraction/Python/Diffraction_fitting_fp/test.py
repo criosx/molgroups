@@ -30,6 +30,7 @@ na1, nh1, nm1, va1, vm1, vh1, lh1 = 7.2038E-03, 0.00461, 4.7211E-04, 925, 98.8, 
 na2, nh2, nm2, va2, vm2, vh2, lh2 = 6.1908e-3, 7.6286e-3, 4.7211E-04, 1025, 98.8, 500, 12.0
 na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
 vc, nc = 0, 0
+bilayer2.fnSet(sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, .1)
 bilayer2.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 
 plot.graphGroups(bilayer2, dimension, stepsize, maxarea, True)
