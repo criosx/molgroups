@@ -359,11 +359,8 @@ class PC(nSLDObj):
         self.phosphate.vol=54 
         self.choline.vol=120
         self.cg.nSL=3.7755e-4 
-        self.cg.nSL = 1.8854e-3
         self.phosphate.nSL=2.8350e-4 
-        self.phosphate.nSL = 1.3226e-3
         self.choline.nSL=-6.0930e-5
-        self.choline.nSL = 1.4070e-3
         self.cg.nf=1 
         self.phosphate.nf=1 
         self.choline.nf=1
@@ -379,7 +376,10 @@ class PC(nSLDObj):
         z1 = self.choline.z+self.choline.l*0.5
         self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
-    def fnSet(self, l=9.575, ph_relative_pos=.5):
+    def fnSet(self, l=9.575, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3, ph_relative_pos=.5):
+        self.cg.nSL = cg_nSL
+        self.choline.nSL = ch_nSL
+        self.phosphate.nSL = ph_nSL
         self.l = l
         self.ph_relative_pos=ph_relative_pos
         self.fnAdjustParameters()
