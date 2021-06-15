@@ -531,6 +531,7 @@ class BLM_quaternary(nSLDObj):
         self.normarea = 60.
         self.startz = 50.
         self.sigma = 2.
+        self.methyl_sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0
@@ -769,19 +770,19 @@ class BLM_quaternary(nSLDObj):
         c = self.headgroup2_3.fnGetUpperLimit()
         return max([a, b, c])
 
-    def fnSet(self, _sigma, _bulknsld, _startz, _l_lipid1, _l_lipid2, _vf_bilayer, _nf_lipid_2=0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0., _hc_substitution_2=0., _radius_defect=100.):
-        self.sigma = _sigma
-        self.bulknsld = _bulknsld
-        self.startz = _startz
-        self.l_lipid1 = _l_lipid1
-        self.l_lipid2 = _l_lipid2
-        self.vf_bilayer = _vf_bilayer
-        self.nf_lipid_2 = _nf_lipid_2
-        self.nf_lipid_3 = _nf_lipid_3
-        self.nf_chol = _nf_chol
-        self.hc_substitution_1 = _hc_substitution_1
-        self.hc_substitution_2 = _hc_substitution_2
-        self.radius_defect = _radius_defect
+    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0., hc_substitution_2=0., radius_defect=100.):
+        self.sigma = sigma
+        self.bulknsld = bulknsld
+        self.startz = startz
+        self.l_lipid1 = l_lipid1
+        self.l_lipid2 = l_lipid2
+        self.vf_bilayer = vf_bilayer
+        self.nf_lipid_2 = nf_lipid_2
+        self.nf_lipid_3 = nf_lipid_3
+        self.nf_chol = nf_chol
+        self.hc_substitution_1 = hc_substitution_1
+        self.hc_substitution_2 = hc_substitution_2
+        self.radius_defect = radius_defect
         
         self.fnAdjustParameters()
 
@@ -789,10 +790,10 @@ class BLM_quaternary(nSLDObj):
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
-        self.lipid1.fnSetSigma(sigma,sigma+2)
-        self.methyl1.fnSetSigma(sigma+2,sigma+2)
-        self.methyl2.fnSetSigma(sigma+2,sigma+2)
-        self.lipid2.fnSetSigma(sigma+2,sigma)
+        self.lipid1.fnSetSigma(sigma,sigma+self.methyl_sigma)
+        self.methyl1.fnSetSigma(sigma+self.methyl_sigma, sigma+self.methyl_sigma)
+        self.methyl2.fnSetSigma(sigma+self.methyl_sigma, sigma+self.methyl_sigma)
+        self.lipid2.fnSetSigma(sigma+self.methyl_sigma,sigma)
         self.headgroup2.fnSetSigma(sigma)
         self.headgroup2_2.fnSetSigma(sigma)
         self.headgroup2_3.fnSetSigma(sigma)

@@ -2,13 +2,19 @@ from bumps.names import *
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
-import scipy.fft
+import scipy.fft as fft
 import sys
 sys.path.append(".")
 import molgroups as mol
-
+# from bumps.fitters import fit
+# from bumps.formatnum import format_uncertainty
+# from bumps.mapper import MPMapper
+# from bumps import varplot
+# from bumps.stats import var_stats, format_vars, save_vars
+# from pylab import figure, savefig, suptitle, rcParams
+        
 # Define model function
-def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq, rel_pos, methyl_sigma):
+def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thickness, methyl_sigma):
     #TODO: Think about how to set those variables more conveniently
     maxarea = 100
     stepsize = 0.5
@@ -19,8 +25,9 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq, rel
     anSL  = np.zeros(dimension).tolist()
     anSLD = np.zeros(dimension).tolist()
 
-    bilayer.headgroup1.fnSet(lh1, rel_pos)
-    # bilayer.headgroup2.fnSet(lh1, rel_pos) 
+    bilayer.headgroup1.fnSet(hg_thickness, rel_pos)
+    bilayer.headgroup2.fnSet(hg_thickness, rel_pos) 
+    bilayer.methyl_sigma = methyl_sigma
     bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer)
     dMaxArea, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
 
@@ -42,7 +49,7 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq, rel
 
     #TODO: Make sure that lq and x are roughly comparable
     dct_dimension = 5000
-    F = scipy.fft.dct(half_bilayer, n=dct_dimension)
+    F = fft.dct(half_bilayer, n=dct_dimension)
     F = np.abs(F)
     x = np.array([np.pi/(2*dct_dimension*stepsize)*(2*i)+dq  for i in range(int(dct_dimension))])
 
@@ -69,7 +76,7 @@ na1, nh1, nm1, va1, vm1, vh1, lh1 = 0.00760, 0.00461, 0.000468, 972.00, 98, 331.
 na2, nh2, nm2, va2, vm2, vh2, lh2 = 0, 0, 0, 0, 0, 0, 0
 na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
 vc, nc = 0, 0
-bilayer.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
+bilayer.fnInit(va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 
 
 # Define variables
@@ -84,14 +91,24 @@ rel_pos = .5
 methyl_sigma = 2
 #----------------------------------------------------------------------------------------
 
-M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, methyl_sigma= methyl_sigma)
+M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, hg_thickness=lh1, methyl_sigma= methyl_sigma)
 M1.l_lipid.range(9,13)
-# M1.vf_bilayer.range(0.95,1.0)
 M1.sigma.range(1.0, 4.0)
 M1.bulknsld.range(9e-6,10e-6)
-M1.prefactor.range(10000,20000)
-M1.dq.range(-0.01, 0.01)
-# M1.rel_pos.range(0, 1)
+M1.prefactor.range(5000,30000)
+M1.dq.range(-0.02, 0.02)
+M1.hg_thickness.range(8,14)
+M1.rel_pos.range(0, 1)
+M1.methyl_sigma.range(0, 4)
 
 model = M1
 problem = FitProblem(model)
+# # mapper = MPMapper.start_mapper(problem, None, cpus=0)
+# result = fit(problem, method='dream', samples=10, burn=10, steps=10, thin=1, alpha=0, outliers='none', trim = 'none')
+# draw = result.state.draw(portion=1)
+# all_vstats = var_stats(draw)
+# figure(figsize=varplot.var_plot_size(len(all_vstats)))
+# varplot.plot_vars(draw, all_vstats, nbins=nbins)
+# print("final chisq", problem.chisq_str())
+# for k, v, dv in zip(problem.labels(), result.x, result.dx):
+#     print(k, ":", format_uncertainty(v, dv))

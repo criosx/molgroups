@@ -53,7 +53,7 @@ def graphBilayer(bilayer, dimension, stepsize, maxarea, bulknsld, show=False, sa
 
     axes[1].plot(x, aArea)
     axes[1].legend(['Area'])
-    axes[1].set_ylabel('Area (Å^2')
+    axes[1].set_ylabel('Area (Å^2)')
     axes[1].set_xlabel('z (Å)')
     axes[1].tick_params(axis='both', which='major')
 
