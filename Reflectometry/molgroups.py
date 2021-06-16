@@ -1423,12 +1423,11 @@ class tBLM_quaternary(nSLDObj):
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0 
         self.global_rough = 2.0
-        self.l_submembrane = 10.
         self.nf_tether = 0.6
-        self.nf_ihc_tether = 0.6
+        #self.nf_ihc_tether = 0.6
         self.l_tether = 3
         self.mult_tether = 5
-        self.nf_ihc_tether = 0.3
+        #self.nf_ihc_tether = 0.3
         self.substrate.l = 20
         self.substrate.z = 10
         self.substrate.nf = 1
@@ -1559,7 +1558,7 @@ class tBLM_quaternary(nSLDObj):
         # inner hydrocarbons
         l_ihc = self.l_lipid1
         nf_ihc_tether= self.nf_tether
-        nf_ihc_lipid=(1-self.nf_ihc_tether)*nf_ohc_lipid
+        nf_ihc_lipid=(1-nf_ihc_tether)*nf_ohc_lipid
         nf_ihc_lipid_2 = nf_ohc_lipid_2
         nf_ihc_lipid_3 = nf_ohc_lipid_3
         nf_ihc_chol = nf_ohc_chol
@@ -1584,7 +1583,7 @@ class tBLM_quaternary(nSLDObj):
         nf_im_lipid = nf_ihc_lipid
         nf_im_lipid_2 = nf_ihc_lipid_2
         nf_im_lipid_3 = nf_ihc_lipid_3
-        nf_im_tether = self.nf_ihc_tether
+        nf_im_tether = nf_ihc_tether
         V_im = nf_im_lipid * self.volmethyllipid + nf_im_lipid_2 * self.volmethyllipid_2 + nf_im_lipid_3 * self.volmethyllipid_3 + nf_im_tether*self.volmethyltether
         l_im = l_ihc * V_im / V_ihc
         nSL_im= nf_im_lipid*self.nslmethyllipid+nf_im_lipid_2*self.nslmethyllipid_2+nf_im_lipid_3*self.nslmethyllipid_3+ nf_im_tether*self.nslmethyltether
@@ -1616,7 +1615,7 @@ class tBLM_quaternary(nSLDObj):
     
         c_s_tg=c_s_ihc
         c_A_tg=c_A_ihc
-        c_V_tg=self.nf_ihc_tether*(1-self.hc_substitution_2)
+        c_V_tg=nf_ihc_tether*(1-self.hc_substitution_2)
     
         self.tetherg.l=self.tetherg.vol/((self.volacyltether-self.volmethyltether)/self.lipid1.l)/0.9
         self.tetherg.nf=c_s_tg*c_A_tg*c_V_tg
@@ -1628,8 +1627,7 @@ class tBLM_quaternary(nSLDObj):
     
         c_s_EO=c_s_ihc
         c_A_EO=c_A_ihc
-        c_V_EO=self.nf_ihc_tether*(1-self.hc_substitution_2)
-    
+        c_V_EO=nf_ihc_tether*(1-self.hc_substitution_2)
         self.tether.nf=c_s_EO*c_A_EO*c_V_EO
         self.tether.l=l_EO
     
@@ -1637,13 +1635,13 @@ class tBLM_quaternary(nSLDObj):
             self.tether.l=(self.tether.nf*self.tether.vol)/self.normarea
             #self.l_tether=self.tether.l
     
-        l_tether= self.tether.l
+        self.l_tether= self.tether.l
         
         #bME
         self.bME.l=5.2
-        self.l_bME= self.bME.l
+        l_bME= self.bME.l
         self.headgroup1.l=9.575
-        self.V_bME= self.bME.vol
+        V_bME= self.bME.vol
     
     
         d1= self.headgroup1.l+ self.bME.l- self.tether.l- self.tetherg.l
@@ -1654,11 +1652,12 @@ class tBLM_quaternary(nSLDObj):
     
         # look into if statements here ----
         if (( self.tether.nf* self.tether.vol/ self.tether.l+ self.mult_tether*self.tether.nf*self.bME.vol/self.bME.l)>self.normarea):
-		        self.mult_tether=((self.normarea-self.tether.nf*self.tether.vol/self.tether.l)/(self.bME.vol/self.bME.l))/self.tether.nf
-        elif (self.mult_tether<0):
-			        self.mult_tether=0
-		
-    
+            #print(self.tether.nf, self.tether.vol, self.tether.l, self.mult_tether, self.bME.vol, self.bME.l)
+            self.mult_tether=((self.normarea-self.tether.nf*self.tether.vol/self.tether.l)/(self.bME.vol/self.bME.l))/self.tether.nf
+            if (self.mult_tether<0):
+                self.mult_tether=0
+
+
     
         self.bME.nf=self.tether.nf*self.mult_tether #2.333
     
@@ -1789,13 +1788,14 @@ class tBLM_quaternary(nSLDObj):
         return max([a, b, c])
 
 
-    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_lipid1, _l_lipid2, _vf_bilayer, _nf_lipid_2 = 0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0., _hc_substitution_2=0., _radius_defect=100.):
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_tether, _l_lipid1, _l_lipid2, _vf_bilayer, _nf_lipid_2 = 0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0., _hc_substitution_2=0., _radius_defect=100.):
         self.sigma = _sigma
         self.bulknsld = _bulknsld
         self.global_rough= _global_rough
         self.rho_substrate=_rho_substrate
         self.nf_tether=_nf_tether
         self.mult_tether=_mult_tether
+        self.l_tether = _l_tether
         self.l_lipid1 = _l_lipid1
         self.l_lipid2 = _l_lipid2
         self.vf_bilayer = _vf_bilayer
@@ -1816,6 +1816,7 @@ class tBLM_quaternary(nSLDObj):
         self.bME.sigma2=self.global_rough
         self.tether.sigma1=self.global_rough 
         self.tether.sigma2=sigma
+        self.tetherg.fnSetSigma(sigma)
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
