@@ -8,7 +8,7 @@ sys.path.append(".")
 import molgroups as mol
 
 # Define model function
-def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thickness, hg2_thickness, methyl_sigma):
+def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg1_thickness, hg2_thickness, methyl_sigma):
     #TODO: Think about how to set those variables more conveniently
     maxarea = 100
     stepsize = 0.5
@@ -21,8 +21,8 @@ def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thi
 
     nf_lipid_2 = .1
 
-    bilayer.headgroup1.fnSet(hg_thickness, rel_pos)
-    bilayer.headgroup2.fnSet(hg_thickness, rel_pos)
+    bilayer.headgroup1.fnSet(hg1_thickness, rel_pos)
+    bilayer.headgroup2.fnSet(hg1_thickness, rel_pos)
     bilayer.headgroup2_2.l = bilayer.headgroup1_2.l = hg2_thickness
     bilayer.methyl_sigma = methyl_sigma
     bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer, nf_lipid_2)
@@ -70,32 +70,32 @@ q_exp = F2[:,0]
 # Initialize bilayer model
 #-----------------------------------------------------------------------------------------
 bilayer = mol.BLM_quaternary()
-na1, nh1, nm1, va1, vm1, vh1, lh1 = 7.2038E-03, 0.00461, 4.7211E-04, 925, 98.8, 331.00, 9.56
-na2, nh2, nm2, va2, vm2, vh2, lh2 = 6.9787e-3, 7.7948e-3, 4.7211E-04, 1025, 98.8, 500, 12.0
+na1, nh1, nm1, va1, vm1, vh1, lh1 = 7.204E-03, 4.615E-03, 5.065E-04, 925, 98.8, 331.00, 9.56
+na2, nh2, nm2, va2, vm2, vh2, lh2 = 7.204E-03, 7.851E-03, 5.065E-04, 925, 98.8, 500, 12.0
 na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
 vc, nc = 0, 0
 bilayer.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 # Define variables
 #----------------------------------------------------------------------------------------
 # Set up model
-l_lipid = 12
+l_lipid = 11
 vf_bilayer = 1.0
 sigma = 2.0
 bulknsld = 9.4114E-06
-prefactor = 80000
+prefactor = 180000
 dq = 0.
 rel_pos = .5
-methyl_sigma = 2
+methyl_sigma = .1
 #----------------------------------------------------------------------------------------
 
-M2 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, hg_thickness = lh1, hg2_thickness=lh2, methyl_sigma=methyl_sigma)
+M2 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, hg1_thickness = lh1, hg2_thickness=lh2, methyl_sigma=methyl_sigma)
 M2.l_lipid.range(9,15)
 M2.sigma.range(1.0, 4.0)
-M2.bulknsld.range(9e-6,10e-6)
-M2.prefactor.range(30000,1000000)
+M2.bulknsld.range(9E-6,10E-6)
+M2.prefactor.range(1E5,3E5)
 M2.dq.range(-0.02, 0.02)
-M2.hg_thickness.range(8,12)
-M2.hg2_thickness.range(8,15)
+M2.hg1_thickness.range(8,13)
+M2.hg2_thickness.range(10,17)
 M2.rel_pos.range(0, 1)
 M2.methyl_sigma.range(0, 4)
 

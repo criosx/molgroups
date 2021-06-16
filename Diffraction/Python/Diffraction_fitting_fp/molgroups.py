@@ -151,10 +151,10 @@ class nSLDObj():
         while d<=dUpperLimit:
             i = int(d/stepsize)
             dprefactor=1
-            if (i<0) and self.bWrapping:
-                i = -1 * i
-            if (i==0) and self.bWrapping:
-                dprefactor = 2                                            #avoid too low filling when mirroring
+            if self.bWrapping:
+                i = abs(i)
+                if i == 0:
+                    dprefactor = 2                                            #avoid too low filling when mirroring
             if (i>=0) and (i<dimension):
                 dAreaInc = self.fnGetConvolutedArea(d)
                 aArea[i] = aArea[i] + dAreaInc * dprefactor
@@ -176,10 +176,10 @@ class nSLDObj():
             i = int(d / stepsize)
             dprefactor = 1
             # printf("Here we are %i, dimension %i \n", i, dimension)
-            if (i<0) and self.bWrapping:
-                i = -1 * i
-            if (i == 0) and self.bWrapping:
-                dprefactor = 2                                            #avoid too low filling when mirroring
+            if self.bWrapping:
+                i = abs(i)
+                if i == 0:
+                    dprefactor = 2                                            #avoid too low filling when mirroring
             if 0 <= i < dimension:
                 # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                 dAreaInc = self.fnGetConvolutedArea(d)
@@ -202,10 +202,10 @@ class nSLDObj():
         while d<=dUpperLimit:
             i = int(d / stepsize)
             dprefactor = 1
-            if (i < 0) and self.bWrapping:
-                i=-1*i
-            if (i == 0) and self.bWrapping:
-                dprefactor = 2                                           #avoid too low filling when mirroring
+            if self.bWrapping:
+                i = abs(i)
+                if i == 0:
+                    dprefactor = 2                                           #avoid too low filling when mirroring
             if (i >= 0) and i<dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 temparea = dAreaInc * dprefactor + aArea[i]
@@ -234,10 +234,10 @@ class nSLDObj():
             i = int(d/stepsize)
             dprefactor = 1
             # printf("Here we are %i, dimension %i, maxarea %f \n", i, dimension, dMaxArea)
-            if i < 0 and self.bWrapping:
-                i = -1 * i
-            if i == 0 and self.bWrapping:
-                dprefactor = 2                                                   #avoid too low filling when mirroring
+            if self.bWrapping:
+                i = abs(i)
+                if i == 0:
+                    dprefactor = 2                                                   #avoid too low filling when mirroring
             if 0 <= i < dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 temparea = dAreaInc * dprefactor+aArea[i]
@@ -325,9 +325,7 @@ class Box2Err(nSLDObj):
 
     def fnSetSigma(self, sigma1, sigma2=0.):
         self.sigma1 = sigma1
-        if sigma2 == 0:
-            sigma2 = sigma1
-        self.sigma2 = sigma2
+        self.sigma2 = sigma1 if sigma2 == 0 else sigma2
 
     def fnSetZ(self, dz):
         self.z = dz
@@ -376,7 +374,7 @@ class PC(nSLDObj):
         z1 = self.choline.z+self.choline.l*0.5
         self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
-    def fnSet(self, l=9.575, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3, ph_relative_pos=.5):
+    def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
         self.cg.nSL = cg_nSL
         self.choline.nSL = ch_nSL
         self.phosphate.nSL = ph_nSL
@@ -582,24 +580,18 @@ class BLM_quaternary(nSLDObj):
         # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
         
-        if self.l_lipid1 <= 0:
-            self.l_lipid1 = 0.01
-        if self.l_lipid2 <= 0:
-            self.l_lipid2 = 0.01
-        if self.nf_lipid_2 < 0:
-            self.nf_lipid_2 = 0
-        if self.nf_lipid_3 < 0:
-            self.nf_lipid_3 = 0
-        if self.nf_chol < 0:
-            self.nf_chol = 0
-        if self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol > 1:
-            self.nf_lipid_2 = self.nf_lipid_2 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-            self.nf_lipid_3 = self.nf_lipid_3 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-            self.nf_chol = self.nf_chol / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-        if self.vf_bilayer <= 0:
-            self.vf_bilayer = 1e-5
-        if self.vf_bilayer > 1:
-            self.vf_bilayer = 1
+        self.l_lipid1 = max(self.l_lipid1, 0.01)
+        self.l_lipid2 = max(self.l_lipid2, 0.01)
+        self.nf_lipid_2 = max(self.nf_lipid_2, 0)
+        self.nf_lipid_3 = max(self.nf_lipid_3, 0)
+        self.nf_chol = max(self.nf_chol, 0)
+        sum = self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol
+        if sum > 1: #modified so these are all divided by the same thing
+            self.nf_lipid_2 = self.nf_lipid_2 / sum
+            self.nf_lipid_3 = self.nf_lipid_3 / sum
+            self.nf_chol = self.nf_chol / sum
+        self.vf_bilayer = max(self.vf_bilayer, 1E-5)
+        self.vf_bilayer = min(self.vf_bilayer, 1)
         
         # outer hydrocarbons
         l_ohc = self.l_lipid2
