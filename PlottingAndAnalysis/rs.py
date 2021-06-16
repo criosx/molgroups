@@ -13,9 +13,11 @@ from shutil import rmtree
 from sys import argv, exit
 from subprocess import call, Popen
 from time import time, gmtime, sleep, ctime
+from bumps.dream.stats import parse_var
 import zipfile
 import numpy
 import pandas
+import re
 
 
 class CDataInteractor():
@@ -232,15 +234,53 @@ class CBumpsInteractor(CDataInteractor):
     def __init__(self):
         super().__init__()
 
-    def fnLoadMCMCResults(self, dirname='./', runfile='run'):
+        # patterns to extract parmeter information from .err results files
+        self.VAR_PATTERN1 = re.compile(r"""
+            ^.(?P<parname>.+?)\ =\ 
+            (?P<best>[0-9.eE+-]+?)\ in\ \[           
+            (?P<lowbound>[0-9.eE+-]+?),
+            (?P<highbound>[0-9.eE+-]+?)\]
+            .*?
+            $""", re.VERBOSE)
+
+        self.VAR_PATTERN2 = re.compile(r"""
+           ^\ *
+           (?P<parnum>[0-9]+)\ +
+           (?P<parname>.+?)\ +
+           (?P<mean>[0-9.-]+?)
+           \((?P<err>[0-9]+)\)
+           (e(?P<exp>[+-]?[0-9]+))?\ +
+           (?P<median>[0-9.eE+-]+?)\ +
+           (?P<best>[0-9.eE+-]+?)\ +
+           \[\ *(?P<lo68>[0-9.eE+-]+?)\ +
+           (?P<hi68>[0-9.eE+-]+?)\]\ +
+           \[\ *(?P<lo95>[0-9.eE+-]+?)\ +
+           (?P<hi95>[0-9.eE+-]+?)\]
+           \ *$
+           """, re.VERBOSE)
+
+        self.VAR_PATTERN_CHISQ = re.compile(r"""
+            ^\[chisq= 
+            (?P<value>[0-9.eE+-]+?)\(
+            .*?
+            $""", re.VERBOSE)
+
+        self.VAR_PATTERN_OVERALLCHISQ = re.compile(r"""
+            ^\[overall\ chisq= 
+            (?P<value>[0-9.eE+-]+?)\(
+            .*?
+            $""", re.VERBOSE)
+
+
+    def fnLoadMCMCResults(self, sPath='./', runfile='run'):
 
         import bumps.dream.state
 
-        state = bumps.dream.state.load_state(dirname + '/' + runfile)
+        state = bumps.dream.state.load_state(sPath + '/' + runfile)
         state.mark_outliers()  # ignore outlier chains
 
         # load Parameter
-        data = self.fnLoadSingleColumns(dirname + '/' + runfile + '.par', header=False, headerline=['parname', 'bestfitvalue'])
+        data = self.fnLoadSingleColumns(sPath + '/' + runfile + '.par', header=False, headerline=['parname', 'bestfitvalue'])
         lParName = []
         vars = []
         i = 0
@@ -258,9 +298,71 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
 
-    def fnLoadStatData(self, dSparse=0, dirname='./', runfile='run', rescale_small_numbers=True, skip_entries=[]):
+    def fnLoadParameters(self, spath='./', runfile=''):
 
-        points, lParName, logp = self.fnLoadMCMCResults(dirname, runfile)
+        def parse_var(line):
+            """
+            Parse a line returned by format_vars back into the statistics for the
+            variable on that line.
+            """
+
+            m1 = self.VAR_PATTERN1.match(line)
+            m2 = self.VAR_PATTERN2.match(line)
+            results = None
+            if m2:
+                exp = int(m2.group('exp')) if m2.group('exp') else 0
+                results = {'index': int(m2.group('parnum')), 'name': m2.group('parname'),
+                           'mean': float(m2.group('mean')) * 10 ** exp, 'median': float(m2.group('median')),
+                           'best': float(m2.group('best')), 'p68': (float(m2.group('lo68')), float(m2.group('hi68'))),
+                           'p95': (float(m2.group('lo95')), float(m2.group('hi95')))}
+            elif m1:
+                results = {'index': int(m1.group('parnum')), 'name': m1.group('parname'),
+                           'best': float(m1.group('best')),
+                           'bounds': (float(m1.group('lowbound')), float(m1.group('highbound')))}
+
+            return results
+
+        # this code is from bumps.util parse_errfile with modifications
+        diParameters = {}
+        chisq = []          # not used here
+        overall = None
+        filename = spath + '/' + runfile + '.err'
+        with open(filename) as fid:
+            for line in fid:
+                if line.startswith("[overall"):
+                    m = self.VAR_PATTERN_OVERALLCHISQ.match(line)
+                    overall = float(m.group('value'))
+                    continue
+
+                if line.startswith("[chisq"):
+                    m = self.VAR_PATTERN_CHISQ.match(line)
+                    chisq.append(float(m.group('value')))
+                    continue
+
+                p = parse_var(line)
+                if p is not None:
+                    parametername = p['name']
+                    if parametername not in diParameters:
+                        diParameters[parametername] = {}
+                    if 'bounds' in p:
+                        diParameters[parametername]['lowerlimit'] = p['bounds'][0]
+                        diParameters[parametername]['upperlimit'] = p['bounds'][1]
+                        diParameters[parametername]['value'] = p['best']
+                        diParameters[parametername]['relval'] = (p['best'] - p['bounds'][0]) / \
+                                                                (p['bounds'][1] - p['bounds'][0])
+                        diParameters[parametername]['variable'] = p['name']
+                    else:
+                        diParameters[parametername]['number'] = p['index']
+                        diParameters[parametername]['error'] = (p['p68'][1] - p['p68'][0])/2
+
+        if overall is None:
+            overall = chisq[0]
+
+        return diParameters, overall
+
+    def fnLoadStatData(self, dSparse=0, sPath='./', runfile='run', rescale_small_numbers=True, skip_entries=[]):
+
+        points, lParName, logp = self.fnLoadMCMCResults(sPath, runfile)
 
         diStatRawData = {'Parameters': {}}
         diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
@@ -288,25 +390,135 @@ class CGaReflInteractor(CDataInteractor):
     def __init__(self):
         super().__init__()
 
-    def fnLoadStatData(self, dSparse=0, dirname='./', runfile='setup.cc'):
+    def fnLoadParameters(self, spath='./', runfile='run'):
+
+        filename = spath + runfile
+        diParameters = {}
+
+        # check wether an existing MCMC exists
+        if path.isfile(spath + '/run.par'):
+            print('Found ' + spath + '/run.par \n')
+            print('Using MCMC best-fit parameters ...')
+            File = open(spath + '/run.par')
+            data = File.readlines()
+            File.close()
+            tParValues = []
+            for line in data:
+                tParValues.append(float(line.split()[-1]))
+            chisq = 0  # for the moment I cannot import chisq
+        elif zipfile.is_zipfile(spath):  # unpack from zip-file
+            File = zipfile.ZipFile(spath, 'r')
+            File.extractall(path.dirname(spath))
+            File.close()
+            spath2 = path.dirname(spath)
+            if spath2 == '':
+                spath2 = '.'
+            File = open(spath2 + '/' + path.basename(spath)[:-4] + '/run.par')
+            data = File.readlines()
+            File.close()
+            tParValues = []
+            for line in data:
+                tParValues.append(float(line.split()[-1]))
+            chisq = 0  # for the moment I cannot import chisq
+            rmtree(spath2 + '/' + path.basename(spath)[:-4])
+            if path.isdir(spath2 + '/__MACOSX'):
+                rmtree(spath2 + '/__MACOSX')
+        else:
+            if path.isfile('par.dat'):
+                file = open('par.dat')
+                data = file.readlines()
+                file.close()
+            else:
+                print('--------------------------------------')
+                print('No par.dat found - Initializing fit.')
+                print('--------------------------------------')
+                self.fnMake()
+                pr = Popen(["nice", "./fit", "-S", "-n", "1"])  # initial genetic run
+                pr.wait()
+                if path.isfile('par.dat'):
+                    file = open('par.dat')
+                    data = file.readlines()
+                    file.close()
+                else:
+                    print('--------------------------------------')
+                    print('Could not start up fit.')
+                    print('--------------------------------------')
+                    raise RuntimeError('Could not start up fit.')
+            while data[-1][0] == '#':  # delete comments in last lines
+                data = data[:-1]
+            tParValues = (data[-1]).split()[2:]  # best fit values from last row
+            chisq = float((data[-1]).split()[1])  # chi squared from second column last row
+
+        File = open(filename)
+        setupdata = File.readlines()
+        File.close()
+        # reminder .+? match all character
+        smatch = compile(r'pars_add\(pars.*?\"(.+?)\"\s*,.+?\((.+?)\)\s*,(.+?),(.+?)\)', IGNORECASE | VERBOSE)
+        smatch2 = compile(r'\s*//', IGNORECASE | VERBOSE)
+        for i in range(len(tParValues)):  # iterate over read parameters
+            for j in range(len(setupdata)):  # scan setup.c for the first parameter
+                setupline = setupdata[j]  # initialization and fetch that name
+                if smatch.search(setupline) and (not smatch2.match(setupline)):  # plus its fit ranges
+                    sParName = smatch.search(setupline).group(1)
+                    sVarName = smatch.search(setupline).group(2)
+                    flowerlimit = float(smatch.search(setupline).group(3))
+                    fupperlimit = float(smatch.search(setupline).group(4))
+                    del setupdata[j]  # delete the line where parameter found
+                    break
+            else:
+                print('--------------------------------------')
+                print('Parameters do not match in setup and parameter file ')  # no parameter in setup.c left!
+                print('--------------------------------------')
+                raise RuntimeError('Mismatch between setup file and par.dat.')
+            if sParName in diParameters:
+                print('--------------------------------------')
+                print('The parameter %s is defined twice in the garefl setup file.' % sParName)
+                print('This is not supported by rs.py.')
+                print('--------------------------------------')
+                raise RuntimeError('Doubled parameter in setup file.')
+            ipar = int(i)  # parameter number
+            frelval = float(tParValues[i])  # relative par value is stored in file
+            fvalue = (fupperlimit - flowerlimit) * frelval + flowerlimit  # calculate absolute par value
+            diParameters[sParName] = {'number': ipar, 'variable': sVarName, 'lowerlimit': flowerlimit,
+                                      'upperlimit': fupperlimit, 'relval': frelval, 'value': fvalue}
+
+        # There was a time when all parameters were given as relative numbers between the bounds
+        # This tests if any parameter is out of bounds to determine whether we have relative or
+        # absolute parameter values
+        bAbsoluteParameters = False
+        for sParName in list(diParameters.keys()):
+            if diParameters[sParName]['relval'] > 1:
+                bAbsoluteParameters = True
+        if bAbsoluteParameters:
+            for sParName in list(diParameters.keys()):
+                diParameters[sParName]['value'] = diParameters[sParName]['relval']
+                diParameters[sParName]['relval'] = (diParameters[sParName]['value'] -
+                                                    diParameters[sParName]['lowerlimit']) / \
+                                                   (diParameters[sParName]['upperlimit'] -
+                                                    diParameters[sParName]['lowerlimit'])
+
+        return diParameters, chisq
+
+    def fnLoadStatData(self, dSparse=0, spath='./', runfile='setup.cc'):
 
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
         liStatResult = []
-        sFileName = dirname+'isErr.dat'
+
+        sFileName = spath + 'isErr.dat'
 
         try:
-            if path.isfile(dirname+'isErr.dat') and path.isfile(dirname+'sErr.dat'):
+            if path.isfile(spath+'isErr.dat') and path.isfile(spath+'sErr.dat'):
                 print('-------------------------------')
                 print('Found isErr.dat and sErr.dat ?!')
                 print('Load isErr.dat as default.')
                 print('-------------------------------')
-            elif path.isfile(dirname+'isErr.dat'):  # check which type of MC output present
+            elif path.isfile(sPath+'isErr.dat'):  # check which type of MC output present
                 print('Found isErr.dat\n')
-            elif path.isfile(dirname+'sErr.dat'):
+            elif path.isfile(spath+'sErr.dat'):
                 print('Found sErr.dat\n')
-                sFileName = dirname+'sErr.dat'
+                sFileName = spath+'sErr.dat'
 
             diStatRawData = {'Parameters': self.fnLoadSingleColumnsIntoStatDict(sFileName, sparse=dSparse)}
             return diStatRawData
@@ -314,6 +526,13 @@ class CGaReflInteractor(CDataInteractor):
         except IOError:
             print('Could not load ' + sFileName + '. \n')
             exit(1)
+
+    def fnMake(self, dirname='.'):
+        # make setup.c and print sys output
+        call(["rm", "-f", dirname + "/setup.o"])
+        call(["sync"])  # synchronize file system
+        sleep(1)  # wait for system to clean up
+        call(['make', '-C', dirname])
 
 
 # Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
@@ -325,9 +544,19 @@ class CRefl1DInteractor(CBumpsInteractor):
     def __init__(self):
         super().__init__()
 
+        # patterns to extract parmeter information from .err results files
+        self.VAR_PATTERN1 = re.compile(r"""
+            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
+            (?P<best>[0-9.eE+-]+?),\ name='
+            (?P<parname>.+?)',\ bounds=\(
+            (?P<lowbound>[0-9.eE+-]+?),
+            (?P<highbound>[0-9.eE+-]+?)\)
+            .*?
+            $""", re.VERBOSE)
+
 
 class CMolStat:
-    def __init__(self, fitsource='refl1d'):
+    def __init__(self, fitsource='refl1d', resultspath='./', runfile='run'):
         """
 
         """
@@ -335,13 +564,13 @@ class CMolStat:
         # Dictionary with all the parameters
         # self.diParameters data structure:
         # dictionary: sparameter : dictionary
-        #                          'number'    : int                                # order of initialization in ga_refl
-        #                          'lowerlimit'  : float                            # constraint range lower limit
-        #                          'upperlimit'  : float                            # constraint range upper limit
-        #                          'value'  : float                                 # absolute value
-        #                          'error'  : float                                 # error derived from covariance matrix
-        #                          'relval' : float                                 # relative data value between 0 and 1 in terms of the constraints
-        #                          'variable: string                                # associated ga_refl variable
+        #                          'number'    : int       # order of initialization in ga_refl
+        #                          'lowerlimit'  : float   # constraint range lower limit
+        #                          'upperlimit'  : float   # constraint range upper limit
+        #                          'value'  : float        # absolute value
+        #                          'error'  : float        # error derived from covariance matrix
+        #                          'relval' : float        # relative value between 0 and 1 in terms of the constraints
+        #                          'variable: string       # associated ga_refl variable
         self.diMolgroups = {}
         self.diStatResults = {}
         # dictionary of statistical results for various routines
@@ -367,6 +596,9 @@ class CMolStat:
         #                                                               'property2' value}}
 
         self.fitsource = fitsource                  # define fitting software
+        self.path = resultspath
+        self.runfile = runfile
+
         self.liStatResult = []                      # a list that contains the isErr.dat or sErr.dat file line by line
         self.sStatResultHeader = ''                 # headerline from isErr.dat or sErr.dat
         self.sStatFileName = ''                     # Name of the statistical File
@@ -375,28 +607,20 @@ class CMolStat:
         self.iMolgroupsDimension = 0
         self.fMolgroupsNormArea = 0
         # check for system and type of setup file
-        if path.exists("setup.c"):
-            self.setupfilename = "setup.c"
-        else:
-            self.setupfilename = "setup.cc"
 
         if self.fitsource == 'bumps':
             self.Interactor = CBumpsInteractor()
         elif self.fitsource == 'refl1d':
-            self.Interactor = CGaReflInteractor()
+            self.Interactor = CRefl1DInteractor()
         elif self.fitsource == 'garefl':
             self.Interactor = CGaReflInteractor()
         else:
             self.Interactor = CBumpsInteractor()
 
-        self.sPath = './'
+    def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
-    # -------------------------------------------------------------------------------
-
-    def fnAnalyzeStatFile(self, fConfidence, sparse=0):  # summarizes stat file
-
-        self.fnLoadStatData(sparse)  # Load data from file into list
-        self.fnLoadParameters()  # Load Parameters for limits
+        self.fnLoadStatData(sparse)                     # Load data from file into list
+        self.fnLoadParameters()                         # Load Parameters for limits
 
         if fConfidence > 1:
             fConfidence = 1
@@ -1652,9 +1876,9 @@ class CMolStat:
             if i >= len(data):
                 break
 
-            # -------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
-    def fnLoadParameters(self, sPath='./'):
+    def fnLoadParameters(self):
         # loads the last row's parameters, and
         # ranges from par.dat and stores them into
         # self.diParameters; parameter names are
@@ -1666,125 +1890,20 @@ class CMolStat:
         # and check vs. active fit parameters
         # load them into self.molgroups dictionary
         self.diParameters = {}
-
-        # check wether an existing MCMC exists
-        if path.isfile(sPath + '/run.par'):
-            print('Found ' + sPath + '/run.par \n')
-            print('Using MCMC best-fit parameters ...')
-            File = open(sPath + '/run.par')
-            data = File.readlines()
-            File.close()
-            tParValues = []
-            for line in data:
-                tParValues.append(float(line.split()[-1]))
-            self.chisq = 0  # for the moment I cannot import chisq
-
-        elif zipfile.is_zipfile(sPath):  # unpack from zip-file
-            File = zipfile.ZipFile(sPath, 'r')
-            File.extractall(path.dirname(sPath))
-            File.close()
-            sPath2 = path.dirname(sPath)
-            if sPath2 == '':
-                sPath2 = '.'
-            File = open(sPath2 + '/' + path.basename(sPath)[:-4] + '/run.par')
-            data = File.readlines()
-            File.close()
-            tParValues = []
-            for line in data:
-                tParValues.append(float(line.split()[-1]))
-            self.chisq = 0  # for the moment I cannot import chisq
-            rmtree(sPath2 + '/' + path.basename(sPath)[:-4])
-            if path.isdir(sPath2 + '/__MACOSX'):
-                rmtree(sPath2 + '/__MACOSX')
-
-
-        else:
-            if path.isfile('par.dat'):
-                file = open('par.dat')
-                data = file.readlines()
-                file.close()
-            else:
-                print('--------------------------------------')
-                print('No par.dat found - Initializing fit.')
-                print('--------------------------------------')
-                self.fnMake()
-                pr = Popen(["nice", "./fit", "-S", "-n", "1"])  # initial genetic run
-                pr.wait()
-                if path.isfile('par.dat'):
-                    file = open('par.dat')
-                    data = file.readlines()
-                    file.close()
-                else:
-                    print('--------------------------------------')
-                    print('Could not start up fit.')
-                    print('--------------------------------------')
-                    raise RuntimeError('Could not start up fit.')
-
-            while data[-1][0] == '#':  # delete comments in last lines
-                data = data[:-1]
-            tParValues = (data[-1]).split()[2:]  # best fit values from last row
-            self.chisq = float((data[-1]).split()[1])  # chi squared from second column last row
-
-        File = open(self.setupfilename)
-        setupdata = File.readlines()
-        File.close()
-        # reminder .+? match all character
-        smatch = compile(r'pars_add\(pars.*?\"(.+?)\"\s*,.+?\((.+?)\)\s*,(.+?),(.+?)\)', IGNORECASE | VERBOSE)
-        smatch2 = compile(r'\s*//', IGNORECASE | VERBOSE)
-        for i in range(len(tParValues)):  # iterate over read parameters
-            for j in range(len(setupdata)):  # scan setup.c for the first parameter
-                setupline = setupdata[j]  # initialization and fetch that name
-                if smatch.search(setupline) and (not smatch2.match(setupline)):  # plus its fit ranges
-                    sParName = smatch.search(setupline).group(1)
-                    sVarName = smatch.search(setupline).group(2)
-                    flowerlimit = float(smatch.search(setupline).group(3))
-                    fupperlimit = float(smatch.search(setupline).group(4))
-                    del setupdata[j]  # delete the line where parameter found
-                    break
-            else:
-                print('--------------------------------------')
-                print('Parameters do not match in setup and parameter file ')  # no parameter in setup.c left!
-                print('--------------------------------------')
-                raise RuntimeError('Mismatch between setup file and par.dat.')
-            if sParName in self.diParameters:
-                print('--------------------------------------')
-                print('The parameter %s is defined twice in the garefl setup file.' % sParName)
-                print('This is not supported by rs.py.')
-                print('--------------------------------------')
-                raise RuntimeError('Doubled parameter in setup file.')
-            ipar = int(i)  # parameter number
-            frelval = float(tParValues[i])  # relative par value is stored in file
-            fvalue = (fupperlimit - flowerlimit) * frelval + flowerlimit  # calculate absolute par value
-            self.diParameters[sParName] = {'number': ipar,
-                                           'variable': sVarName,
-                                           'lowerlimit': flowerlimit,
-                                           'upperlimit': fupperlimit,
-                                           'relval': frelval,
-                                           'value': fvalue}  # save entry in diParameters[]
-
-        bAbsoluteParameters = False
-        for sParName in list(self.diParameters.keys()):
-            if self.diParameters[sParName]['relval'] > 1:
-                bAbsoluteParameters = True
-        if bAbsoluteParameters:
-            for sParName in list(self.diParameters.keys()):
-                self.diParameters[sParName]['value'] = self.diParameters[sParName]['relval']
-                self.diParameters[sParName]['relval'] = (self.diParameters[sParName]['value'] -
-                                                         self.diParameters[sParName]['lowerlimit']) / \
-                                                        (self.diParameters[sParName]['upperlimit'] -
-                                                         self.diParameters[sParName]['lowerlimit'])
+        self.diParameters, self.chisq = self.Interactor.fnLoadParameters(self.path, self.runfile)
 
         # redo refl1d convention to multiply small parameters (nSLD, background) by 1E6
+        # in case bounds were specified in 1E-6 units (garefl)
         for sParName in list(self.diParameters.keys()):
             if self.diParameters[sParName]['value'] < self.diParameters[sParName]['lowerlimit'] or \
                     self.diParameters[sParName]['value'] > self.diParameters[sParName]['upperlimit']:
                 self.diParameters[sParName]['value'] /= 1E6
 
-            # -------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
-    def fnLoadStatData(self, sparse=0, dirname='./', runfile=''):
+    def fnLoadStatData(self, sparse=0):
 
-        self.diStatResults = self.Interactor.fnLoadStatData(sparse, dirname, runfile)
+        self.diStatResults = self.Interactor.fnLoadStatData(sparse, self.path, self.runfile)
 
         # cycle through all parameters
         # determine length of longest parameter name for displaying
@@ -1796,15 +1915,6 @@ class CMolStat:
 
         self.diStatResults['NumberOfStatValues'] = \
             len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-
-    # -------------------------------------------------------------------------------
-
-    def fnMake(self, dirname='.'):
-        # make setup.c and print sys output
-        call(["rm", "-f", dirname + "/setup.o"])
-        call(["sync"])  # synchronize file system
-        sleep(1)  # wait for system to clean up
-        call(['make', '-C', dirname])
 
         # -------------------------------------------------------------------------------
 
@@ -2347,11 +2457,10 @@ class CMolStat:
         diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames)
         diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
 
-        cInteractor = self.cGaReflInteractor
-        cInteractor.fnSaveSingleColumns('pulledmolgroups_area.dat', diarea)
-        cInteractor.fnSaveSingleColumns('pulledmolgroups_nsl.dat', dinsl)
-        cInteractor.fnSaveSingleColumns('pulledmolgroups_nsld.dat', dinsld)
-        cInteractor.fnSaveSingleColumns('pulledmolgroupsstat.dat', diStat)
+        self.Interactor.fnSaveSingleColumns('pulledmolgroups_area.dat', diarea)
+        self.Interactor.fnSaveSingleColumns('pulledmolgroups_nsl.dat', dinsl)
+        self.Interactor.fnSaveSingleColumns('pulledmolgroups_nsld.dat', dinsld)
+        self.Interactor.fnSaveSingleColumns('pulledmolgroupsstat.dat', diStat)
 
     # -------------------------------------------------------------------------------
     def fnPullMolgroupLoader(self, liMolgroupNames):
@@ -2471,9 +2580,9 @@ class CMolStat:
 
         for iteration in range(self.diStatResults['NumberOfStatValues']):  # cycle through all individual stat. results
             try:
-                self.diStatResults['nSLDProfiles'].append(
-                    [])  # appends a new list for profiles for the current MC iteration
-                liParameters = list(self.diParameters.keys())  # get list of parameters from setup.c/par.dat
+                # appends a new list for profiles for the current MC iteration
+                self.diStatResults['nSLDProfiles'].append([])
+                liParameters = list(self.diParameters.keys())
                 # sort by number of appereance in setup.c
                 liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
                 bConsistency = True
