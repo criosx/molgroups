@@ -369,12 +369,20 @@ class PC(nSLDObj):
         self.choline.nf=1
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
+        self.ph_relative_pos = .5
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
         self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
         self.choline.z = self.z + 0.5*self.l - 0.5*self.choline.l
-        self.phosphate.z = (self.cg.z+0.5*self.cg.l+self.choline.z-self.choline.l*0.5)/2
+        z0 = self.cg.z-0.5*self.cg.l
+        z1 = self.choline.z+self.choline.l*0.5
+        self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
+    
+    def fnSet(self, l=9.575, ph_relative_pos=.5):
+        self.l = l
+        self.ph_relative_pos=ph_relative_pos
+        self.fnAdjustParameters()
     
     def fnGetLowerLimit(self):
         return self.cg.fnGetLowerLimit()
@@ -395,8 +403,7 @@ class PC(nSLDObj):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
         charea=self.choline.fnGetArea(dz)
-        sum=cgarea+pharea+charea
-    
+        sum = self.fnGetArea(dz)/self.nf
         if (sum == 0):
             return 0
         else:
@@ -432,11 +439,13 @@ class PCm(PC):
         self.choline.sigma2=2.02
         self.choline.sigma1=2.26
         self.fnAdjustParameters()
-
+        
     def fnAdjustParameters(self):
         self.cg.z = self.z + 0.5*self.l-0.5*self.cg.l
         self.choline.z = self.z - 0.5*self.l+0.5*self.choline.l
-        self.phosphate.z = (self.cg.z-0.5*self.cg.l+self.choline.z+self.choline.l*0.5)/2
+        z0 = self.choline.z-self.choline.l*0.5 
+        z1 = self.cg.z+0.5*self.cg.l
+        self.phosphate.z = z0 + (z1 - z0) * (1-self.ph_relative_pos)
 
     def fnGetLowerLimit(self):
         return self.choline.fnGetLowerLimit()
@@ -522,6 +531,7 @@ class BLM_quaternary(nSLDObj):
         self.normarea = 60.
         self.startz = 50.
         self.sigma = 2.
+        self.methyl_sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0
@@ -566,6 +576,7 @@ class BLM_quaternary(nSLDObj):
         self.headgroup2_3.l = lh3
         
         self.fnAdjustParameters()
+
 
     def fnAdjustParameters(self):
         # printf("Enter AdjustParameters \n")
@@ -677,12 +688,14 @@ class BLM_quaternary(nSLDObj):
         
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
+        self.headgroup1.fnAdjustParameters()
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
         self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
         self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
         self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
+        self.headgroup2.fnAdjustParameters()
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
         # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
@@ -746,7 +759,10 @@ class BLM_quaternary(nSLDObj):
 
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
-        return self.headgroup1.fnGetLowerLimit()
+        a = self.headgroup1.fnGetLowerLimit()
+        b = self.headgroup1_2.fnGetLowerLimit()
+        c = self.headgroup1_3.fnGetLowerLimit()
+        return min([a, b, c])
         
     def fnGetUpperLimit(self):
         a = self.headgroup2.fnGetUpperLimit()
@@ -754,19 +770,19 @@ class BLM_quaternary(nSLDObj):
         c = self.headgroup2_3.fnGetUpperLimit()
         return max([a, b, c])
 
-    def fnSet(self, _sigma, _bulknsld, _startz, _l_lipid1, _l_lipid2, _vf_bilayer, _nf_lipid_2=0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0., _hc_substitution_2=0., _radius_defect=100.):
-        self.sigma = _sigma
-        self.bulknsld = _bulknsld
-        self.startz = _startz
-        self.l_lipid1 = _l_lipid1
-        self.l_lipid2 = _l_lipid2
-        self.vf_bilayer = _vf_bilayer
-        self.nf_lipid_2 = _nf_lipid_2
-        self.nf_lipid_3 = _nf_lipid_3
-        self.nf_chol = _nf_chol
-        self.hc_substitution_1 = _hc_substitution_1
-        self.hc_substitution_2 = _hc_substitution_2
-        self.radius_defect = _radius_defect
+    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0., hc_substitution_2=0., radius_defect=100.):
+        self.sigma = sigma
+        self.bulknsld = bulknsld
+        self.startz = startz
+        self.l_lipid1 = l_lipid1
+        self.l_lipid2 = l_lipid2
+        self.vf_bilayer = vf_bilayer
+        self.nf_lipid_2 = nf_lipid_2
+        self.nf_lipid_3 = nf_lipid_3
+        self.nf_chol = nf_chol
+        self.hc_substitution_1 = hc_substitution_1
+        self.hc_substitution_2 = hc_substitution_2
+        self.radius_defect = radius_defect
         
         self.fnAdjustParameters()
 
@@ -774,10 +790,10 @@ class BLM_quaternary(nSLDObj):
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
-        self.lipid1.fnSetSigma(sigma,sigma+2)
-        self.methyl1.fnSetSigma(sigma+2,sigma+2)
-        self.methyl2.fnSetSigma(sigma+2,sigma+2)
-        self.lipid2.fnSetSigma(sigma+2,sigma)
+        self.lipid1.fnSetSigma(sigma,sigma+self.methyl_sigma)
+        self.methyl1.fnSetSigma(sigma+self.methyl_sigma, sigma+self.methyl_sigma)
+        self.methyl2.fnSetSigma(sigma+self.methyl_sigma, sigma+self.methyl_sigma)
+        self.lipid2.fnSetSigma(sigma+self.methyl_sigma,sigma)
         self.headgroup2.fnSetSigma(sigma)
         self.headgroup2_2.fnSetSigma(sigma)
         self.headgroup2_3.fnSetSigma(sigma)
@@ -1059,10 +1075,8 @@ class Hermite(object):
             dz1=temp 
         
         #check for boundaries
-        if (dz1<dp[0]):
-            dz1=dp[0] 
-        if (dz2>self.dp[-1]):
-            dz2=self.dp[-1] 
+        dz1 = max(dp[0], dz1)
+        dz2 = min(dz2, dp[-1])
         
         integral=0  
         d=dz1 

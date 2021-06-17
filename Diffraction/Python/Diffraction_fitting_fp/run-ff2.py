@@ -2,13 +2,13 @@ from bumps.names import *
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.integrate
-import scipy.fft
+import scipy.fft as fft
 import sys
 sys.path.append(".")
 import molgroups as mol
 
 # Define model function
-def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
+def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thickness, hg2_thickness, methyl_sigma):
     #TODO: Think about how to set those variables more conveniently
     maxarea = 100
     stepsize = 0.5
@@ -19,7 +19,13 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
     anSL  = np.zeros(dimension).tolist()
     anSLD = np.zeros(dimension).tolist()
 
-    bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer)
+    nf_lipid_2 = .1
+
+    bilayer.headgroup1.fnSet(hg_thickness, rel_pos)
+    bilayer.headgroup2.fnSet(hg_thickness, rel_pos)
+    bilayer.headgroup2_2.l = bilayer.headgroup1_2.l = hg2_thickness
+    bilayer.methyl_sigma = methyl_sigma
+    bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer, nf_lipid_2)
     dMaxArea, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
 
     #TODO: speedup
@@ -40,7 +46,7 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
 
     #TODO: Make sure that lq and x are roughly comparable
     dct_dimension = 5000
-    F = scipy.fft.dct(half_bilayer, n=dct_dimension)
+    F = fft.dct(half_bilayer, n=dct_dimension)
     F = np.abs(F)
     x = np.array([np.pi/(2*dct_dimension*stepsize)*(2*i)+dq  for i in range(int(dct_dimension))])
 
@@ -51,51 +57,47 @@ def modelformfactor(lq, l_lipid, vf_bilayer, sigma, bulknsld, prefactor, dq):
 
 # Load experimental data
 
-F2 = np.loadtxt("dopc.dat", delimiter=None, skiprows=1)
+# F2 = np.loadtxt("Experimental_form_factors/dopc.dat", skiprows=1)
+F2 = np.loadtxt("Experimental_form_factors/MAMcontrol.dat", skiprows=1)
 F2 = np.abs(F2)
 form_exp = F2[:,1]
 dform_exp = np.zeros(len(form_exp))
-#TODO: Talk to Stephanie about error bars
+#constant error bar estimate of .05 Å
 for i in range(len(form_exp)):
-    dform_exp[i] = 0.05
+    dform_exp[i] = 0.2
 q_exp = F2[:,0]
 
 # Initialize bilayer model
 #-----------------------------------------------------------------------------------------
 bilayer = mol.BLM_quaternary()
-na1, nh1, nm1, va1, vm1, vh1, lh1 = 0.00760, 0.00461, 0.000468, 972.00, 98, 331.00, 9.56
-na2, nh2, nm2, va2, vm2, vh2, lh2 = 0, 0, 0, 0, 0, 0, 0
+na1, nh1, nm1, va1, vm1, vh1, lh1 = 7.2038E-03, 0.00461, 4.7211E-04, 925, 98.8, 331.00, 9.56
+na2, nh2, nm2, va2, vm2, vh2, lh2 = 6.9787e-3, 7.7948e-3, 4.7211E-04, 1025, 98.8, 500, 12.0
 na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
 vc, nc = 0, 0
 bilayer.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
-
-bilayer2 = mol.BLM_quaternary()
-na1, nh1, nm1, va1, vm1, vh1, lh1 = 0.00760, 0.00461, 0.000468, 972.00, 98, 331.00, 9.56
-na2, nh2, nm2, va2, vm2, vh2, lh2 = 0, 0, 0, 0, 0, 0, 0
-na3, nh3, nm3, va3, vm3, vh3, lh3 = 0, 0, 0, 0, 0, 0, 0
-vc, nc = 0, 0
-bilayer2.fnInit(va1, na1, vm1, nm1, vh1,nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,lh3, vc, nc)
 # Define variables
 #----------------------------------------------------------------------------------------
-l_lipid = 11.6
+# Set up model
+l_lipid = 12
 vf_bilayer = 1.0
 sigma = 2.0
 bulknsld = 9.4114E-06
-prefactor = 17000
+prefactor = 80000
 dq = 0.
-
-# Set up model
+rel_pos = .5
+methyl_sigma = 2
 #----------------------------------------------------------------------------------------
 
-def choose_parameters():
-    M1 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, vf_bilayer=vf_bilayer, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq)
-    M1.l_lipid.range(9,13)
-    # M1.vf_bilayer.range(0.95,1.0)
-    M1.sigma.range(1.0, 4.0)
-    M1.bulknsld.range(9e-6,10e-6)
-    M1.prefactor.range(15000,40000)
-    M1.dq.range(-0.01, 0.01)
-    return M1
+M2 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, hg_thickness = lh1, hg2_thickness=lh2, methyl_sigma=methyl_sigma)
+M2.l_lipid.range(9,15)
+M2.sigma.range(1.0, 4.0)
+M2.bulknsld.range(9e-6,10e-6)
+M2.prefactor.range(30000,1000000)
+M2.dq.range(-0.02, 0.02)
+M2.hg_thickness.range(8,12)
+M2.hg2_thickness.range(8,15)
+M2.rel_pos.range(0, 1)
+M2.methyl_sigma.range(0, 4)
 
-model = choose_parameters()
+model = M2
 problem = FitProblem(model)
