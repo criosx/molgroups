@@ -360,9 +360,9 @@ class CBumpsInteractor(CDataInteractor):
 
         return diParameters, overall
 
-    def fnLoadStatData(self, dSparse=0, sPath='./', runfile='run', rescale_small_numbers=True, skip_entries=[]):
+    def fnLoadStatData(self, dSparse=0, spath='./', runfile='run', rescale_small_numbers=True, skip_entries=[]):
 
-        points, lParName, logp = self.fnLoadMCMCResults(sPath, runfile)
+        points, lParName, logp = self.fnLoadMCMCResults(spath, runfile)
 
         diStatRawData = {'Parameters': {}}
         diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
@@ -376,12 +376,13 @@ class CBumpsInteractor(CDataInteractor):
             if dSparse == 0 or (dSparse > 1 and j < dSparse) or (dSparse < 1 and random() < dSparse):
                 diStatRawData['Parameters']['Chisq']['Values'].append(logp[j])
                 for i, parname in enumerate(lParName):
-                    if (
-                            'rho_' in parname or 'background' in parname) and rescale_small_numbers:  # TODO: this is a hack because Paul does not scale down after scaling up
-                        points[j, i] *= 1E-6
+                    # TODO: this is a hack because Paul does not scale down after scaling up
+                    # Rescaling disabled for bumps/refl1d analysis to achieve consistency
+                    # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
+                    #     points[j, i] *= 1E-6
                     diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
 
-        self.fnSaveSingleColumnsFromStatDict('sErr.dat', diStatRawData['Parameters'], skip_entries)
+        self.fnSaveSingleColumnsFromStatDict(spath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
 
         return diStatRawData
 
@@ -485,17 +486,25 @@ class CGaReflInteractor(CDataInteractor):
         # There was a time when all parameters were given as relative numbers between the bounds
         # This tests if any parameter is out of bounds to determine whether we have relative or
         # absolute parameter values
-        bAbsoluteParameters = False
+        # Code disabled, as this should not occur anymore
+        # bAbsoluteParameters = False
+        # for sParName in list(diParameters.keys()):
+        #     if diParameters[sParName]['relval'] > 1:
+        #         bAbsoluteParameters = True
+        # if bAbsoluteParameters:
+        #     for sParName in list(diParameters.keys()):
+        #         diParameters[sParName]['value'] = diParameters[sParName]['relval']
+        #         diParameters[sParName]['relval'] = (diParameters[sParName]['value'] -
+        #                                             diParameters[sParName]['lowerlimit']) / \
+        #                                            (diParameters[sParName]['upperlimit'] -
+        #                                             diParameters[sParName]['lowerlimit'])
+
+        # redo refl1d convention to multiply small parameters (nSLD, background) by 1E6
+        # in case bounds were specified in 1E-6 units (garefl)
         for sParName in list(diParameters.keys()):
-            if diParameters[sParName]['relval'] > 1:
-                bAbsoluteParameters = True
-        if bAbsoluteParameters:
-            for sParName in list(diParameters.keys()):
-                diParameters[sParName]['value'] = diParameters[sParName]['relval']
-                diParameters[sParName]['relval'] = (diParameters[sParName]['value'] -
-                                                    diParameters[sParName]['lowerlimit']) / \
-                                                   (diParameters[sParName]['upperlimit'] -
-                                                    diParameters[sParName]['lowerlimit'])
+            if diParameters[sParName]['value'] < diParameters[sParName]['lowerlimit'] or \
+                    diParameters[sParName]['value'] > diParameters[sParName]['upperlimit']:
+                diParameters[sParName]['value'] /= 1E6
 
         return diParameters, chisq
 
@@ -1891,13 +1900,6 @@ class CMolStat:
         # load them into self.molgroups dictionary
         self.diParameters = {}
         self.diParameters, self.chisq = self.Interactor.fnLoadParameters(self.path, self.runfile)
-
-        # redo refl1d convention to multiply small parameters (nSLD, background) by 1E6
-        # in case bounds were specified in 1E-6 units (garefl)
-        for sParName in list(self.diParameters.keys()):
-            if self.diParameters[sParName]['value'] < self.diParameters[sParName]['lowerlimit'] or \
-                    self.diParameters[sParName]['value'] > self.diParameters[sParName]['upperlimit']:
-                self.diParameters[sParName]['value'] /= 1E6
 
     # -------------------------------------------------------------------------------
 
