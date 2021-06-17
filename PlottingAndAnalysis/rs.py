@@ -25,11 +25,11 @@ class CDataInteractor():
         self.path = spath
         self.runfile = runfile
 
-    def fnLoadMolgroups(self):
+    def fnLoadMolgroups(self, pathmodifier=''):
         diMolgroups = {}
         li = []
 
-        file = open(self.path + '/mol.dat')
+        file = open(self.path + pathmodifier + '/mol.dat')
         data = file.readlines()
         file.close()
 
@@ -344,7 +344,6 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
     def fnLoadParameters(self):
-
         def parse_var(line):
             """
             Parse a line returned by format_vars back into the statistics for the
@@ -361,10 +360,8 @@ class CBumpsInteractor(CDataInteractor):
                            'best': float(m2.group('best')), 'p68': (float(m2.group('lo68')), float(m2.group('hi68'))),
                            'p95': (float(m2.group('lo95')), float(m2.group('hi95')))}
             elif m1:
-                results = {'index': int(m1.group('parnum')), 'name': m1.group('parname'),
-                           'best': float(m1.group('best')),
+                results = {'name': m1.group('parname'), 'best': float(m1.group('best')),
                            'bounds': (float(m1.group('lowbound')), float(m1.group('highbound')))}
-
             return results
 
         # this code is from bumps.util parse_errfile with modifications
@@ -433,8 +430,12 @@ class CBumpsInteractor(CDataInteractor):
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
-        problem = load_problem(self.path + '/' + runfile + '.py')
+        problem = load_problem(self.path + '/' + self.runfile + '.py')
         return problem
+
+    def fnRestoreMolgroups(self, problem):
+        diMolgroups = self.fnLoadMolgroups(pathmodifier='/..')
+        return diMolgroups
 
     @staticmethod
     def fnRestoreSmoothProfile(M):
@@ -2468,7 +2469,7 @@ class CMolStat:
                                                            fLowLim, self.diParameters[parameter]['upperlimit']))
         print('Chi squared: %g' % self.chisq)
 
-    def fnPullMolgroup(self, liMolgroupNames, dSparse=0):
+    def fnPullMolgroup(self, liMolgroupNames, sparse=0):
         """
         Calls Function that recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2477,7 +2478,7 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         Saves results to file
         """
-        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames)
+        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse)
         diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
 
         self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroups_area.dat', diarea)
@@ -2485,7 +2486,7 @@ class CMolStat:
         self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroups_nsld.dat', dinsld)
         self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroupsstat.dat', diStat)
 
-    def fnPullMolgroupLoader(self, liMolgroupNames):
+    def fnPullMolgroupLoader(self, liMolgroupNames, sparse):
         """
         Function recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2501,7 +2502,7 @@ class CMolStat:
         except IOError:
             print('Failure to load StatDataPython.dat.')
             print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical()
+            self.fnRecreateStatistical(sparse=sparse)
 
         diarea = {
             'zaxis': self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']}
@@ -2609,20 +2610,21 @@ class CMolStat:
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
+                        # Rescaling is currently disabled
                         # if 'rho_' in parameter or 'background' in parameter:
                         #    val *= 1E6
                         p.append(val)
                     problem.setp(p)
-                    for M in problem.models:
-                        z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
-                        # plt.plot(z,rho)
-                        # M.model_update()
-                        # M.fitness.update()
+                    # distinguish between FitProblem and MultiFitProblem
+                    if 'models' in dir(problem):
+                        for M in problem.models:
+                            z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
+                            self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                            print(M.chisq())
+                    else:
+                        z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                        print(M.chisq())
-                    # print M.fitness._get_penalty()
-                    # print p, pi
-                    # models = [M for M in problem.models]
+                        print(problem.chisq())
                     stdout.flush()
 
                     if bRecreateMolgroups:
@@ -2634,7 +2636,7 @@ class CMolStat:
             finally:
                 j += 1
 
-        self.fnSaveObject(self.diStatResults, 'StatDataPython.dat')  # save stat data to disk
+        self.fnSaveObject(self.diStatResults, self.path + '/StatDataPython.dat')  # save stat data to disk
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):  # scans setup.c file for parameter with
         file = open(self.setupfilename, 'r+')  # name sname and replaces the lower and
