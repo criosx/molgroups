@@ -83,9 +83,18 @@ class nSLDObj():
                 dnSLDInc = self.fnGetnSLD(d)
                 # printf("Bin %i z %g Area %f nSLD %e nSL %e \n", i, d, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
                 
-            f.write(str(d)+" "+str(dAreaInc)+" "+str(dAreaInc*stepsize)+"\n")
+            f.write(str(d)+" "+str(dAreaInc)+" "+str(dnSLDInc*dAreaInc*stepsize)+"\n")
         f.write("\n")
-        
+
+    @staticmethod
+    def fnWriteConstant(fp, name, darea, dSLD, dimension, stepsize):
+        fp.write("Constant " + name + " area " + str(darea) + " \n")
+        fp.write("z_" + name + " a_" + name + " nsl_" + name + " \n")
+        for i in range (dimension):
+            d = float(i) * stepsize
+            fp.write(str(d) + " " + str(darea) + " " + str(dSLD * darea * stepsize) + " \n")
+        fp.write("\n")
+
     # does a Catmull-Rom Interpolation on an equal distance grid
     # 0<t<=1 is the relative position on the interval between p0 and p1
     # p-1 and p2 are needed for derivative calculation
@@ -477,12 +486,12 @@ class BLM_quaternary(nSLDObj):
         self.defect_hydrocarbon = Box2Err()
         self.defect_headgroup = Box2Err()
         
-        self.groups = {"blm_headgroup1": self.headgroup1, "blm_headgroup1_2": self.headgroup1_2,
-                        "blm_headgroup1_3": self.headgroup1_3, "blm_lipid1": self.lipid1,
-                        "blm_methyl1": self.methyl1,"blm_methyl2": self.methyl2,
-                        "blm_lipid2": self.lipid2, "blm_headgroup2": self.headgroup2,
-                        "blm_headgroup2_2": self.headgroup2_2, "blm_headgroup2_3": self.headgroup2_3, 
-                        "blm_defect_hc": self.defect_hydrocarbon, "blm_defect_hg": self.defect_headgroup}
+        self.groups = {"headgroup1": self.headgroup1, "headgroup1_2": self.headgroup1_2,
+                        "headgroup1_3": self.headgroup1_3, "lipid1": self.lipid1,
+                        "methyl1": self.methyl1,"methyl2": self.methyl2,
+                        "lipid2": self.lipid2, "headgroup2": self.headgroup2,
+                        "headgroup2_2": self.headgroup2_2, "headgroup2_3": self.headgroup2_3,
+                        "defect_hc": self.defect_hydrocarbon, "defect_hg": self.defect_headgroup}
 
         self.volacyllipid = 925
         self.nslacyllipid = -2.67e-4
@@ -804,8 +813,6 @@ class BLM_quaternary(nSLDObj):
         _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
         return self.normarea, aArea, anSL
     
-    def fnWriteConstant(self, fp, name, dimension, stepsize):
-        pass
 
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         for group in self.groups:
