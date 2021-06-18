@@ -1086,4 +1086,3 @@ class Hermite(object):
             d+=0.5 
         
         return integral 
-    
