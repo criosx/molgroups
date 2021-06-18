@@ -1,3 +1,14 @@
 /PlottingAndAnalysis/run-ff.py
 /PlottingAndAnalysis/T1/
 /PlottingAndAnalysis/molgroups.py
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/molgroups.iml
+.idea/vcs.xml
+.idea/workspace.xml
+PlottingAndAnalysis/__pycache__/molgroups.cpython-37.pyc
+PlottingAndAnalysis/__pycache__/rs.cpython-37.pyc
+PlottingAndAnalysis/__pycache__/rs.cpython-38.pyc
+PlottingAndAnalysis/dopc.dat
+PlottingAndAnalysis/mol.dat
