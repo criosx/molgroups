@@ -5,7 +5,7 @@ from __future__ import print_function
 from math import fabs, pow, floor, ceil, sqrt, log10
 from numpy import subtract, minimum, maximum, average, array
 from operator import itemgetter
-from os import getcwd, remove, rename, path, kill, devnull
+from os import getcwd, remove, rename, replace, path, kill, devnull
 from random import seed, normalvariate, random
 from re import VERBOSE, IGNORECASE, compile
 from scipy import stats, special
@@ -21,15 +21,17 @@ import re
 
 
 class CDataInteractor():
-    def __init__(self, spath='./', runfile=''):
-        self.path = spath
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        # script path, MCMC path, runfile (script file)
+        self.spath = spath
+        self.mcmcpath = mcmcpath
         self.runfile = runfile
 
-    def fnLoadMolgroups(self, pathmodifier=''):
+    def fnLoadMolgroups(self):
         diMolgroups = {}
         li = []
 
-        file = open(self.path + pathmodifier + '/mol.dat')
+        file = open(self.spath + '/mol.dat')
         data = file.readlines()
         file.close()
 
@@ -283,8 +285,8 @@ class CDataInteractor():
 # The MCMC directory is called 'MCMC'
 
 class CBumpsInteractor(CDataInteractor):
-    def __init__(self, spath='./', runfile=''):
-        super().__init__(spath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
 
         # patterns to extract parmeter information from .err results files
         self.VAR_PATTERN1 = re.compile(r"""
@@ -327,11 +329,11 @@ class CBumpsInteractor(CDataInteractor):
 
         import bumps.dream.state
 
-        state = bumps.dream.state.load_state(self.path + '/' + self.runfile)
+        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
         state.mark_outliers()  # ignore outlier chains
 
         # load Parameter
-        data = self.fnLoadSingleColumns(self.path + '/' + self.runfile + '.par', header=False,
+        data = self.fnLoadSingleColumns(self.mcmcpath + '/' + self.runfile + '.par', header=False,
                                         headerline=['parname', 'bestfitvalue'])
         lParName = []
         vars = []
@@ -374,7 +376,7 @@ class CBumpsInteractor(CDataInteractor):
         diParameters = {}
         chisq = []          # not used here
         overall = None
-        filename = self.path + '/' + self.runfile + '.err'
+        filename = self.mcmcpath + '/' + self.runfile + '.err'
         with open(filename) as fid:
             for line in fid:
                 if line.startswith("[overall"):
@@ -430,17 +432,17 @@ class CBumpsInteractor(CDataInteractor):
                     #     points[j, i] *= 1E-6
                     diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
 
-        self.fnSaveSingleColumnsFromStatDict(self.path + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
+        self.fnSaveSingleColumnsFromStatDict(self.mcmcpath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
 
         return diStatRawData
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
-        problem = load_problem(self.path + '/' + self.runfile + '.py')
+        problem = load_problem(self.spath + '/' + self.runfile + '.py')
         return problem
 
     def fnRestoreMolgroups(self, problem):
-        diMolgroups = self.fnLoadMolgroups(pathmodifier='/..')
+        diMolgroups = self.fnLoadMolgroups()
         return diMolgroups
 
     @staticmethod
@@ -455,8 +457,8 @@ class CBumpsInteractor(CDataInteractor):
 # The MCMC directory is called 'MCMC'
 # The refl1d script name has to be run.py.
 class CRefl1DInteractor(CBumpsInteractor):
-    def __init__(self, spath='./', runfile=''):
-        super().__init__(spath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
 
         # patterns to extract parmeter information from .err results files
         self.VAR_PATTERN1 = re.compile(r"""
@@ -475,8 +477,8 @@ class CRefl1DInteractor(CBumpsInteractor):
 
 
 class CGaReflInteractor(CRefl1DInteractor):
-    def __init__(self, spath='./', runfile=''):
-        super().__init__(spath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
 
     def fnGetNumberOfModelsFromSetupC(self):
         file = open(self.runfile, "r")  # open setup.c
@@ -490,40 +492,40 @@ class CGaReflInteractor(CRefl1DInteractor):
         return 0
 
     def fnLoadParameters(self):
-        filename = self.path + self.runfile
+        filename = self.spath + '/' + self.runfile
         diParameters = {}
 
         # check wether an existing MCMC exists
-        if path.isfile(self.path + '/run.par'):
-            print('Found ' + self.path + '/run.par \n')
+        if path.isfile(self.spath + '/run.par'):
+            print('Found ' + self.spath + '/run.par \n')
             print('Using MCMC best-fit parameters ...')
-            File = open(self.path + '/run.par')
+            File = open(self.spath + '/run.par')
             data = File.readlines()
             File.close()
             tParValues = []
             for line in data:
                 tParValues.append(float(line.split()[-1]))
             chisq = 0  # for the moment I cannot import chisq
-        elif zipfile.is_zipfile(self.path):  # unpack from zip-file
-            File = zipfile.ZipFile(self.path, 'r')
-            File.extractall(path.dirname(self.path))
+        elif zipfile.is_zipfile(self.spath):  # unpack from zip-file
+            File = zipfile.ZipFile(self.spath, 'r')
+            File.extractall(path.dirname(self.spath))
             File.close()
-            spath2 = path.dirname(self.path)
+            spath2 = path.dirname(self.spath)
             if spath2 == '':
                 spath2 = '.'
-            File = open(spath2 + '/' + path.basename(self.path)[:-4] + '/run.par')
+            File = open(spath2 + '/' + path.basename(self.spath)[:-4] + '/run.par')
             data = File.readlines()
             File.close()
             tParValues = []
             for line in data:
                 tParValues.append(float(line.split()[-1]))
             chisq = 0  # for the moment I cannot import chisq
-            rmtree(spath2 + '/' + path.basename(self.path)[:-4])
+            rmtree(spath2 + '/' + path.basename(self.spath)[:-4])
             if path.isdir(spath2 + '/__MACOSX'):
                 rmtree(spath2 + '/__MACOSX')
         else:
-            if path.isfile('par.dat'):
-                file = open('par.dat')
+            if path.isfile(self.spath + '/par.dat'):
+                file = open(self.spath + '/par.dat')
                 data = file.readlines()
                 file.close()
             else:
@@ -533,8 +535,8 @@ class CGaReflInteractor(CRefl1DInteractor):
                 self.fnMake()
                 pr = Popen(["nice", "./fit", "-S", "-n", "1"])  # initial genetic run
                 pr.wait()
-                if path.isfile('par.dat'):
-                    file = open('par.dat')
+                if path.isfile(self.spath + '/par.dat'):
+                    file = open(self.spath + '/par.dat')
                     data = file.readlines()
                     file.close()
                 else:
@@ -605,30 +607,32 @@ class CGaReflInteractor(CRefl1DInteractor):
 
         return diParameters, chisq
 
-    def fnLoadStatData(self, dSparse=0.):
+    def fnLoadStatData(self, dSparse=0., rescale_small_numbers=True, skip_entries=[]):
 
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
         liStatResult = []
 
-        if not (path.isfile(self.path+'/sErr.dat') or path.isfile(self.path+'/isErr.dat')) and \
-                path.isdir(self.path + '/MCMC'):
-            # TODO: call super method to recreate sErr.dat from MCMC, make sure path is correct
-            CRefl1DInteractor.fnLoadStatData(dSparse)
+        if not (path.isfile(self.mcmcpath+'/sErr.dat') or path.isfile(self.mcmcpath+'/isErr.dat')):
+            # call super method to recreate sErr.dat from MCMC path, default MCMC runfile for garefl is 'run'
+            store_runfile = self.runfile
+            self.runfile = 'run'
+            super(CRefl1DInteractor, self).fnLoadStatData(dSparse)
+            self.runfile = store_runfile
 
-        sFileName = self.path + 'isErr.dat'
+        sFileName = self.mcmcpath + '/isErr.dat'
         try:
-            if path.isfile(self.path+'isErr.dat') and path.isfile(self.path+'sErr.dat'):
+            if path.isfile(self.mcmcpath+'/isErr.dat') and path.isfile(self.mcmcpath+'/sErr.dat'):
                 print('-------------------------------')
                 print('Found isErr.dat and sErr.dat ?!')
                 print('Load isErr.dat as default.')
                 print('-------------------------------')
-            elif path.isfile(self.path+'isErr.dat'):  # check which type of MC output present
+            elif path.isfile(self.mcmcpath+'/isErr.dat'):  # check which type of MC output present
                 print('Found isErr.dat\n')
-            elif path.isfile(self.path+'sErr.dat'):
+            elif path.isfile(self.mcmcpath+'/sErr.dat'):
                 print('Found sErr.dat\n')
-                sFileName = self.path+'sErr.dat'
+                sFileName = self.mcmcpath+'/sErr.dat'
 
             diStatRawData = {'Parameters': self.fnLoadSingleColumnsIntoStatDict(sFileName, sparse=dSparse)}
             return diStatRawData
@@ -639,16 +643,17 @@ class CGaReflInteractor(CRefl1DInteractor):
 
     def fnMake(self):
         # make setup.c and print sys output
-        call(["rm", "-f", self.path + "/setup.o"])
+        call(["rm", "-f", self.spath + "/setup.o"])
         call(["sync"])  # synchronize file system
         sleep(1)  # wait for system to clean up
-        call(['make', '-C', self.path])
+        call(['make', '-C', self.spath])
 
     def fnRestoreFitProblem(self):
         from refl1d import garefl
         # iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
         self.fnMake()
-        problem = garefl.load(self.path + '/model.so')
+        problem = garefl.load(self.spath + '/model.so')
+        print('Here!\n')
         return problem
 
     def fnRestoreMolgroups(self, problem):
@@ -663,7 +668,7 @@ class CGaReflInteractor(CRefl1DInteractor):
 
 
 class CMolStat:
-    def __init__(self, fitsource='refl1d', resultspath='./', runfile='run'):
+    def __init__(self, fitsource='refl1d', spath='.', mcmcpath='.', runfile='run'):
         """
 
         """
@@ -703,7 +708,8 @@ class CMolStat:
         #                                                               'property2' value}}
 
         self.fitsource = fitsource                  # define fitting software
-        self.path = resultspath
+        self.spath = spath
+        self.mcmcpath = mcmcpath
         self.runfile = runfile
 
         self.liStatResult = []                      # a list that contains the isErr.dat or sErr.dat file line by line
@@ -715,14 +721,13 @@ class CMolStat:
         self.fMolgroupsNormArea = 0
         # check for system and type of setup file
 
+        self.Interactor = None
         if self.fitsource == 'bumps':
-            self.Interactor = CBumpsInteractor(resultspath, runfile)
+            self.Interactor = CBumpsInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'refl1d':
-            self.Interactor = CRefl1DInteractor(resultspath, runfile)
+            self.Interactor = CRefl1DInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'garefl':
-            self.Interactor = CGaReflInteractor(resultspath, runfile)
-        else:
-            self.Interactor = CBumpsInteractor(resultspath, runfile)
+            self.Interactor = CGaReflInteractor(spath, mcmcpath, runfile)
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
@@ -1953,6 +1958,8 @@ class CMolStat:
 
         self.diStatResults['NumberOfStatValues'] = \
             len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
+        #print('StatDataLength: ')
+        #print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
 
     def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
 
@@ -2490,10 +2497,10 @@ class CMolStat:
         diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse)
         diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
 
-        self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroups_area.dat', diarea)
-        self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroups_nsl.dat', dinsl)
-        self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroups_nsld.dat', dinsld)
-        self.Interactor.fnSaveSingleColumns(self.path+'/pulledmolgroupsstat.dat', diStat)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_area.dat', diarea)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsl.dat', dinsl)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsld.dat', dinsld)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroupsstat.dat', diStat)
 
     def fnPullMolgroupLoader(self, liMolgroupNames, sparse):
         """
@@ -2505,7 +2512,7 @@ class CMolStat:
         """
 
         try:
-            self.diStatResults = self.fnLoadObject(self.path+'/StatDataPython.dat')
+            self.diStatResults = self.fnLoadObject(self.mcmcpath+'/StatDataPython.dat')
             print('Loaded statistical data from StatDataPython.dat')
 
         except IOError:
@@ -2645,7 +2652,7 @@ class CMolStat:
             finally:
                 j += 1
 
-        self.fnSaveObject(self.diStatResults, self.path + '/StatDataPython.dat')  # save stat data to disk
+        self.fnSaveObject(self.diStatResults, self.mcmcpath + '/StatDataPython.dat')  # save stat data to disk
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):  # scans setup.c file for parameter with
         file = open(self.setupfilename, 'r+')  # name sname and replaces the lower and
