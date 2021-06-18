@@ -72,7 +72,8 @@ class CDataInteractor():
 
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
-    def fnLoadSingleColumns(self, sFileName, data=None, exceptions=None, header=True, headerline=None, LoadList=None,
+    @staticmethod
+    def fnLoadSingleColumns(sFileName, data=None, exceptions=None, header=True, headerline=None, LoadList=None,
                             sparse=0):
 
         File = open(sFileName, "r")
@@ -114,7 +115,8 @@ class CDataInteractor():
     # or appends data with name extension "_2nd" that are already present in the data list
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
-    def fnLoadSingleColumnsIntoStatDict(self, sFileName, data=None, exceptions=None, header=True, headerline=None,
+    @staticmethod
+    def fnLoadSingleColumnsIntoStatDict(sFileName, data=None, exceptions=None, header=True, headerline=None,
                                         LoadList=None, sparse=0):
 
         if not data: data = {}
@@ -149,7 +151,8 @@ class CDataInteractor():
 
         return data
 
-    def fnLoadSingleRows(self, sFileName, data=None, exceptions=None):
+    @staticmethod
+    def fnLoadSingleRows(sFileName, data=None, exceptions=None):
 
         file = open(sFileName, "r")
         content = file.readlines()
@@ -166,7 +169,8 @@ class CDataInteractor():
                     data[splitline[0]].append(splitline[entry])
         return data
 
-    def fnMCModifyFile(self, filelist):
+    @staticmethod
+    def fnMCModifyFile(filelist):
         # reads original reflectivity files
         # and modifies them with normal deviates
         # works also with any other 3 or 4
@@ -238,7 +242,8 @@ class CDataInteractor():
             file.close()
 
     # saves all data out to a file
-    def fnSaveSingleColumns(self, sFilename, data):
+    @staticmethod
+    def fnSaveSingleColumns(sFilename, data):
 
         file = open(sFilename, "w")
 
@@ -254,7 +259,8 @@ class CDataInteractor():
         file.close()
         # saves all data out to a file
 
-    def fnSaveSingleColumnsFromStatDict(self, sFilename, data, skipentries=[]):
+    @staticmethod
+    def fnSaveSingleColumnsFromStatDict(sFilename, data, skipentries=[]):
 
         File = open(sFilename, "w")
 
@@ -444,7 +450,31 @@ class CBumpsInteractor(CDataInteractor):
         return z, rho, irho
 
 
-class CGaReflInteractor(CDataInteractor):
+# Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
+# error analysis are found.
+# The MCMC directory is called 'MCMC'
+# The refl1d script name has to be run.py.
+class CRefl1DInteractor(CBumpsInteractor):
+    def __init__(self, spath='./', runfile=''):
+        super().__init__(spath, runfile)
+
+        # patterns to extract parmeter information from .err results files
+        self.VAR_PATTERN1 = re.compile(r"""
+            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
+            (?P<best>[0-9.eE+-]+?),\ name='
+            (?P<parname>.+?)',\ bounds=\(
+            (?P<lowbound>[0-9.eE+-]+?),
+            (?P<highbound>[0-9.eE+-]+?)\)
+            .*?
+            $""", re.VERBOSE)
+
+    @staticmethod
+    def fnRestoreSmoothProfile(M):
+        z, rho, irho = M.fitness.smooth_profile()
+        return z, rho, irho
+
+
+class CGaReflInteractor(CRefl1DInteractor):
     def __init__(self, spath='./', runfile=''):
         super().__init__(spath, runfile)
 
@@ -575,15 +605,19 @@ class CGaReflInteractor(CDataInteractor):
 
         return diParameters, chisq
 
-    def fnLoadStatData(self, dSparse=0):
+    def fnLoadStatData(self, dSparse=0.):
 
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
         liStatResult = []
 
-        sFileName = self.path + 'isErr.dat'
+        if not (path.isfile(self.path+'/sErr.dat') or path.isfile(self.path+'/isErr.dat')) and \
+                path.isdir(self.path + '/MCMC'):
+            # TODO: call super method to recreate sErr.dat from MCMC, make sure path is correct
+            CRefl1DInteractor.fnLoadStatData(dSparse)
 
+        sFileName = self.path + 'isErr.dat'
         try:
             if path.isfile(self.path+'isErr.dat') and path.isfile(self.path+'sErr.dat'):
                 print('-------------------------------')
@@ -621,31 +655,6 @@ class CGaReflInteractor(CDataInteractor):
         problem.active_model.fitness.output_model()
         diMolgroups = self.fnLoadMolgroups()
         return diMolgroups
-
-    @staticmethod
-    def fnRestoreSmoothProfile(M):
-        z, rho, irho = M.fitness.smooth_profile()
-        return z, rho, irho
-
-
-# Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
-# error analysis are found.
-# The MCMC directory is called 'MCMC'
-# The refl1d script name has to be run.py.
-
-class CRefl1DInteractor(CBumpsInteractor):
-    def __init__(self, spath='./', runfile=''):
-        super().__init__(spath, runfile)
-
-        # patterns to extract parmeter information from .err results files
-        self.VAR_PATTERN1 = re.compile(r"""
-            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
-            (?P<best>[0-9.eE+-]+?),\ name='
-            (?P<parname>.+?)',\ bounds=\(
-            (?P<lowbound>[0-9.eE+-]+?),
-            (?P<highbound>[0-9.eE+-]+?)\)
-            .*?
-            $""", re.VERBOSE)
 
     @staticmethod
     def fnRestoreSmoothProfile(M):
