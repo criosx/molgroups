@@ -782,8 +782,8 @@ void PCm::fnAdjustParameters(){
 };
 
 //Use limits of molecular subgroups
-double PCm::fnGetLowerLimit() {return cg->fnGetLowerLimit();};
-double PCm::fnGetUpperLimit() {return choline->fnGetUpperLimit();};
+double PCm::fnGetLowerLimit() {return choline->fnGetLowerLimit();};
+double PCm::fnGetUpperLimit() {return cg->fnGetUpperLimit();};
 
 void   PCm::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
@@ -2125,7 +2125,7 @@ void ssBLM_quaternary::fnAdjustParameters(){
     lipid2->nf=c_s_ohc*c_A_ohc*c_V_ohc;
     //printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc);
     
-    //outher methyl
+    //outer methyl
     nf_om_lipid  =nf_ohc_lipid;
     nf_om_lipid_2=nf_ohc_lipid_2;
     nf_om_lipid_3=nf_ohc_lipid_3;
@@ -2325,12 +2325,9 @@ double ssBLM_quaternary::fnGetUpperLimit()
 	b=headgroup2_2->fnGetUpperLimit();
 	c=headgroup2_3->fnGetUpperLimit();
 	
-	if (a>b) {
-		if (a>c) return a;
-		else return c;}
-	else {
-		if (b>c) return b;
-		else return c;}
+	if (a > b && a > c) return a;
+    if (b > c) return b;
+	return c;
 };
 
 void ssBLM_quaternary::fnSet(double _sigma, double _global_rough, double _rho_substrate, double _bulknsld, double _rho_siox, double _l_siox, double _l_submembrane,  double _l_lipid1, double _l_lipid2, double _vf_bilayer, double _nf_lipid_2, double _nf_lipid_3, double _nf_chol, double _hc_substitution_1, double _hc_substitution_2, double _radius_defect){

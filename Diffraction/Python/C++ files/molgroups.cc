@@ -782,8 +782,8 @@ void PCm::fnAdjustParameters(){
 };
 
 //Use limits of molecular subgroups
-double PCm::fnGetLowerLimit() {return cg->fnGetLowerLimit();};
-double PCm::fnGetUpperLimit() {return choline->fnGetUpperLimit();};
+double PCm::fnGetLowerLimit() {return choline->fnGetLowerLimit();};
+double PCm::fnGetUpperLimit() {return cg->fnGetUpperLimit();};
 
 void   PCm::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
@@ -6582,14 +6582,14 @@ ssBLM_POPC_PIP::ssBLM_POPC_PIP()
     volmethyllipid=98.8;
     nslmethyllipid=-9.15e-5;
     
-	headgroup1_2->vol=500;                //PS volume and length are estimates
+	headgroup1_2->vol=500;                //PIP volume and length are estimates
 	headgroup2_2->vol=500;
 	headgroup1_2->nSL=1.22e-3;
 	headgroup2_2->nSL=1.22e-3;
 	headgroup1_2->l=12.0;
 	headgroup2_2->l=12.0;
 	
-    volacyllipid_2=1025;
+    volacyllipid_2=1025; //hydrocarbon properties
     nslacyllipid_2=-7.5785e-5;
     volmethyllipid_2=98.8;
     nslmethyllipid_2=-9.15e-5;

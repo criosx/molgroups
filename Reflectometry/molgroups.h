@@ -1,3 +1,5 @@
+#ifndef MOLGROUPS_H
+#define MOLGROUPS_H
 //---------------abstract base class---------------------------------------------------------------------
 class nSLDObj
 {
@@ -1415,3 +1417,5 @@ double fnClearCanvas(double aArea[], double anSL[], int dimension);
 double fnClearCanvas(double aArea[], double anSL[], double aAbsorb[], int dimension);
 void fnWriteCanvas2Model(double aArea[], double anSL[], fitinfo fit[], int gaussstart, int dimension, double stepsize, double dMaxArea, double normarea, int modelstart, int modelend);
 void fnWriteCanvas2Model(double aArea[], double anSL[], double aAbsorb[], fitinfo fit[], int gaussstart, int dimension, double stepsize, double dMaxArea, double normarea, int modelstart, int modelend);
+
+#endif
