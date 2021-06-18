@@ -5,7 +5,7 @@ from __future__ import print_function
 from math import fabs, pow, floor, ceil, sqrt, log10
 from numpy import subtract, minimum, maximum, average, array
 from operator import itemgetter
-from os import getcwd, remove, rename, path, kill, devnull
+from os import getcwd, remove, rename, replace, path, kill, devnull
 from random import seed, normalvariate, random
 from re import VERBOSE, IGNORECASE, compile
 from scipy import stats, special
@@ -21,12 +21,61 @@ import re
 
 
 class CDataInteractor():
-    def __init__(self):
-        pass
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        # script path, MCMC path, runfile (script file)
+        self.spath = spath
+        self.mcmcpath = mcmcpath
+        self.runfile = runfile
+
+    def fnLoadMolgroups(self):
+        diMolgroups = {}
+        li = []
+
+        file = open(self.spath + '/mol.dat')
+        data = file.readlines()
+        file.close()
+
+        i = 0
+        while 1:
+            tdata = (data[i]).split()  # read header that contains molgroup data
+            diMolgroups[tdata[1]] = {}
+            diMolgroups[tdata[1]].update({'headerdata': {}})
+            diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
+            diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
+            j = 2
+            while 1:
+                diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
+                j += 2
+                if j == len(tdata):
+                    break
+
+            i += 2  # skip header line for data columns
+            zax = li[:]
+            areaax = li[:]
+            nslax = li[:]
+            diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
+
+            while 1:
+                if i >= len(data):
+                    break
+                tline = (data[i]).split()
+                if tline:
+                    diMolgroups[tdata[1]]['zaxis'].append(float(tline[0]))
+                    diMolgroups[tdata[1]]['areaaxis'].append(float(tline[1]))
+                    diMolgroups[tdata[1]]['nslaxis'].append(float(tline[2]))
+                    i += 1
+                else:
+                    break
+
+            i += 1
+            if i >= len(data):
+                break
+        return diMolgroups
 
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
-    def fnLoadSingleColumns(self, sFileName, data=None, exceptions=None, header=True, headerline=None, LoadList=None,
+    @staticmethod
+    def fnLoadSingleColumns(sFileName, data=None, exceptions=None, header=True, headerline=None, LoadList=None,
                             sparse=0):
 
         File = open(sFileName, "r")
@@ -68,7 +117,8 @@ class CDataInteractor():
     # or appends data with name extension "_2nd" that are already present in the data list
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
-    def fnLoadSingleColumnsIntoStatDict(self, sFileName, data=None, exceptions=None, header=True, headerline=None,
+    @staticmethod
+    def fnLoadSingleColumnsIntoStatDict(sFileName, data=None, exceptions=None, header=True, headerline=None,
                                         LoadList=None, sparse=0):
 
         if not data: data = {}
@@ -103,7 +153,8 @@ class CDataInteractor():
 
         return data
 
-    def fnLoadSingleRows(self, sFileName, data=None, exceptions=None):
+    @staticmethod
+    def fnLoadSingleRows(sFileName, data=None, exceptions=None):
 
         file = open(sFileName, "r")
         content = file.readlines()
@@ -120,7 +171,8 @@ class CDataInteractor():
                     data[splitline[0]].append(splitline[entry])
         return data
 
-    def fnMCModifyFile(self, filelist):
+    @staticmethod
+    def fnMCModifyFile(filelist):
         # reads original reflectivity files
         # and modifies them with normal deviates
         # works also with any other 3 or 4
@@ -192,7 +244,8 @@ class CDataInteractor():
             file.close()
 
     # saves all data out to a file
-    def fnSaveSingleColumns(self, sFilename, data):
+    @staticmethod
+    def fnSaveSingleColumns(sFilename, data):
 
         file = open(sFilename, "w")
 
@@ -208,7 +261,8 @@ class CDataInteractor():
         file.close()
         # saves all data out to a file
 
-    def fnSaveSingleColumnsFromStatDict(self, sFilename, data, skipentries=[]):
+    @staticmethod
+    def fnSaveSingleColumnsFromStatDict(sFilename, data, skipentries=[]):
 
         File = open(sFilename, "w")
 
@@ -231,8 +285,8 @@ class CDataInteractor():
 # The MCMC directory is called 'MCMC'
 
 class CBumpsInteractor(CDataInteractor):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
 
         # patterns to extract parmeter information from .err results files
         self.VAR_PATTERN1 = re.compile(r"""
@@ -271,16 +325,16 @@ class CBumpsInteractor(CDataInteractor):
             .*?
             $""", re.VERBOSE)
 
-
-    def fnLoadMCMCResults(self, sPath='./', runfile='run'):
+    def fnLoadMCMCResults(self):
 
         import bumps.dream.state
 
-        state = bumps.dream.state.load_state(sPath + '/' + runfile)
+        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
         state.mark_outliers()  # ignore outlier chains
 
         # load Parameter
-        data = self.fnLoadSingleColumns(sPath + '/' + runfile + '.par', header=False, headerline=['parname', 'bestfitvalue'])
+        data = self.fnLoadSingleColumns(self.mcmcpath + '/' + self.runfile + '.par', header=False,
+                                        headerline=['parname', 'bestfitvalue'])
         lParName = []
         vars = []
         i = 0
@@ -297,9 +351,7 @@ class CBumpsInteractor(CDataInteractor):
 
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
-
-    def fnLoadParameters(self, spath='./', runfile=''):
-
+    def fnLoadParameters(self):
         def parse_var(line):
             """
             Parse a line returned by format_vars back into the statistics for the
@@ -316,17 +368,15 @@ class CBumpsInteractor(CDataInteractor):
                            'best': float(m2.group('best')), 'p68': (float(m2.group('lo68')), float(m2.group('hi68'))),
                            'p95': (float(m2.group('lo95')), float(m2.group('hi95')))}
             elif m1:
-                results = {'index': int(m1.group('parnum')), 'name': m1.group('parname'),
-                           'best': float(m1.group('best')),
+                results = {'name': m1.group('parname'), 'best': float(m1.group('best')),
                            'bounds': (float(m1.group('lowbound')), float(m1.group('highbound')))}
-
             return results
 
         # this code is from bumps.util parse_errfile with modifications
         diParameters = {}
         chisq = []          # not used here
         overall = None
-        filename = spath + '/' + runfile + '.err'
+        filename = self.mcmcpath + '/' + self.runfile + '.err'
         with open(filename) as fid:
             for line in fid:
                 if line.startswith("[overall"):
@@ -360,9 +410,9 @@ class CBumpsInteractor(CDataInteractor):
 
         return diParameters, overall
 
-    def fnLoadStatData(self, dSparse=0, spath='./', runfile='run', rescale_small_numbers=True, skip_entries=[]):
+    def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
 
-        points, lParName, logp = self.fnLoadMCMCResults(spath, runfile)
+        points, lParName, logp = self.fnLoadMCMCResults()
 
         diStatRawData = {'Parameters': {}}
         diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
@@ -373,7 +423,7 @@ class CBumpsInteractor(CDataInteractor):
 
         seed()
         for j in range(len(points[:, 0])):
-            if dSparse == 0 or (dSparse > 1 and j < dSparse) or (dSparse < 1 and random() < dSparse):
+            if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
                 diStatRawData['Parameters']['Chisq']['Values'].append(logp[j])
                 for i, parname in enumerate(lParName):
                     # TODO: this is a hack because Paul does not scale down after scaling up
@@ -382,51 +432,100 @@ class CBumpsInteractor(CDataInteractor):
                     #     points[j, i] *= 1E-6
                     diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
 
-        self.fnSaveSingleColumnsFromStatDict(spath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
+        self.fnSaveSingleColumnsFromStatDict(self.mcmcpath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
 
         return diStatRawData
 
+    def fnRestoreFitProblem(self):
+        from bumps.fitproblem import load_problem
+        problem = load_problem(self.spath + '/' + self.runfile + '.py')
+        return problem
 
-class CGaReflInteractor(CDataInteractor):
-    def __init__(self):
-        super().__init__()
+    def fnRestoreMolgroups(self, problem):
+        diMolgroups = self.fnLoadMolgroups()
+        return diMolgroups
 
-    def fnLoadParameters(self, spath='./', runfile='run'):
+    @staticmethod
+    def fnRestoreSmoothProfile(M):
+        # TODO: Decide what and if to return SLD profile for Bumps fits
+        z, rho, irho = [], [], []
+        return z, rho, irho
 
-        filename = spath + runfile
+
+# Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
+# error analysis are found.
+# The MCMC directory is called 'MCMC'
+# The refl1d script name has to be run.py.
+class CRefl1DInteractor(CBumpsInteractor):
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
+
+        # patterns to extract parmeter information from .err results files
+        self.VAR_PATTERN1 = re.compile(r"""
+            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
+            (?P<best>[0-9.eE+-]+?),\ name='
+            (?P<parname>.+?)',\ bounds=\(
+            (?P<lowbound>[0-9.eE+-]+?),
+            (?P<highbound>[0-9.eE+-]+?)\)
+            .*?
+            $""", re.VERBOSE)
+
+    @staticmethod
+    def fnRestoreSmoothProfile(M):
+        z, rho, irho = M.fitness.smooth_profile()
+        return z, rho, irho
+
+
+class CGaReflInteractor(CRefl1DInteractor):
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)
+
+    def fnGetNumberOfModelsFromSetupC(self):
+        file = open(self.runfile, "r")  # open setup.c
+        data = file.readlines()
+        file.close()
+        smatch = compile(r'define\s+MODELS\s+(.+?)\n', IGNORECASE | VERBOSE)
+        for line in data:  # search through setup.c
+            if smatch.search(line):  # searching for MODELS constant
+                i = smatch.search(line).group(1)
+                return int(i)
+        return 0
+
+    def fnLoadParameters(self):
+        filename = self.spath + '/' + self.runfile
         diParameters = {}
 
         # check wether an existing MCMC exists
-        if path.isfile(spath + '/run.par'):
-            print('Found ' + spath + '/run.par \n')
+        if path.isfile(self.spath + '/run.par'):
+            print('Found ' + self.spath + '/run.par \n')
             print('Using MCMC best-fit parameters ...')
-            File = open(spath + '/run.par')
+            File = open(self.spath + '/run.par')
             data = File.readlines()
             File.close()
             tParValues = []
             for line in data:
                 tParValues.append(float(line.split()[-1]))
             chisq = 0  # for the moment I cannot import chisq
-        elif zipfile.is_zipfile(spath):  # unpack from zip-file
-            File = zipfile.ZipFile(spath, 'r')
-            File.extractall(path.dirname(spath))
+        elif zipfile.is_zipfile(self.spath):  # unpack from zip-file
+            File = zipfile.ZipFile(self.spath, 'r')
+            File.extractall(path.dirname(self.spath))
             File.close()
-            spath2 = path.dirname(spath)
+            spath2 = path.dirname(self.spath)
             if spath2 == '':
                 spath2 = '.'
-            File = open(spath2 + '/' + path.basename(spath)[:-4] + '/run.par')
+            File = open(spath2 + '/' + path.basename(self.spath)[:-4] + '/run.par')
             data = File.readlines()
             File.close()
             tParValues = []
             for line in data:
                 tParValues.append(float(line.split()[-1]))
             chisq = 0  # for the moment I cannot import chisq
-            rmtree(spath2 + '/' + path.basename(spath)[:-4])
+            rmtree(spath2 + '/' + path.basename(self.spath)[:-4])
             if path.isdir(spath2 + '/__MACOSX'):
                 rmtree(spath2 + '/__MACOSX')
         else:
-            if path.isfile('par.dat'):
-                file = open('par.dat')
+            if path.isfile(self.spath + '/par.dat'):
+                file = open(self.spath + '/par.dat')
                 data = file.readlines()
                 file.close()
             else:
@@ -436,8 +535,8 @@ class CGaReflInteractor(CDataInteractor):
                 self.fnMake()
                 pr = Popen(["nice", "./fit", "-S", "-n", "1"])  # initial genetic run
                 pr.wait()
-                if path.isfile('par.dat'):
-                    file = open('par.dat')
+                if path.isfile(self.spath + '/par.dat'):
+                    file = open(self.spath + '/par.dat')
                     data = file.readlines()
                     file.close()
                 else:
@@ -508,26 +607,32 @@ class CGaReflInteractor(CDataInteractor):
 
         return diParameters, chisq
 
-    def fnLoadStatData(self, dSparse=0, spath='./', runfile='setup.cc'):
+    def fnLoadStatData(self, dSparse=0., rescale_small_numbers=True, skip_entries=[]):
 
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
         liStatResult = []
 
-        sFileName = spath + 'isErr.dat'
+        if not (path.isfile(self.mcmcpath+'/sErr.dat') or path.isfile(self.mcmcpath+'/isErr.dat')):
+            # call super method to recreate sErr.dat from MCMC path, default MCMC runfile for garefl is 'run'
+            store_runfile = self.runfile
+            self.runfile = 'run'
+            super(CRefl1DInteractor, self).fnLoadStatData(dSparse)
+            self.runfile = store_runfile
 
+        sFileName = self.mcmcpath + '/isErr.dat'
         try:
-            if path.isfile(spath+'isErr.dat') and path.isfile(spath+'sErr.dat'):
+            if path.isfile(self.mcmcpath+'/isErr.dat') and path.isfile(self.mcmcpath+'/sErr.dat'):
                 print('-------------------------------')
                 print('Found isErr.dat and sErr.dat ?!')
                 print('Load isErr.dat as default.')
                 print('-------------------------------')
-            elif path.isfile(sPath+'isErr.dat'):  # check which type of MC output present
+            elif path.isfile(self.mcmcpath+'/isErr.dat'):  # check which type of MC output present
                 print('Found isErr.dat\n')
-            elif path.isfile(spath+'sErr.dat'):
+            elif path.isfile(self.mcmcpath+'/sErr.dat'):
                 print('Found sErr.dat\n')
-                sFileName = spath+'sErr.dat'
+                sFileName = self.mcmcpath+'/sErr.dat'
 
             diStatRawData = {'Parameters': self.fnLoadSingleColumnsIntoStatDict(sFileName, sparse=dSparse)}
             return diStatRawData
@@ -536,36 +641,34 @@ class CGaReflInteractor(CDataInteractor):
             print('Could not load ' + sFileName + '. \n')
             exit(1)
 
-    def fnMake(self, dirname='.'):
+    def fnMake(self):
         # make setup.c and print sys output
-        call(["rm", "-f", dirname + "/setup.o"])
+        call(["rm", "-f", self.spath + "/setup.o"])
         call(["sync"])  # synchronize file system
         sleep(1)  # wait for system to clean up
-        call(['make', '-C', dirname])
+        call(['make', '-C', self.spath])
 
+    def fnRestoreFitProblem(self):
+        from refl1d import garefl
+        # iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
+        self.fnMake()
+        problem = garefl.load(self.spath + '/model.so')
+        print('Here!\n')
+        return problem
 
-# Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
-# error analysis are found.
-# The MCMC directory is called 'MCMC'
-# The refl1d script name has to be run.py.
+    def fnRestoreMolgroups(self, problem):
+        problem.active_model.fitness.output_model()
+        diMolgroups = self.fnLoadMolgroups()
+        return diMolgroups
 
-class CRefl1DInteractor(CBumpsInteractor):
-    def __init__(self):
-        super().__init__()
-
-        # patterns to extract parmeter information from .err results files
-        self.VAR_PATTERN1 = re.compile(r"""
-            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
-            (?P<best>[0-9.eE+-]+?),\ name='
-            (?P<parname>.+?)',\ bounds=\(
-            (?P<lowbound>[0-9.eE+-]+?),
-            (?P<highbound>[0-9.eE+-]+?)\)
-            .*?
-            $""", re.VERBOSE)
+    @staticmethod
+    def fnRestoreSmoothProfile(M):
+        z, rho, irho = M.fitness.smooth_profile()
+        return z, rho, irho
 
 
 class CMolStat:
-    def __init__(self, fitsource='refl1d', resultspath='./', runfile='run'):
+    def __init__(self, fitsource='refl1d', spath='.', mcmcpath='.', runfile='run'):
         """
 
         """
@@ -605,7 +708,8 @@ class CMolStat:
         #                                                               'property2' value}}
 
         self.fitsource = fitsource                  # define fitting software
-        self.path = resultspath
+        self.spath = spath
+        self.mcmcpath = mcmcpath
         self.runfile = runfile
 
         self.liStatResult = []                      # a list that contains the isErr.dat or sErr.dat file line by line
@@ -617,14 +721,13 @@ class CMolStat:
         self.fMolgroupsNormArea = 0
         # check for system and type of setup file
 
+        self.Interactor = None
         if self.fitsource == 'bumps':
-            self.Interactor = CBumpsInteractor()
+            self.Interactor = CBumpsInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'refl1d':
-            self.Interactor = CRefl1DInteractor()
+            self.Interactor = CRefl1DInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'garefl':
-            self.Interactor = CGaReflInteractor()
-        else:
-            self.Interactor = CBumpsInteractor()
+            self.Interactor = CGaReflInteractor(spath, mcmcpath, runfile)
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
@@ -1689,7 +1792,6 @@ class CMolStat:
         cInteractor = self.cGaReflInteractor
         cInteractor.fnSaveSingleColumns('bilayerplotdata.dat', diStat)
 
-    # -------------------------------------------------------------------------------
     def fnGetNumberOfModelsFromSetupC(self):
 
         file = open(self.setupfilename, "r")  # open setup.c
@@ -1701,8 +1803,6 @@ class CMolStat:
                 i = smatch.search(line).group(1)
                 return (int(i))
         return (0)
-
-    # -------------------------------------------------------------------------------
 
     def fnGetParameterValue(self, sname):  # export absolute parameter value
         return self.diParameters[sname]['value']  # for given name
@@ -1824,68 +1924,13 @@ class CMolStat:
         file.close()
         return filelist
 
-    # -------------------------------------------------------------------------------
-
-    def fnLoadObject(self, sFileName):
-
+    @staticmethod
+    def fnLoadObject(sFileName):
         import pickle
-
         File = open(sFileName, "rb")
         Object = pickle.load(File)
         File.close()
-
         return Object
-
-    # -------------------------------------------------------------------------------
-
-    def fnLoadMolgroups(self):
-
-        self.diMolgroups = {}
-        li = []
-        # load mol.dat
-
-        file = open('mol.dat')
-        data = file.readlines()
-        file.close()
-
-        i = 0
-        while 1:
-            tdata = (data[i]).split()  # read header that contains molgroup data
-            self.diMolgroups[tdata[1]] = {}
-            self.diMolgroups[tdata[1]].update({'headerdata': {}})
-            self.diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
-            self.diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
-            j = 2
-            while 1:
-                self.diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
-                j += 2
-                if j == len(tdata):
-                    break
-
-            i += 2  # skip header line for data columns
-            zax = li[:]
-            areaax = li[:]
-            nslax = li[:]
-            self.diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax,
-                                               'nslaxis': nslax})
-
-            while 1:
-                if i >= len(data):
-                    break
-                tline = (data[i]).split()
-                if tline:
-                    self.diMolgroups[tdata[1]]['zaxis'].append(float(tline[0]))
-                    self.diMolgroups[tdata[1]]['areaaxis'].append(float(tline[1]))
-                    self.diMolgroups[tdata[1]]['nslaxis'].append(float(tline[2]))
-                    i += 1
-                else:
-                    break
-
-            i += 1
-            if i >= len(data):
-                break
-
-    # -------------------------------------------------------------------------------
 
     def fnLoadParameters(self):
         # loads the last row's parameters, and
@@ -1899,14 +1944,10 @@ class CMolStat:
         # and check vs. active fit parameters
         # load them into self.molgroups dictionary
         self.diParameters = {}
-        self.diParameters, self.chisq = self.Interactor.fnLoadParameters(self.path, self.runfile)
-
-    # -------------------------------------------------------------------------------
+        self.diParameters, self.chisq = self.Interactor.fnLoadParameters()
 
     def fnLoadStatData(self, sparse=0):
-
-        self.diStatResults = self.Interactor.fnLoadStatData(sparse, self.path, self.runfile)
-
+        self.diStatResults = self.Interactor.fnLoadStatData(sparse)
         # cycle through all parameters
         # determine length of longest parameter name for displaying
         iMaxParameterNameLength = 0
@@ -1917,8 +1958,8 @@ class CMolStat:
 
         self.diStatResults['NumberOfStatValues'] = \
             len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-
-        # -------------------------------------------------------------------------------
+        #print('StatDataLength: ')
+        #print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
 
     def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
 
@@ -2444,10 +2485,7 @@ class CMolStat:
                                                            fLowLim, self.diParameters[parameter]['upperlimit']))
         print('Chi squared: %g' % self.chisq)
 
-    # -------------------------------------------------------------------------------
-
-    def fnPullMolgroup(self, liMolgroupNames, dSparse=0):
-
+    def fnPullMolgroup(self, liMolgroupNames, sparse=0):
         """
         Calls Function that recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2456,17 +2494,15 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         Saves results to file
         """
-        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames)
+        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse)
         diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
 
-        self.Interactor.fnSaveSingleColumns('pulledmolgroups_area.dat', diarea)
-        self.Interactor.fnSaveSingleColumns('pulledmolgroups_nsl.dat', dinsl)
-        self.Interactor.fnSaveSingleColumns('pulledmolgroups_nsld.dat', dinsld)
-        self.Interactor.fnSaveSingleColumns('pulledmolgroupsstat.dat', diStat)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_area.dat', diarea)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsl.dat', dinsl)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsld.dat', dinsld)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroupsstat.dat', diStat)
 
-    # -------------------------------------------------------------------------------
-    def fnPullMolgroupLoader(self, liMolgroupNames):
-
+    def fnPullMolgroupLoader(self, liMolgroupNames, sparse):
         """
         Function recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2476,13 +2512,13 @@ class CMolStat:
         """
 
         try:
-            self.diStatResults = self.fnLoadObject('StatDataPython.dat')
+            self.diStatResults = self.fnLoadObject(self.mcmcpath+'/StatDataPython.dat')
             print('Loaded statistical data from StatDataPython.dat')
 
         except IOError:
-            print('Failure to calculate values from StatDataPython.dat.')
+            print('Failure to load StatDataPython.dat.')
             print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical()
+            self.fnRecreateStatistical(sparse=sparse)
 
         diarea = {
             'zaxis': self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']}
@@ -2560,22 +2596,16 @@ class CMolStat:
 
         return diStat
 
-    # -------------------------------------------------------------------------------
-
     def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0):
 
         # Recreates profile and fit data associated with stat file
-
-        from refl1d import garefl
-        import matplotlib.pyplot as plt
         from sys import stdout
 
-        self.fnLoadParameters()  # Load Parameters into self.diParameters
-        self.fnLoadStatData(sparse)  # Load Results from statistical analysis
-        iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
-        self.fnMake()
+        self.fnLoadParameters()
+        self.fnLoadStatData(sparse)
 
-        problem = garefl.load('model.so')
+        problem = self.Interactor.fnRestoreFitProblem()
+
         j = 0
         self.diStatResults['nSLDProfiles'] = []  # delete list of all nSLD profiles
         self.diStatResults['Molgroups'] = []  # delete list of all molecular groups
@@ -2596,46 +2626,33 @@ class CMolStat:
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
-                        # print parameter, val
-                        if 'rho_' in parameter or 'background' in parameter:
-                            val *= 1E6
+                        # Rescaling is currently disabled
+                        # if 'rho_' in parameter or 'background' in parameter:
+                        #    val *= 1E6
                         p.append(val)
-                    # print p
                     problem.setp(p)
-                    #print(problem.chisq())
-                    for M in problem.models:
-                        z, rho, irho = M.fitness.smooth_profile()
-                        #                        plt.plot(z,rho)
-                        #                        M.model_update()
-                        #                        M.fitness.update()
-                        self.diStatResults['nSLDProfiles'][-1].append((z, rho))
-                        #                        print self.diStatResults['Parameters']['rho_solv_0']['Values'][iteration], rho[0], M.chisq()
-                        print(M.chisq())
-                    #                        print M.fitness._get_penalty()
-                    #                        print p, pi
-                    #                        models = [M for M in problem.models]
-
-                    #                        print self.diStatResults['nSLDProfiles'][-1][-1][0],problem.models[i].fitness.slabs()[0]
-                    #                        print liParameters
-                    #                        print models[0].fitness.slabs()[0]
-                    #                        print hstack((self.diStatResults['nSLDProfiles'][-1][-1][1],models[i-1].fitness.slabs()[2]))
-                    #                    print self.diStatResults['nSLDProfiles']
-                    #                    plt.show()
+                    # distinguish between FitProblem and MultiFitProblem
+                    if 'models' in dir(problem):
+                        for M in problem.models:
+                            z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
+                            self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                            print(M.chisq())
+                    else:
+                        z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
+                        self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                        print(problem.chisq())
                     stdout.flush()
 
                     if bRecreateMolgroups:
-                        problem.active_model.fitness.output_model()
-                        self.fnLoadMolgroups()
-                        self.diStatResults['Molgroups'].append(
-                            self.diMolgroups)  # append molgroup information to self.diStatResults
+                        self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)
+                        # append molgroup information to self.diStatResults
+                        self.diStatResults['Molgroups'].append(self.diMolgroups)
                 else:
                     raise RuntimeError('Statistical error data and setup file do not match')
             finally:
                 j += 1
 
-        self.fnSaveObject(self.diStatResults, 'StatDataPython.dat')  # save stat data to disk
-
-    # -------------------------------------------------------------------------------
+        self.fnSaveObject(self.diStatResults, self.mcmcpath + '/StatDataPython.dat')  # save stat data to disk
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):  # scans setup.c file for parameter with
         file = open(self.setupfilename, 'r+')  # name sname and replaces the lower and
@@ -2653,13 +2670,9 @@ class CMolStat:
         file.writelines(newdata)
         file.close()
 
-    # -------------------------------------------------------------------------------
-
     def fnRemoveBackup(self):  # deletes the backup directory
         self.fnRestoreBackup()
         call(['rm', '-rf', 'rsbackup'])
-
-    # -------------------------------------------------------------------------------
 
     def fnRestoreBackup(self):  # copies all files from the backup directory
         if path.isfile('rsbackup/pop.dat'):
