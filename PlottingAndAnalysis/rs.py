@@ -72,6 +72,28 @@ class CDataInteractor():
                 break
         return diMolgroups
 
+    def fnLoadsErr(self):
+        sFileName = self.mcmcpath + '/isErr.dat'
+        try:
+            if path.isfile(self.mcmcpath+'/isErr.dat') and path.isfile(self.mcmcpath+'/sErr.dat'):
+                print('-------------------------------')
+                print('Found isErr.dat and sErr.dat ?!')
+                print('Load isErr.dat as default.')
+                print('-------------------------------')
+            elif path.isfile(self.mcmcpath+'/isErr.dat'):  # check which type of MC output present
+                print('Found isErr.dat\n')
+            elif path.isfile(self.mcmcpath+'/sErr.dat'):
+                print('Found sErr.dat\n')
+                sFileName = self.mcmcpath+'/sErr.dat'
+
+            diStatRawData = {'Parameters': self.fnLoadSingleColumnsIntoStatDict(sFileName)}
+            return diStatRawData
+
+        except IOError:
+            print('Could not load ' + sFileName + '. \n')
+            exit(1)
+
+
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
     @staticmethod
@@ -411,28 +433,30 @@ class CBumpsInteractor(CDataInteractor):
         return diParameters, overall
 
     def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
+        if path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
+            diStatRawData = self.fnLoadsErr()
+        else:
+            points, lParName, logp = self.fnLoadMCMCResults()
 
-        points, lParName, logp = self.fnLoadMCMCResults()
+            diStatRawData = {'Parameters': {}}
+            diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
+            diStatRawData['Parameters']['Chisq']['Values'] = []
+            for parname in lParName:
+                diStatRawData['Parameters'][parname] = {}
+                diStatRawData['Parameters'][parname]['Values'] = []
 
-        diStatRawData = {'Parameters': {}}
-        diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
-        diStatRawData['Parameters']['Chisq']['Values'] = []
-        for parname in lParName:
-            diStatRawData['Parameters'][parname] = {}
-            diStatRawData['Parameters'][parname]['Values'] = []
+            seed()
+            for j in range(len(points[:, 0])):
+                if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
+                    diStatRawData['Parameters']['Chisq']['Values'].append(logp[j])
+                    for i, parname in enumerate(lParName):
+                        # TODO: this is a hack because Paul does not scale down after scaling up
+                        # Rescaling disabled for bumps/refl1d analysis to achieve consistency
+                        # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
+                        #     points[j, i] *= 1E-6
+                        diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
 
-        seed()
-        for j in range(len(points[:, 0])):
-            if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
-                diStatRawData['Parameters']['Chisq']['Values'].append(logp[j])
-                for i, parname in enumerate(lParName):
-                    # TODO: this is a hack because Paul does not scale down after scaling up
-                    # Rescaling disabled for bumps/refl1d analysis to achieve consistency
-                    # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
-                    #     points[j, i] *= 1E-6
-                    diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
-
-        self.fnSaveSingleColumnsFromStatDict(self.mcmcpath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
+            self.fnSaveSingleColumnsFromStatDict(self.mcmcpath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
 
         return diStatRawData
 
@@ -613,7 +637,6 @@ class CGaReflInteractor(CRefl1DInteractor):
         # the self.liStatResult object
         sStatResultHeader = ''
         liStatResult = []
-
         if not (path.isfile(self.mcmcpath+'/sErr.dat') or path.isfile(self.mcmcpath+'/isErr.dat')):
             # call super method to recreate sErr.dat from MCMC path, default MCMC runfile for garefl is 'run'
             store_runfile = self.runfile
@@ -621,25 +644,7 @@ class CGaReflInteractor(CRefl1DInteractor):
             super(CRefl1DInteractor, self).fnLoadStatData(dSparse)
             self.runfile = store_runfile
 
-        sFileName = self.mcmcpath + '/isErr.dat'
-        try:
-            if path.isfile(self.mcmcpath+'/isErr.dat') and path.isfile(self.mcmcpath+'/sErr.dat'):
-                print('-------------------------------')
-                print('Found isErr.dat and sErr.dat ?!')
-                print('Load isErr.dat as default.')
-                print('-------------------------------')
-            elif path.isfile(self.mcmcpath+'/isErr.dat'):  # check which type of MC output present
-                print('Found isErr.dat\n')
-            elif path.isfile(self.mcmcpath+'/sErr.dat'):
-                print('Found sErr.dat\n')
-                sFileName = self.mcmcpath+'/sErr.dat'
-
-            diStatRawData = {'Parameters': self.fnLoadSingleColumnsIntoStatDict(sFileName, sparse=dSparse)}
-            return diStatRawData
-
-        except IOError:
-            print('Could not load ' + sFileName + '. \n')
-            exit(1)
+        return self.fnLoadsErr()
 
     def fnMake(self):
         # make setup.c and print sys output
@@ -653,7 +658,6 @@ class CGaReflInteractor(CRefl1DInteractor):
         # iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
         self.fnMake()
         problem = garefl.load(self.spath + '/model.so')
-        print('Here!\n')
         return problem
 
     def fnRestoreMolgroups(self, problem):
@@ -888,9 +892,6 @@ class CMolStat:
     # -------------------------------------------------------------------------------
 
     def fnCalculateMolgroupProperty(self, fConfidence):
-
-        import scipy.stats
-
         def fnFindMaxFWHM(lList):
             imax = 0
             maxvalue = 0
@@ -911,13 +912,11 @@ class CMolStat:
                 if ifwhmminus == (-1):
                     ifwhmplus = 0
                     break
-
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
         try:
-            self.diStatResults = self.fnLoadObject('StatDataPython.dat')
+            self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
             print('Loaded statistical data from StatDataPython.dat')
-
         except IOError:
             print('Failure to load StatDataPython.dat.')
             print('Recreate statistical data from sErr.dat.')
@@ -926,8 +925,8 @@ class CMolStat:
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
-            pdf_frac1 = pandas.read_csv('envelopefrac1.dat', sep=' ')
-            pdf_frac2 = pandas.read_csv('envelopefrac2.dat', sep=' ')
+            pdf_frac1 = pandas.read_csv(self.mcmcpath + '/envelopefrac1.dat', sep=' ')
+            pdf_frac2 = pandas.read_csv(self.mcmcpath + '/envelopefrac2.dat', sep=' ')
 
             for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
                 striter = 'iter' + str(mcmc_iter)
@@ -937,7 +936,6 @@ class CMolStat:
                 self.diStatResults['Molgroups'][mcmc_iter]['frac1']['areaaxis'] = pdf_frac1[striter].tolist()
                 self.diStatResults['Molgroups'][mcmc_iter]['frac2']['zaxis'] = pdf_frac2['zaxis'].tolist()
                 self.diStatResults['Molgroups'][mcmc_iter]['frac2']['areaaxis'] = pdf_frac2[striter].tolist()
-
         except IOError:
             print('Did not find any fractional envelopes ...')
 
@@ -954,7 +952,7 @@ class CMolStat:
 
                 if sum(mgdict[s_molgroup]['areaaxis']):
                     f_com, f_int = average(mgdict[s_molgroup]['zaxis'], weights=mgdict[s_molgroup]['areaaxis'],
-                                         returned=True)  # Calculate Center of Mass and Integral
+                                           returned=True)  # Calculate Center of Mass and Integral
                     f_int = sum(mgdict[s_molgroup]['areaaxis']) * (
                             mgdict[s_molgroup]['zaxis'][1] - mgdict[s_molgroup]['zaxis'][0])
                 else:
@@ -1226,7 +1224,7 @@ class CMolStat:
         fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
         fHigherPercentileMark = (100 - fLowerPercentileMark)
 
-        File = open("CalculationResults.dat", "w")
+        File = open(self.mcmcpath + "/CalculationResults.dat", "w")
         for element, value in sorted(diResults.items()):
             fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
             fMedian = stats.scoreatpercentile(diResults[element], 50.)
@@ -1235,9 +1233,10 @@ class CMolStat:
             sPrintString = '%(el)s'
             sPrintString += '  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
-            File.write(sPrintString % \
-                       {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
-                        'hd': (fHighPerc - fMedian), 'hp': fHighPerc})
+            soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
+                                      'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
+            File.write(soutput)
+            print(soutput)
             File.write('\n')
 
         File.close()
@@ -1789,8 +1788,7 @@ class CMolStat:
                 fnStat(diIterations[element + '_corr_cvo'], element + '_corr_cvo', diStat)
 
         print('Saving data to bilayerplotdata.dat ...\n')
-        cInteractor = self.cGaReflInteractor
-        cInteractor.fnSaveSingleColumns('bilayerplotdata.dat', diStat)
+        self.Interactor.fnSaveSingleColumns(self.mcmcpath + '/bilayerplotdata.dat', diStat)
 
     def fnGetNumberOfModelsFromSetupC(self):
 
@@ -2182,14 +2180,14 @@ class CMolStat:
             fnSaveEnvelopes(liStoredEnvelopes, liStoredEnvelopeHeaders, iModel,
                             fMin, fMax, fGrid, fSigma)
 
-    def fnPlotMolgroups(self, sPath):
+    def fnPlotMolgroups(self):
 
         from matplotlib.font_manager import fontManager, FontProperties
 
         font = FontProperties(size='x-small')
         plotname = 'Molgroups'
 
-        self.fnLoadParameters(sPath)  # Load Parameters and modify setup.cc
+        self.fnLoadParameters()  # Load Parameters and modify setup.cc
         self.fnBackup()  # Backup setup.c, and other files
         try:
             liParameters = list(self.diParameters.keys())  # get list of parameters from setup.c/par.dat
@@ -2502,7 +2500,7 @@ class CMolStat:
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsld.dat', dinsld)
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroupsstat.dat', diStat)
 
-    def fnPullMolgroupLoader(self, liMolgroupNames, sparse):
+    def fnPullMolgroupLoader(self, liMolgroupNames, sparse=0):
         """
         Function recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2557,7 +2555,6 @@ class CMolStat:
         return diarea, dinsl, dinsld
 
     def fnPullMolgroupWorker(self, diarea, dinsl, dinsld):
-
         """
         Function recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
