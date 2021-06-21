@@ -345,7 +345,7 @@ class PC(nSLDObj):
         self.cg = Box2Err()
         self.phosphate = Box2Err()
         self.choline = Box2Err()
-        self.groups = {"pc_cg": self.cg, "pc_ph": self.phosphate, "pc_ch": self.choline}
+        self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
         self.cg.l = 4.21 
         self.phosphate.l = 3.86
         self.choline.l = 6.34
@@ -475,12 +475,12 @@ class BLM_quaternary(nSLDObj):
         self.defect_hydrocarbon = Box2Err()
         self.defect_headgroup = Box2Err()
         
-        self.groups = {"blm_headgroup1": self.headgroup1, "blm_headgroup1_2": self.headgroup1_2,
-                        "blm_headgroup1_3": self.headgroup1_3, "blm_lipid1": self.lipid1,
-                        "blm_methyl1": self.methyl1,"blm_methyl2": self.methyl2,
-                        "blm_lipid2": self.lipid2, "blm_headgroup2": self.headgroup2,
-                        "blm_headgroup2_2": self.headgroup2_2, "blm_headgroup2_3": self.headgroup2_3, 
-                        "blm_defect_hc": self.defect_hydrocarbon, "blm_defect_hg": self.defect_headgroup}
+        self.groups = {"headgroup1": self.headgroup1, "headgroup1_2": self.headgroup1_2,
+                        "headgroup1_3": self.headgroup1_3, "lipid1": self.lipid1,
+                        "methyl1": self.methyl1,"methyl2": self.methyl2,
+                        "lipid2": self.lipid2, "headgroup2": self.headgroup2,
+                        "headgroup2_2": self.headgroup2_2, "headgroup2_3": self.headgroup2_3, 
+                        "defect_hc": self.defect_hydrocarbon, "defect_hg": self.defect_headgroup}
 
         self.volacyllipid = 925
         self.nslacyllipid = -2.67e-4
@@ -536,8 +536,9 @@ class BLM_quaternary(nSLDObj):
 
         self.fnAdjustParameters()
         
-    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2,
-     nh2, lh2, va3, na3, vm3, nm3, vh3, nh3, lh3, vc, nc):
+    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2=0, na2=0, vm2=0,
+               nm2=0, vh2=0, nh2=0, lh2=0, va3=0, na3=0, vm3=0, nm3=0, vh3=0,
+               nh3=0, lh3=0, vc=0, nc=0):
         self.volacyllipid = va1
         self.nslacyllipid = na1
         self.volmethyllipid = vm1
@@ -739,7 +740,7 @@ class BLM_quaternary(nSLDObj):
         sum = self.fnGetArea(dz)
         if sum == 0:
             return result
-        bulk = {"blm_headgroup1_1", "blm_headgroup1_2", "blm_headgroup2_1", "blm_headgroup2_2"}
+        bulk = {"headgroup1_1", "headgroup1_2", "headgroup2_1", "headgroup2_2"}
         for group in self.groups:
             group_area = self.groups[group].fnGetArea(dz)
             if group in bulk:
@@ -762,7 +763,9 @@ class BLM_quaternary(nSLDObj):
         c = self.headgroup2_3.fnGetUpperLimit()
         return max([a, b, c])
 
-    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0., hc_substitution_2=0., radius_defect=100.):
+    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer,
+              nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0.,
+              hc_substitution_2=0., radius_defect=100.):
         self.sigma = sigma
         self.bulknsld = bulknsld
         self.startz = startz
@@ -802,15 +805,15 @@ class BLM_quaternary(nSLDObj):
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         for group in self.groups:
             self.groups[group].fnWritePar2File(fp, group, dimension, stepsize)
-        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
 
 class child_ssBLM_quaternary(BLM_quaternary):
     def __init__(self):
         super().__init__()
         self.substrate  = Box2Err()
         self.siox       = Box2Err()
-        self.groups["blm_substrate"].append(self.substrate)
-        self.groups["blm_siox"].append(self.siox)
+        self.groups["substrate"].append(self.substrate)
+        self.groups["siox"].append(self.siox)
         self.substrate.l=20
         self.substrate.z=10
         self.substrate.nf=1
@@ -862,8 +865,9 @@ class child_ssBLM_quaternary(BLM_quaternary):
 # Hermite Spline
 # ------------------------------------------------------------------------------------------------------
 
-class Hermite(object):
+class Hermite(nSLDObj):
     def __init__(self, n, dstartposition, dnSLD, dnormarea):
+        super().__init__()
         self.numberofcontrolpoints = n
         self.nSLD=dnSLD
         self.normarea=dnormarea
@@ -905,14 +909,11 @@ class Hermite(object):
             self.dp[i] = dStart + dSpacing*i + dDp[i]
         self.nf = dnf
 
-    def fnSetSigma(self, sigma): 
-        pass
-
     def fnWritePar2File(self, fp, cName, dimension, stepsize): 
         pass
 
     def fnGetSplineAntiDerivative(self, dz, dp, dh): 
-        interval = self.fnGetSplinePars(dz, dp, dh, self.m0, self.m1, self.p0, self.p1)
+        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, dh, 0, 0, 0, 0)
         if (0 <= interval < self.numberofcontrolpoints-1):
             dd=dp[interval+1]-dp[interval] 
             t=(dz-dp[interval])/dd 
@@ -923,10 +924,11 @@ class Hermite(object):
             h01=(-1/2)*t_4+t_3             
             h10= (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
             h11= (1/4)*t_4-(1/3)*t_3             
-            return dd*(h00*self.p0 + h10*dd*self.m0 + h01*self.p1 + h11*dd*self.m1)         
+            return dd*(h00*p0 + h10*dd*m0 + h01*p1 + h11*dd*m1)         
         return 0
 
     def fnGetSplineArea(self, dz, dp, dh, damping):
+        m0, m1, p0, p1 = 0, 0, 0, 0
         if (damping == 0):
             self.damp = dh.copy()  
         else:
@@ -936,7 +938,7 @@ class Hermite(object):
                     if (dh[i] >= self.damptrigger):
                         dampfactor=dampfactor*(1/(1 + math.exp(-2.1*(dh[i]- self.dampthreshold)/self.dampFWHM))) 
 
-        interval=self.fnGetSplinePars(self, dz, dp, self.damp, self.m0, self.m1, self.p0, self.p1) 
+        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, self.damp, m0, m1, p0, p1) 
 
         if (0 <= interval < self.numberofcontrolpoints-1):
             dd=dp[interval+1]-dp[interval] 
@@ -947,17 +949,16 @@ class Hermite(object):
             h10= t_3 - 2*t_2 + t 
             h01= (-2)*t_3 + 3*t_2 
             h11= t_3-t_2
-            return h00*self.p0+h10*dd*self.m0+h01*self.p1+h11*dd*self.m1 
-
+            return h00*p0+h10*dd*m0+h01*p1+h11*dd*m1 
         return 0   
 
-    def fnGetSplinePars(self, d, dp, dh, m0, m1, p0, p1): 
+    def fnGetSplinePars(self, dz, dp, dh, m0, m1, p0, p1): 
         interval=-1 
         for i in range(self.numberofcontrolpoints):
-            if ((dp[i]<=self.dz) and (dp[i+1]>self.dz)):
+            if ((dp[i] <= dz) and (dp[i+1] > dz)):
                 # printf("Found interval %i \n", i)
                 interval = i
-        if (self.dz==dp[-1]):
+        if (dz==dp[-1]):
             interval=self.numberofcontrolpoints-2 
         
         if (interval>=0):                                           #tangent calculation
@@ -1041,13 +1042,11 @@ class Hermite(object):
             p0=dh[interval] 
             p1=dh[interval+1] 
     
-        return interval 
+        return interval, m0, m1, p0, p1
         
     def fnGetSplineIntegral(self, dz1, dz2, dp, dh, damping): 
         if (dz1 > dz2):
-            temp=dz2 
-            dz2=dz1 
-            dz1=temp 
+            dz1, dz2 = dz2, dz1
         
         #check for boundaries
         dz1 = max(dz1, dp[0])
@@ -1055,16 +1054,13 @@ class Hermite(object):
         integral=0  
         d=dz1 
         while (d <= dz2):
-            integral += self.fnGetSplineArea(d,dp,dh, damping)*0.5 
-            d += 0.5 
-        
+            integral += self.fnGetSplineArea(d, dp, dh, damping)*0.5 
+            d += 0.5
         return integral 
 
     def fnGetSplineProductIntegral(self, dz1, dz2, dp, dh1, dh2, damping1, damping2): 
-        if (dz1>dz2) :
-            temp=dz2 
-            dz2=dz1 
-            dz1=temp 
+        if (dz1>dz2):
+            dz1, dz2 = dz2, dz1
         
         #check for boundaries
         dz1 = max(dp[0], dz1)
@@ -1073,9 +1069,8 @@ class Hermite(object):
         integral=0  
         d=dz1 
         while (d<=dz2):
-            integral+=self.fnGetSplineArea(d,dp,dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
-             #printf("d %g damping1 %i area1 %g damping2 %i area2 %g \n", d, damping1, fnGetSplineArea(d,dp,dh1, damping1), damping2, fnGetSplineArea(d,dp,dh2, damping2)) 
-            d+=0.5 
+            integral+=self.fnGetSplineArea(d, dp, dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
+            d+=0.5
         
         return integral 
     
