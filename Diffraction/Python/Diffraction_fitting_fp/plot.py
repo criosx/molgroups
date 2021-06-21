@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
-sys.path.append(".")
 import molgroups as mol
 
 def graphBumpsResults(filename):
@@ -13,7 +11,7 @@ def graphBumpsResults(filename):
     axes[0].legend(['model', 'experiment'], fontsize=8)
     axes[0].set_xlim([q[0], q[-1]])
     axes[0].set_ylabel('|F| (1/Å)', fontsize=10)
-    axes[0].tick_params(axis='both', which='major', labelsize=10)
+    axes[0].tick_params(axis='both', which='major', direction='in', labelsize=10)
     axes[1].plot(q, (Fy-F)/dq)
     axes[1].plot(q, q*0, color='black')
     axes[1].set_ylabel('(f(q) - F) / dq', fontsize=10)
@@ -22,42 +20,40 @@ def graphBumpsResults(filename):
     fig.savefig(output_filename)
     plt.draw()
 
-def getnSLD(anSL, aArea, dimension, stepsize):
-    anSLD = np.zeros(dimension)
-    for i in range(len(anSL)):
-        if anSL[i] == 0 or aArea[i] == 0:
-            anSLD[i] = 0
+def getSLD(aSL, aArea, dimension, stepsize, normarea= 100, bulknsld=0):
+    aSLD = np.zeros(dimension)
+    for i in range(len(aSL)):
+        if aSL[i] == 0 or aArea[i] == 0:
+            aSLD[i] = bulknsld
         else:
-            anSLD[i] = anSL[i]/(aArea[i]*stepsize)
-    return anSLD
+            aSLD[i] = aSL[i] / (aArea[i]*stepsize) * aArea[i]/normarea + bulknsld * (1 - aArea[i]/normarea)
+    return aSLD
 
 def graphBilayer(bilayer, dimension, stepsize, maxarea, bulknsld, show=False, savefile=None):
-    dd, aArea, anSL = bilayer.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
-    anSLD  = np.zeros(dimension)
+    dd, aArea, aSL = bilayer.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
+    aSLD  = np.zeros(dimension)
 
     for i in range(dimension):
         if aArea[i] != 0:
-            anSLD[i] = anSL[i] / (aArea[i]*stepsize) * aArea[i]/dd + bulknsld * (1 - aArea[i]/dd)
+            aSLD[i] = aSL[i] / (aArea[i]*stepsize) * aArea[i]/dd + bulknsld * (1 - aArea[i]/dd)
         else:
-            anSLD[i] = bulknsld
+            aSLD[i] = bulknsld
 
     x = [stepsize * i for i in range(dimension)]
 
     fig, axes = plt.subplots(3)
 
-    axes[0].plot(x, anSL)
-    axes[0].legend(['SL'])
-    axes[0].set_ylabel('SL (Å)')
-    axes[0].set_xlabel('z (Å)')
+    axes[0].plot(x, aArea)
+    axes[0].legend(['Area'])
+    axes[0].set_ylabel('Area (Å^2)')
     axes[0].tick_params(axis='both', which='major')
 
-    axes[1].plot(x, aArea)
-    axes[1].legend(['Area'])
-    axes[1].set_ylabel('Area (Å^2)')
-    axes[1].set_xlabel('z (Å)')
+    axes[1].plot(x, aSL)
+    axes[1].legend(['SL'])
+    axes[1].set_ylabel('SL (Å)')
     axes[1].tick_params(axis='both', which='major')
 
-    axes[2].plot(x, anSLD)
+    axes[2].plot(x, aSLD)
     axes[2].legend(['SLD'])
     axes[2].set_ylabel('SLD (1/Å^2)')
     axes[2].set_xlabel('z (Å)')
@@ -68,57 +64,50 @@ def graphBilayer(bilayer, dimension, stepsize, maxarea, bulknsld, show=False, sa
     else: plt.close()
 
 
-def graphGroups(obj, dimension, stepsize, maxarea, show=False, savefile=None):
-    fig, ax = plt.subplots(1, 3)
-    __, aArea, anSL = obj.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea) 
-    
+def graphProfiles(obj, dimension, stepsize, maxarea, show=False, savefile=None):
+    fig, ax = plt.subplots(3)
+    __, aArea, aSL = obj.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea) 
     if isinstance(obj, mol.BLM_quaternary):   
-        members = {"headgroup" : ("blm_headgroup1", "blm_headgroup2"), "lipid" : ("blm_lipid1", "blm_lipid2"), 
-        "methyl" :("blm_methyl1", "blm_methyl1")}
-    if isinstance(obj, mol.PC):
-        members = {"carbonyl gylcerol": ["pc_cg"], "phosphate": ["pc_ph"], "choline": ["pc_ch"] }
+        members = {"headgroup1": ["headgroup1", "headgroup2"],
+                   "lipid": ["lipid1", "lipid2"],
+                   "methyl": ["methyl1", "methyl2"]}
+        print(obj.nf_lipid_2)
+        if obj.nf_lipid_2 > 0:
+            members.update(headgroup2 = ["headgroup1_2", "headgroup2_2"])
+        if obj.nf_lipid_3 > 0:
+            members.update(headgroup2 = ["headgroup1_3", "headgroup2_3"])
+    elif isinstance(obj, mol.PC):
+            members = {"carbonyl gylcerol": ["cg"], "phosphate": ["phosphate"], "choline": ["choline"] }
     else: members = {}
     x = [stepsize * i for i in range(dimension)]
 
-    ax[0].set_ylabel('Area (Å^2')
-    ax[0].set_xlabel('z (Å)')
+    ax[0].set_ylabel('Area (Å^2)')
     ax[1].set_ylabel('SL (Å)')
-    ax[1].set_xlabel('z (Å)')
     ax[2].set_ylabel('SLD (Å)')
     ax[2].set_xlabel('z (Å)')
     ax[0].plot(x, aArea)
-    ax[1].plot(x, anSL)
-    ax[2].plot(x, getnSLD(anSL, aArea, dimension, stepsize))
+    ax[1].plot(x, aSL)
+    ax[2].plot(x, getSLD(aSL, aArea, dimension, stepsize))
     legend = ["total"]
     
     for label in members:
         aArea = np.zeros(dimension)
-        anSL  = np.zeros(dimension)
-        anSLD = np.zeros(dimension)
+        aSL  = np.zeros(dimension)
+        aSLD = np.zeros(dimension)
         for name in members[label]:
+            print(name)
             group = obj.groups[name]
-            _, half_area, half_nSL = group.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
-            anSL += half_nSL
-            aArea += half_area
-        anSLD = getnSLD(anSL, aArea, dimension, stepsize)
+            _, partial_area, partial_SL = group.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
+            aSL += partial_SL
+            aArea += partial_area
+        aSLD = getSLD(aSL, aArea, dimension, stepsize)
         ax[0].plot(x, aArea)
-        ax[1].plot(x, anSL)
-        ax[2].plot(x, anSLD)
-
+        ax[1].plot(x, aSL)
+        ax[2].plot(x, aSLD)
         legend.append(label)
     fig.legend(legend)
-    # ax[1].legend(legend)
+
     if savefile: 
         fig.savefig(savefile + ".png")
     if show: plt.show()
     else: plt.close()
-
-def main():
-    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1/run-ff.dat")
-    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T1_headgroups/run-ff.dat")
-    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2_headgroups/run-ff.dat")
-    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T2/run-ff.dat")
-    graphBumpsResults("molgroups/Diffraction/Python/Diffraction_fitting_fp/T3/run-ff.dat")
-
-if __name__ == "__main__":
-    main()

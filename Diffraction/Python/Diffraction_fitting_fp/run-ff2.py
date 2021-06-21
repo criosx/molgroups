@@ -82,7 +82,7 @@ l_lipid = 11
 vf_bilayer = 1.0
 sigma = 2.0
 bulknsld = 9.4114E-06
-prefactor = 180000
+prefactor = 1.6E05
 dq = 0.
 rel_pos = .5
 methyl_sigma = .1
@@ -91,11 +91,11 @@ methyl_sigma = .1
 M2 = Curve(modelformfactor, q_exp, form_exp, dform_exp, l_lipid=l_lipid, sigma=sigma, bulknsld=bulknsld, prefactor=prefactor, dq=dq, rel_pos=rel_pos, hg1_thickness = lh1, hg2_thickness=lh2, methyl_sigma=methyl_sigma)
 M2.l_lipid.range(9,15)
 M2.sigma.range(1.0, 4.0)
-M2.bulknsld.range(9E-6,10E-6)
+# M2.bulknsld.range(9E-6,10E-6)
 M2.prefactor.range(1E5,3E5)
 M2.dq.range(-0.02, 0.02)
 M2.hg1_thickness.range(8,13)
-M2.hg2_thickness.range(10,17)
+M2.hg2_thickness.range(10,18)
 M2.rel_pos.range(0, 1)
 M2.methyl_sigma.range(0, 4)
 

@@ -22,27 +22,32 @@ def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thi
     startz = 50
 
     aArea = np.zeros(dimension).tolist()
-    anSL  = np.zeros(dimension).tolist()
-    anSLD = np.zeros(dimension).tolist()
+    aSL  = np.zeros(dimension).tolist()
+    aSLD = np.zeros(dimension).tolist()
 
     bilayer.headgroup1.fnSet(hg_thickness, rel_pos)
     bilayer.headgroup2.fnSet(hg_thickness, rel_pos) 
     bilayer.methyl_sigma = methyl_sigma
     bilayer.fnSet(sigma, bulknsld, startz, l_lipid, l_lipid, vf_bilayer)
-    dMaxArea, aArea, anSL = bilayer.fnWriteProfile(aArea, anSL, dimension, stepsize, maxarea)
+    normArea, aArea, aSL = bilayer.fnWriteProfile(aArea, aSL, dimension, stepsize, maxarea)
 
     #TODO: speedup
-    for i in range(len(aArea)):
+    for i in range(dimension):
         if aArea[i] != 0:
-            anSLD[i] = anSL[i] / (aArea[i]*stepsize) * aArea[i]/dMaxArea + bulknsld * (1 - aArea[i]/dMaxArea)
+            aSLD[i] = aSL[i] / (aArea[i]*stepsize) * aArea[i]/normArea + bulknsld * (1 - aArea[i]/normArea)
         else:
-            anSLD[i] = bulknsld
+            aSLD[i] = bulknsld
 
+    modelform = computeFormFactor(aSLD, dimension, stepsize)
+
+    return modelform
+
+def computeFormFactor(aSLD, dimension, stepsize, lq, prefactor):
     center = bilayer.fnGetCenter()
     center = center//stepsize
     canvas_center = dimension//2
     n = int(canvas_center - center)
-    centered_bilayer = np.roll(anSLD, n)
+    centered_bilayer = np.roll(aSLD, n)
     symmetrized_bilayer = np.add(centered_bilayer,centered_bilayer[::-1])*0.5
     symmetrized_bilayer -= bulknsld
     half_bilayer = symmetrized_bilayer[int(dimension/2):]
@@ -54,10 +59,7 @@ def modelformfactor(lq, l_lipid, sigma, bulknsld, prefactor, dq, rel_pos, hg_thi
     x = np.array([np.pi/(2*dct_dimension*stepsize)*(2*i)+dq  for i in range(int(dct_dimension))])
 
     #interpolate (x, F) onto lq -> (lq, modelform)
-    modelform =  np.interp(lq, x, F, left=None, right=None, period=None)*prefactor
-
-    return modelform
-
+    return np.interp(lq, x, F, left=None, right=None, period=None)*prefactor
 # Load experimental data
 
 F2 = np.loadtxt("Experimental_form_factors/dopc.dat", skiprows=1)
