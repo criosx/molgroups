@@ -160,9 +160,9 @@ class nSLDObj():
         while d<=dUpperLimit:
             i = int(d/stepsize)
             dprefactor=1
-            if self.bWrapping:
-                i = abs(i)
-                if i == 0:
+            if (i<0) and self.bWrapping:
+                i = -1 * i
+            if (i==0) and self.bWrapping:
                     dprefactor = 2                                            #avoid too low filling when mirroring
             if (i>=0) and (i<dimension):
                 dAreaInc = self.fnGetConvolutedArea(d)
@@ -185,9 +185,9 @@ class nSLDObj():
             i = int(d / stepsize)
             dprefactor = 1
             # printf("Here we are %i, dimension %i \n", i, dimension)
-            if self.bWrapping:
-                i = abs(i)
-                if i == 0:
+            if (i<0) and self.bWrapping:
+                i = -1 * i
+            if (i == 0) and self.bWrapping:
                     # avoid too low filling when mirroring
                     dprefactor = 2       
             if 0 <= i < dimension:
@@ -210,9 +210,9 @@ class nSLDObj():
         while d<=dUpperLimit:
             i = int(d / stepsize)
             dprefactor = 1
-            if self.bWrapping:
-                i = abs(i)
-                if i == 0:
+            if (i < 0) and self.bWrapping:
+                i=-1*i
+            if (i == 0) and self.bWrapping:
                     dprefactor = 2                                           #avoid too low filling when mirroring
             if (i >= 0) and i<dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
@@ -243,9 +243,9 @@ class nSLDObj():
             i = int(d/stepsize)
             dprefactor = 1
             # printf("Here we are %i, dimension %i, maxarea %f \n", i, dimension, dMaxArea)
-            if self.bWrapping:
-                i = abs(i)
-                if i == 0:
+            if i < 0 and self.bWrapping:
+                i = -1 * i
+            if i == 0 and self.bWrapping:
                     dprefactor = 2                                                   #avoid too low filling when mirroring
             if 0 <= i < dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
@@ -1885,9 +1885,6 @@ class Hermite(nSLDObj):
             self.vf[i] = max(0, dVf[i])
             self.dp[i] = dStart + dSpacing*i + dDp[i]
         self.nf = dnf
-
-    def fnWritePar2File(self, fp, cName, dimension, stepsize): 
-        pass
 
     def fnGetSplineAntiDerivative(self, dz, dp, dh): 
         interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, dh, 0, 0, 0, 0)
