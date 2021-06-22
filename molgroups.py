@@ -163,7 +163,7 @@ class nSLDObj():
             if (i<0) and self.bWrapping:
                 i = -1 * i
             if (i==0) and self.bWrapping:
-                    dprefactor = 2                                            #avoid too low filling when mirroring
+                dprefactor = 2                                            #avoid too low filling when mirroring
             if (i>=0) and (i<dimension):
                 dAreaInc = self.fnGetConvolutedArea(d)
                 aArea[i] = aArea[i] + dAreaInc * dprefactor
@@ -188,8 +188,8 @@ class nSLDObj():
             if (i<0) and self.bWrapping:
                 i = -1 * i
             if (i == 0) and self.bWrapping:
-                    # avoid too low filling when mirroring
-                    dprefactor = 2       
+                # avoid too low filling when mirroring
+                dprefactor = 2       
             if 0 <= i < dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 aArea[i] = self.aArea[i] + dAreaInc * dprefactor
@@ -213,7 +213,7 @@ class nSLDObj():
             if (i < 0) and self.bWrapping:
                 i=-1*i
             if (i == 0) and self.bWrapping:
-                    dprefactor = 2                                           #avoid too low filling when mirroring
+                dprefactor = 2                                           #avoid too low filling when mirroring
             if (i >= 0) and i<dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 temparea = dAreaInc * dprefactor + aArea[i]
@@ -246,7 +246,7 @@ class nSLDObj():
             if i < 0 and self.bWrapping:
                 i = -1 * i
             if i == 0 and self.bWrapping:
-                    dprefactor = 2                                                   #avoid too low filling when mirroring
+                dprefactor = 2                                                   #avoid too low filling when mirroring
             if 0 <= i < dimension:
                 dAreaInc = self.fnGetConvolutedArea(d)
                 temparea = dAreaInc * dprefactor+aArea[i]
