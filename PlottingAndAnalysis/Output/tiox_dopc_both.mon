@@ -1,0 +1,202 @@
+# steps: 200, # draws: 34000
+step 1 cost 71.512(80)
+                        background ch061 |.........          0 in (-1e-07,1e-05)
+                         intensity ch061 ....|.....          1 in (0.95,1.05)
+                  ihg + buffer interface ...|......          5 in (0,15)
+                                 d2o rho ........|.        6.3 in (5.3,6.5)
+                tails + buffer thickness ...|......         30 in (20,50)
+                           d2o interface ......|...         10 in (0,15)
+                           d2o thickness ..|.......         15 in (0,50)
+                          siox interface ......|...         10 in (0,15)
+                                tiox rho ....|.....      2.163 in (1.163,3.163)
+                          tiox thickness .....|....     166.38 in (66.379,266.38)
+                                siox rho ....|.....        4.1 in (3.1,5.1)
+                          siox thickness |.........     7.5804 in (5,40)
+                        background ch060 |.........          0 in (-1e-07,1e-05)
+                                 h2o rho |.........      -0.56 in (-0.6,0.6)
+        volume fraction outer headgroups ...|......        0.4 in (0,1)
+                 volume fraction bilayer ........|.        0.9 in (0,1)
+        volume fraction inner headgroups ...|......        0.4 in (0,1)
+step 7 cost 66.937(80)
+step 14 cost 54.608(80)
+step 20 cost 41.442(80)
+step 28 cost 36.149(80)
+step 36 cost 26.524(80)
+step 43 cost 20.001(80)
+step 49 cost 13.429(80)
+step 57 cost 13.429(80)
+step 63 cost 13.429(80)
+step 71 cost 12.970(80)
+step 77 cost 12.119(80)
+step 83 cost 10.804(80)
+step 89 cost 10.804(80)
+step 95 cost 10.804(80)
+step 102 cost 6.167(80)
+step 110 cost 6.167(80)
+step 119 cost 6.167(80)
+step 129 cost 6.167(80)
+step 138 cost 5.523(80)
+step 147 cost 5.523(80)
+step 158 cost 5.523(80)
+step 168 cost 5.523(80)
+step 177 cost 5.523(80)
+step 186 cost 5.523(80)
+step 195 cost 5.092(80)
+step 203 cost 5.087(80)
+step 213 cost 4.863(80)
+                        background ch061 |......... 6.94455e-07 in (-1e-07,1e-05)
+                         intensity ch061 .........|    1.04202 in (0.95,1.05)
+                  ihg + buffer interface ..|.......    4.48308 in (0,15)
+                                 d2o rho ......|...    6.03361 in (5.3,6.5)
+                tails + buffer thickness ....|.....    32.3574 in (20,50)
+                           d2o interface ....|.....    6.53986 in (0,15)
+                           d2o thickness ..|.......    10.5695 in (0,50)
+                          siox interface ...|......     5.7473 in (0,15)
+                                tiox rho .....|....    2.28476 in (1.163,3.163)
+                          tiox thickness ...|......    138.639 in (66.379,266.38)
+                                siox rho .....|....    4.26055 in (3.1,5.1)
+                          siox thickness |.........    6.11203 in (5,40)
+                        background ch060 ..|....... 2.74602e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......   -0.26807 in (-0.6,0.6)
+        volume fraction outer headgroups ..|.......   0.259081 in (0,1)
+                 volume fraction bilayer .........|   0.916767 in (0,1)
+        volume fraction inner headgroups .|........    0.19179 in (0,1)
+step 224 cost 4.863(80)
+step 233 cost 4.863(80)
+step 244 cost 4.863(80)
+step 253 cost 4.463(80)
+step 261 cost 4.463(80)
+step 270 cost 4.250(80)
+step 279 cost 4.248(80)
+step 289 cost 4.248(80)
+step 299 cost 4.248(80)
+step 311 cost 2.694(80)
+step 322 cost 2.694(80)
+step 334 cost 2.694(80)
+step 345 cost 2.694(80)
+step 356 cost 2.603(80)
+step 367 cost 2.603(80)
+step 379 cost 2.593(80)
+step 391 cost 2.593(80)
+step 400 cost 2.490(80)
+-- Model 0 ch061
+.probe
+  .back_absorption = back_absorption ch061 = 1
+  .background = background ch061 = 8.18573e-07 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 1.00453 in [0.95,1.05]
+  .sample_broadening = sample_broadening ch061 = 0
+  .theta_offset = theta_offset ch061 = 0
+.sample
+  .layers
+    [0]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = d2o irho = 0
+        .rho = d2o rho = 6.03472 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+    [1]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = ohg + buffer irho = 0
+        .rho = ((volume fraction outer headgroups * headgroups rho) + ((1 - volume fraction outer headgroups) * d2o rho)) = 4.61533
+      .thickness = headgroup thickness = 10
+    [2]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = tails + buffer irho = 0
+        .rho = ((volume fraction bilayer * lipid tails rho) + ((1 - volume fraction bilayer) * d2o rho)) = 0.251534
+      .thickness = tails + buffer thickness = 31.539 in [20,50]
+    [3]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = ihg + buffer irho = 0
+        .rho = ((volume fraction inner headgroups * headgroups rho) + ((1 - volume fraction inner headgroups) * d2o rho)) = 5.30043
+      .thickness = headgroup thickness = 10
+    [4]
+      .interface = d2o interface = 5.85841 in [0,15]
+      .material
+        .irho = d2o irho = 0
+        .rho = d2o rho = 6.03472 in [5.3,6.5]
+      .thickness = d2o thickness = 10.5993 in [0,50]
+    [5]
+      .interface = siox interface = 5.77334 in [0,15]
+      .material
+        .irho = tiox irho = 0
+        .rho = tiox rho = 2.23253 in [1.163,3.163]
+      .thickness = tiox thickness = 129.379 in [66.379,266.38]
+    [6]
+      .interface = siox interface = 5.77334 in [0,15]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.11599 in [3.1,5.1]
+      .thickness = siox thickness = 16.8248 in [5,40]
+    [7]
+      .interface = silicon interface = 0
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+  .thickness = stack thickness = 208.342
+
+[chisq=2.73(13), nllf=176.314]
+-- Model 1 ch060
+.probe
+  .back_absorption = back_absorption ch060 = 1
+  .background = background ch060 = 4.91843e-06 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 1.00453 in [0.95,1.05]
+  .sample_broadening = sample_broadening ch060 = 0
+  .theta_offset = theta_offset ch060 = 0
+.sample
+  .layers
+    [0]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = h2o irho = 0
+        .rho = h2o rho = -0.484934 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+    [1]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = ohg + bufferh irho = 0
+        .rho = ((volume fraction outer headgroups * headgroups rho) + ((1 - volume fraction outer headgroups) * h2o rho)) = 0.287708
+      .thickness = headgroup thickness = 10
+    [2]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = tails + bufferh irho = 0
+        .rho = ((volume fraction bilayer * lipid tails rho) + ((1 - volume fraction bilayer) * h2o rho)) = -0.234668
+      .thickness = tails + buffer thickness = 31.539 in [20,50]
+    [3]
+      .interface = ihg + buffer interface = 5.11757 in [0,15]
+      .material
+        .irho = ihg + bufferh irho = 0
+        .rho = ((volume fraction inner headgroups * headgroups rho) + ((1 - volume fraction inner headgroups) * h2o rho)) = -0.0852248
+      .thickness = headgroup thickness = 10
+    [4]
+      .interface = h2o interface = 10
+      .material
+        .irho = h2o irho = 0
+        .rho = h2o rho = -0.484934 in [-0.6,0.6]
+      .thickness = d2o thickness = 10.5993 in [0,50]
+    [5]
+      .interface = siox interface = 5.77334 in [0,15]
+      .material
+        .irho = tiox irho = 0
+        .rho = tiox rho = 2.23253 in [1.163,3.163]
+      .thickness = tiox thickness = 129.379 in [66.379,266.38]
+    [6]
+      .interface = siox interface = 5.77334 in [0,15]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.11599 in [3.1,5.1]
+      .thickness = siox thickness = 16.8248 in [5,40]
+    [7]
+      .interface = silicon interface = 0
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+  .thickness = stack thickness = 208.342
+
+[chisq=1.92(12), nllf=123.675]
+[overall chisq=2.490(80), nllf=299.989]
