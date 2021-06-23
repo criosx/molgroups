@@ -1,0 +1,17 @@
+background ch061 8.1857286441858e-07
+intensity ch061 1.00453292820647
+ihg + buffer interface 5.11757200926704
+d2o rho 6.0347210311807
+tails + buffer thickness 31.5390440209426
+d2o interface 5.85841370766929
+d2o thickness 10.5993110093931
+siox interface 5.77334364838679
+tiox rho 2.2325330360087
+tiox thickness 129.379060888387
+siox rho 3.11598577614682
+siox thickness 16.8248314765092
+background ch060 4.9184316460584e-06
+h2o rho -0.484933552589625
+volume fraction outer headgroups 0.336218724274926
+volume fraction bilayer 0.925425271815179
+volume fraction inner headgroups 0.173935136434179
