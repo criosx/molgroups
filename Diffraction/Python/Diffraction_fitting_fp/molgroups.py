@@ -22,7 +22,7 @@ class nSLDObj():
         return self.absorb
         
     # returns a n-point gaussian interpolation of the area within 4 sigma
-    # all area calculatioins are routed through this function, whether they use convolution or not
+    # all area calculations are routed through this function, whether they use convolution or not
     # convolution works only for objects with fixed nSLD. Broadening an nSLD profile is not as direct as
     # broadening a nSL profile. For reason, however, objects report a nSLD(z) and not a nSL(z)
     # if it becomes necessary to broaden profiles with variable nSLD, structural changes to the code
@@ -915,16 +915,16 @@ class Hermite(nSLDObj):
     def fnGetSplineAntiDerivative(self, dz, dp, dh): 
         interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, dh, 0, 0, 0, 0)
         if (0 <= interval < self.numberofcontrolpoints-1):
-            dd=dp[interval+1]-dp[interval] 
-            t=(dz-dp[interval])/dd 
-            t_2=t*t 
-            t_3=t_2*t 
-            t_4=t_3*t 
-            h00= (1/2)*t_4-t_3+t 
-            h01=(-1/2)*t_4+t_3             
-            h10= (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
-            h11= (1/4)*t_4-(1/3)*t_3             
-            return dd*(h00*p0 + h10*dd*m0 + h01*p1 + h11*dd*m1)         
+            dd = dp[interval+1] - dp[interval] 
+            t = (dz-dp[interval])/dd
+            t_2 = t*t 
+            t_3 = t_2*t 
+            t_4 = t_3*t 
+            h00 = (1/2)*t_4-t_3+t 
+            h01 = (-1/2)*t_4+t_3             
+            h10 = (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
+            h11 = (1/4)*t_4-(1/3)*t_3             
+            return dd*(h00*p0 + h10*dd*m0 + h01*p1 + h11*dd*m1)
         return 0
 
     def fnGetSplineArea(self, dz, dp, dh, damping):
@@ -936,7 +936,7 @@ class Hermite(nSLDObj):
             for i in range (self.numberofcontrolpoints):
                     self.damp[i] = dh[i] * dampfactor 
                     if (dh[i] >= self.damptrigger):
-                        dampfactor=dampfactor*(1/(1 + math.exp(-2.1*(dh[i]- self.dampthreshold)/self.dampFWHM))) 
+                        dampfactor = dampfactor*(1/(1 + math.exp(-2.1*(dh[i] - self.dampthreshold)/self.dampFWHM))) 
 
         interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, self.damp, m0, m1, p0, p1) 
 

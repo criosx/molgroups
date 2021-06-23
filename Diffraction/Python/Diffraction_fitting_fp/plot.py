@@ -64,14 +64,13 @@ def graphBilayer(bilayer, dimension, stepsize, maxarea, bulknsld, show=False, sa
     else: plt.close()
 
 
-def graphProfiles(obj, dimension, stepsize, maxarea, show=False, savefile=None):
+def graphProfiles(obj, dimension, stepsize, maxarea, bulknsld, show=False, savefile=None):
     fig, ax = plt.subplots(3)
     __, aArea, aSL = obj.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea) 
     if isinstance(obj, mol.BLM_quaternary):   
         members = {"headgroup1": ["headgroup1", "headgroup2"],
                    "lipid": ["lipid1", "lipid2"],
                    "methyl": ["methyl1", "methyl2"]}
-        print(obj.nf_lipid_2)
         if obj.nf_lipid_2 > 0:
             members.update(headgroup2 = ["headgroup1_2", "headgroup2_2"])
         if obj.nf_lipid_3 > 0:
@@ -87,7 +86,7 @@ def graphProfiles(obj, dimension, stepsize, maxarea, show=False, savefile=None):
     ax[2].set_xlabel('z (Å)')
     ax[0].plot(x, aArea)
     ax[1].plot(x, aSL)
-    ax[2].plot(x, getSLD(aSL, aArea, dimension, stepsize))
+    ax[2].plot(x, getSLD(aSL, aArea, dimension, stepsize, maxarea, bulknsld))
     legend = ["total"]
     
     for label in members:
@@ -95,12 +94,11 @@ def graphProfiles(obj, dimension, stepsize, maxarea, show=False, savefile=None):
         aSL  = np.zeros(dimension)
         aSLD = np.zeros(dimension)
         for name in members[label]:
-            print(name)
             group = obj.groups[name]
-            _, partial_area, partial_SL = group.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
+            __, partial_area, partial_SL = group.fnWriteProfile(np.zeros(dimension), np.zeros(dimension), dimension, stepsize, maxarea)
             aSL += partial_SL
             aArea += partial_area
-        aSLD = getSLD(aSL, aArea, dimension, stepsize)
+        aSLD = getSLD(aSL, aArea, dimension, stepsize, maxarea, bulknsld)
         ax[0].plot(x, aArea)
         ax[1].plot(x, aSL)
         ax[2].plot(x, aSLD)
