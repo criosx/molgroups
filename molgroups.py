@@ -188,16 +188,15 @@ class nSLDObj():
             if (i<0) and self.bWrapping:
                 i = -1 * i
             if (i == 0) and self.bWrapping:
-                dprefactor = 2                                            #avoid too low filling when mirroring
+                # avoid too low filling when mirroring
+                dprefactor = 2       
             if 0 <= i < dimension:
-                # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
                 dAreaInc = self.fnGetConvolutedArea(d)
                 aArea[i] = self.aArea[i] + dAreaInc * dprefactor
                 if (aArea[i]>dMaxArea):
                     dMaxArea = aArea[i]
                 anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
                 aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
-                # printf("Bin %i Area %f total %f nSL %f total %f \n", i, dAreaInc, aArea[i], fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
             d = d + stepsize
         return dMaxArea
         
@@ -231,6 +230,7 @@ class nSLDObj():
                         anSL[i] = self.fnGetnSLD(d) * dMaxArea*stepsize
                         aArea[i] = dMaxArea
             d = d + stepsize
+        return aArea, anSL
 
     def fnOverlayProfileAbsorb(self, aArea, anSL, aAbsorb, dimension, stepsize, dMaxArea):
         dLowerLimit = self.fnGetLowerLimit()
@@ -265,6 +265,7 @@ class nSLDObj():
                     anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
                     aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
             d = d+stepsize
+        return aArea, anSL, aAbsorb
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -334,9 +335,7 @@ class Box2Err(nSLDObj):
 
     def fnSetSigma(self, sigma1, sigma2=0.):
         self.sigma1 = sigma1
-        if sigma2 == 0:
-            sigma2 = sigma1
-        self.sigma2 = sigma2
+        self.sigma2 = sigma1 if sigma2 == 0 else sigma2
 
     def fnSetZ(self, dz):
         self.z = dz
@@ -356,7 +355,7 @@ class PC(nSLDObj):
         self.cg = Box2Err()
         self.phosphate = Box2Err()
         self.choline = Box2Err()
-        self.groups = {"pc_cg": self.cg, "pc_ph": self.phosphate, "pc_ch": self.choline}
+        self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
         self.cg.l = 4.21 
         self.phosphate.l = 3.86
         self.choline.l = 6.34
@@ -368,11 +367,8 @@ class PC(nSLDObj):
         self.phosphate.vol=54 
         self.choline.vol=120
         self.cg.nSL=3.7755e-4 
-        self.cg.nSL = 1.8854e-3
         self.phosphate.nSL=2.8350e-4 
-        self.phosphate.nSL = 1.3226e-3
         self.choline.nSL=-6.0930e-5
-        self.choline.nSL = 1.4070e-3
         self.cg.nf=1 
         self.phosphate.nf=1 
         self.choline.nf=1
@@ -388,7 +384,10 @@ class PC(nSLDObj):
         z1 = self.choline.z+self.choline.l*0.5
         self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
-    def fnSet(self, l=9.575, ph_relative_pos=.5):
+    def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
+        self.cg.nSL = cg_nSL
+        self.choline.nSL = ch_nSL
+        self.phosphate.nSL = ph_nSL
         self.l = l
         self.ph_relative_pos=ph_relative_pos
         self.fnAdjustParameters()
@@ -547,8 +546,9 @@ class BLM_quaternary(nSLDObj):
 
         self.fnAdjustParameters()
         
-    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2,
-     nh2, lh2, va3, na3, vm3, nm3, vh3, nh3, lh3, vc, nc):
+    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2=0, na2=0, vm2=0,
+               nm2=0, vh2=0, nh2=0, lh2=0, va3=0, na3=0, vm3=0, nm3=0, vh3=0,
+               nh3=0, lh3=0, vc=0, nc=0):
         self.volacyllipid = va1
         self.nslacyllipid = na1
         self.volmethyllipid = vm1
@@ -586,29 +586,22 @@ class BLM_quaternary(nSLDObj):
         
         self.fnAdjustParameters()
 
-
     def fnAdjustParameters(self):
         # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
         
-        if self.l_lipid1 <= 0:
-            self.l_lipid1 = 0.01
-        if self.l_lipid2 <= 0:
-            self.l_lipid2 = 0.01
-        if self.nf_lipid_2 < 0:
-            self.nf_lipid_2 = 0
-        if self.nf_lipid_3 < 0:
-            self.nf_lipid_3 = 0
-        if self.nf_chol < 0:
-            self.nf_chol = 0
-        if self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol > 1:
-            self.nf_lipid_2 = self.nf_lipid_2 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-            self.nf_lipid_3 = self.nf_lipid_3 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-            self.nf_chol = self.nf_chol / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
-        if self.vf_bilayer <= 0:
-            self.vf_bilayer = 1e-5
-        if self.vf_bilayer > 1:
-            self.vf_bilayer = 1
+        self.l_lipid1 = max(self.l_lipid1, 0.01)
+        self.l_lipid2 = max(self.l_lipid2, 0.01)
+        self.nf_lipid_2 = max(self.nf_lipid_2, 0)
+        self.nf_lipid_3 = max(self.nf_lipid_3, 0)
+        self.nf_chol = max(self.nf_chol, 0)
+        sum = self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol
+        if sum > 1: #modified so these are all divided by the same sum
+            self.nf_lipid_2 = self.nf_lipid_2 / sum
+            self.nf_lipid_3 = self.nf_lipid_3 / sum
+            self.nf_chol = self.nf_chol / sum
+        self.vf_bilayer = max(self.vf_bilayer, 1E-5)
+        self.vf_bilayer = min(self.vf_bilayer, 1)
         
         # outer hydrocarbons
         l_ohc = self.l_lipid2
@@ -756,7 +749,7 @@ class BLM_quaternary(nSLDObj):
         sum = self.fnGetArea(dz)
         if sum == 0:
             return result
-        bulk = {"blm_headgroup1_1", "blm_headgroup1_2", "blm_headgroup2_1", "blm_headgroup2_2"}
+        bulk = {"headgroup1_1", "headgroup1_2", "headgroup2_1", "headgroup2_2"}
         for group in self.groups:
             group_area = self.groups[group].fnGetArea(dz)
             if group in bulk:
@@ -779,7 +772,9 @@ class BLM_quaternary(nSLDObj):
         c = self.headgroup2_3.fnGetUpperLimit()
         return max([a, b, c])
 
-    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0., hc_substitution_2=0., radius_defect=100.):
+    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer,
+              nf_lipid_2=0., nf_lipid_3=0., nf_chol=0., hc_substitution_1=0.,
+              hc_substitution_2=0., radius_defect=100.):
         self.sigma = sigma
         self.bulknsld = bulknsld
         self.startz = startz
@@ -817,15 +812,15 @@ class BLM_quaternary(nSLDObj):
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         for group in self.groups:
             self.groups[group].fnWritePar2File(fp, group, dimension, stepsize)
-        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
 
 class child_ssBLM_quaternary(BLM_quaternary):
     def __init__(self):
         super().__init__()
         self.substrate  = Box2Err()
         self.siox       = Box2Err()
-        self.groups["blm_substrate"].append(self.substrate)
-        self.groups["blm_siox"].append(self.siox)
+        self.groups["substrate"].append(self.substrate)
+        self.groups["siox"].append(self.siox)
         self.substrate.l=20
         self.substrate.z=10
         self.substrate.nf=1
@@ -859,7 +854,7 @@ class child_ssBLM_quaternary(BLM_quaternary):
         self.rho_siox= rho_siox
         self.l_siox= l_siox
         self.l_submembrane= l_submembrane
-        super().fnSet(sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer, )
+        super().fnSet(sigma, bulknsld, self.startz, l_lipid1, l_lipid2, vf_bilayer)
 
     def fnSetSigma(self, sigma):
         super().fnSetSigma(sigma)
@@ -873,12 +868,983 @@ class child_ssBLM_quaternary(BLM_quaternary):
     def fnWriteProfile(self, aArea, anSLD, dimension, stepsize, dMaxArea):
         pass
 
+
+class ssBLM_quaternary(nSLDObj):
+    def __init__(self):
+
+        super().__init__()
+        self.substrate = Box2Err()
+        self.siox = Box2Err()
+        self.headgroup1 = PCm()
+        self.lipid1 = Box2Err()
+        self.methyl1 = Box2Err()
+        self.methyl2 = Box2Err()
+        self.lipid2 = Box2Err()
+        self.headgroup2 = PC()  # PC head group
+        self.headgroup1_2 = Box2Err()  # second headgroups
+        self.headgroup2_2 = Box2Err()
+        self.headgroup1_3 = Box2Err()
+        self.headgroup2_3 = Box2Err()
+
+        self.defect_hydrocarbon = Box2Err()
+        self.defect_headgroup = Box2Err()
+
+        self.substrate.l = 20
+        self.substrate.z = 10
+        self.substrate.nf = 1
+        self.substrate.sigma1 = 2.0
+        self.rho_substrate = 1
+        self.l_siox = 1
+        self.rho_siox = 1
+
+        self.siox.l = 20
+        self.siox.z = 30
+        self.siox.nf = 1
+        self.siox.fnSetSigma(2.0)
+
+        self.volacyllipid = 925
+        self.nslacyllipid = -2.67e-4
+        self.volmethyllipid = 98.8
+        self.nslmethyllipid = -9.15e-5
+
+        self.volacyllipid_2 = 925
+        self.nslacyllipid_2 = -2.67e-4
+        self.volmethyllipid_2 = 98.8
+        self.nslmethyllipid_2 = -9.15e-5
+        self.volacyllipid_3 = 925
+        self.nslacyllipid_3 = -2.67e-4
+        self.volmethyllipid_3 = 98.8
+        self.nslmethyllipid_3 = -9.15e-5
+
+        self.volchol = 630
+        self.nslchol = 1.3215e-4
+
+        self.headgroup1.vol = 330
+        self.headgroup1_2.vol = 330
+        self.headgroup1_3.vol = 330
+        self.headgroup2.vol = 330
+        self.headgroup2_2.vol = 330
+        self.headgroup2_3.vol = 330
+        self.headgroup1.nSL = 6.0012e-4
+        self.headgroup1_2.nSL = 6.0012e-4
+        self.headgroup1_3.nSL = 6.0012e-4
+        self.headgroup2.nSL = 6.0012e-4
+        self.headgroup2_2.nSL = 6.0012e-4
+        self.headgroup2_3.nSL = 6.0012e-4
+        self.headgroup1.l = 9.5
+        self.headgroup1_2.l = 9.5
+        self.headgroup1_3.l = 9.5
+        self.headgroup2.l = 9.5
+        self.headgroup2_2.l = 9.5
+        self.headgroup2_3.l = 9.5
+        self.l_submembrane = 10.
+
+        self.hc_substitution_1 = 0
+        self.hc_substitution_2 = 0
+
+        self.headgroup1_2.vol = 330  # was 330
+        self.headgroup2_2.vol = 330  # was 330
+        self.headgroup1_3.vol = 330  # was 330
+        self.headgroup2_3.vol = 330  # was 330
+        self.headgroup1_2.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup2_2.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup1_3.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup2_3.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup1_2.l = 9.5
+        self.headgroup2_2.l = 9.5
+        self.headgroup1_3.l = 9.5
+        self.headgroup2_3.l = 9.5
+
+        self.volacyllipid_2 = 925
+        self.nslacyllipid_2 = -2.67e-4
+        self.volmethyllipid_2 = 98.8
+        self.nslmethyllipid_2 = -9.15e-5
+
+        self.volacyllipid_3 = 925
+        self.nslacyllipid_3 = -2.67e-4
+        self.volmethyllipid_3 = 98.8
+        self.nslmethyllipid_3 = -9.15e-5
+
+        self.volchol = 630
+        self.nslchol = 1.3215e-4
+        self.nf_lipid_2 = 0  # for preparing towards a general bilayer class
+        self.nf_lipid_3 = 0
+        self.nf_chol = 0
+        self.bulknsld = -0.56e-6
+
+        self.nf_lipid_2 = 0.
+        self.nf_lipid_3 = 0.
+        self.nf_chol = 0.
+
+        self.vf_bilayer = 1.0
+        self.absorb = 0.
+        self.l_lipid1 = 11.
+        self.l_lipid2 = 11.
+        self.bulknsld = -0.56e-6
+        self.normarea = 60.
+        self.startz = 50.
+        self.sigma = 2.
+        self.radius_defect = 100.
+        self.hc_substitution_1 = 0
+        self.hc_substitution_2 = 0
+        self.global_rough = 2.0
+
+        self.fnAdjustParameters()
+
+    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3,
+               nh3, lh3, vc, nc):
+        self.volacyllipid = va1
+        self.nslacyllipid = na1
+        self.volmethyllipid = vm1
+        self.nslmethyllipid = nm1
+        self.volacyllipid_2 = va2
+        self.nslacyllipid_2 = na2
+        self.volmethyllipid_2 = vm2
+        self.nslmethyllipid_2 = nm2
+        self.volacyllipid_3 = va3
+        self.nslacyllipid_3 = na3
+        self.volmethyllipid_3 = vm3
+        self.nslmethyllipid_3 = nm3
+
+        self.volchol = vc
+        self.nslchol = nc
+
+        self.headgroup1.vol = vh1
+        self.headgroup1_2.vol = vh2
+        self.headgroup1_3.vol = vh3
+        self.headgroup2.vol = vh1
+        self.headgroup2_2.vol = vh2
+        self.headgroup2_3.vol = vh3
+        self.headgroup1.nSL = nh1
+        self.headgroup1_2.nSL = nh2
+        self.headgroup1_3.nSL = nh3
+        self.headgroup2.nSL = nh1
+        self.headgroup2_2.nSL = nh2
+        self.headgroup2_3.nSL = nh3
+        self.headgroup1.l = lh1
+        self.headgroup1_2.l = lh2
+        self.headgroup1_3.l = lh3
+        self.headgroup2.l = lh1
+        self.headgroup2_2.l = lh2
+        self.headgroup2_3.l = lh3
+
+        self.fnAdjustParameters()
+
+    def fnAdjustParameters(self):
+        # printf("Enter AdjustParameters \n")
+        self.fnSetSigma(self.sigma)
+
+        if self.l_lipid1 <= 0:
+            self.l_lipid1 = 0.01
+        if self.l_lipid2 <= 0:
+            self.l_lipid2 = 0.01
+        if self.nf_lipid_2 < 0:
+            self.nf_lipid_2 = 0
+        if self.nf_lipid_3 < 0:
+            self.nf_lipid_3 = 0
+        if self.nf_chol < 0:
+            self.nf_chol = 0
+        if self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol > 1:
+            self.nf_lipid_2 = self.nf_lipid_2 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+            self.nf_lipid_3 = self.nf_lipid_3 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+            self.nf_chol = self.nf_chol / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+        if self.vf_bilayer <= 0:
+            self.vf_bilayer = 1e-5
+        if self.vf_bilayer > 1:
+            self.vf_bilayer = 1
+
+        # def ssBLM_quaternary::fnAdjustParameters()
+        # def fnAdjustParameters(self):
+        # printf("Enter AdjustParameters \n")
+
+        self.substrate.fnSetSigma(self.global_rough)
+        self.siox.fnSetSigma(self.global_rough)
+        self.fnSetSigma(self.sigma)
+
+        # outer hydrocarbons
+        l_ohc = self.l_lipid2
+        nf_ohc_lipid = 1 - self.nf_lipid_2 - self.nf_lipid_3 - self.nf_chol
+        nf_ohc_lipid_2 = self.nf_lipid_2
+        nf_ohc_lipid_3 = self.nf_lipid_3
+        nf_ohc_chol = self.nf_chol
+        V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (
+                    self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (
+                            self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
+        nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (
+                    self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (
+                              self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
+
+        self.normarea = V_ohc / l_ohc
+        c_s_ohc = self.vf_bilayer
+        c_A_ohc = 1
+        c_V_ohc = 1
+
+        # printf("ssBLM: normarea %lf \n",normarea)
+        self.lipid2.l = l_ohc
+        self.lipid2.vol = V_ohc
+        self.lipid2.nSL = nSL_ohc
+        self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
+        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
+
+        # outer methyl
+        nf_om_lipid = nf_ohc_lipid
+        nf_om_lipid_2 = nf_ohc_lipid_2
+        nf_om_lipid_3 = nf_ohc_lipid_3
+        V_om = nf_om_lipid * self.volmethyllipid + nf_om_lipid_2 * self.volmethyllipid_2 + nf_om_lipid_3 * self.volmethyllipid_3
+        l_om = l_ohc * V_om / V_ohc
+        nSL_om = nf_om_lipid * self.nslmethyllipid + nf_om_lipid_2 * self.nslmethyllipid_2 + nf_om_lipid_3 * self.nslmethyllipid_3
+
+        c_s_om = c_s_ohc
+        c_A_om = 1
+        c_V_om = 1
+
+        self.methyl2.l = l_om
+        self.methyl2.vol = V_om
+        self.methyl2.nSL = nSL_om
+        self.methyl2.nf = c_s_om * c_A_om * c_V_om
+        # inner hydrocarbons
+        l_ihc = self.l_lipid1
+
+        nf_ihc_lipid = nf_ohc_lipid
+        nf_ihc_lipid_2 = nf_ohc_lipid_2
+        nf_ihc_lipid_3 = nf_ohc_lipid_3
+        nf_ihc_chol = nf_ohc_chol
+        V_ihc = nf_ihc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ihc_lipid_2 * (
+                    self.volacyllipid_2 - self.volmethyllipid_2) + nf_ihc_lipid_3 * (
+                            self.volacyllipid_3 - self.volmethyllipid_3) + nf_ihc_chol * self.volchol
+        nSL_ihc = nf_ihc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ihc_lipid_2 * (
+                    self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ihc_lipid_3 * (
+                              self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ihc_chol * self.nslchol
+
+        c_s_ihc = self.vf_bilayer
+        c_A_ihc = self.normarea * l_ihc / V_ihc
+        c_V_ihc = 1
+
+        self.lipid1.l = l_ihc
+        self.lipid1.vol = V_ihc
+        self.lipid1.nSL = nSL_ihc
+        self.lipid1.nf = c_s_ihc * c_A_ihc * c_V_ihc
+
+        # inner methyl
+        nf_im_lipid = nf_ihc_lipid
+        nf_im_lipid_2 = nf_ihc_lipid_2
+        nf_im_lipid_3 = nf_ihc_lipid_3
+        V_im = nf_im_lipid * self.volmethyllipid + nf_im_lipid_2 * self.volmethyllipid_2 + nf_im_lipid_3 * self.volmethyllipid_3
+        l_im = l_ihc * V_im / V_ihc
+        nSL_im = nf_im_lipid * self.nslmethyllipid + nf_im_lipid_2 * self.nslmethyllipid_2 + nf_im_lipid_3 * self.nslmethyllipid_3
+
+        c_s_im = c_s_ihc
+        c_A_im = c_A_ihc
+        c_V_im = 1
+
+        self.methyl1.l = l_im
+        self.methyl1.vol = V_im
+        self.methyl1.nSL = nSL_im
+        self.methyl1.nf = c_s_im * c_A_im * c_V_im
+
+        # outer headgroups
+        self.headgroup2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid * (1 - self.hc_substitution_2)
+        self.headgroup2_2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_2 * (1 - self.hc_substitution_2)
+        self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
+
+        # inner headgroups
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
+
+        # substrate
+        self.substrate.vol = self.normarea * self.substrate.l
+        self.substrate.nSL = self.rho_substrate * self.substrate.vol
+        self.siox.l = self.l_siox
+        self.siox.vol = self.normarea * self.siox.l
+        self.siox.nSL = self.rho_siox * self.siox.vol
+
+        # set all lengths
+        self.siox.z = self.substrate.l + 0.5 * self.siox.l
+        self.lipid1.z = self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
+        self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
+        self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
+        self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
+        self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
+        self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
+        self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
+        self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
+        self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
+        self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
+        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
+
+        # defects
+        hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
+        hglength = self.headgroup1.l + self.headgroup2.l
+
+        if self.radius_defect < (0.5 * (hclength + hglength)):
+            self.radius_defect = 0.5 * (hclength + hglength)
+        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
+
+        volhalftorus = 3.14159265359 * 3.14159265359 * (
+                    self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
+        volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
+        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
+        defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
+        # printf("defectarea %lf \n", defectarea)
+
+        self.defect_hydrocarbon.vol = defectarea * hclength
+        self.defect_hydrocarbon.l = hclength
+        self.defect_hydrocarbon.z = self.lipid1.z - 0.5 * self.lipid1.l + 0.5 * hclength
+        self.defect_hydrocarbon.nSL = self.lipid2.nSL / self.lipid2.vol * self.defect_hydrocarbon.vol
+        self.defect_hydrocarbon.fnSetSigma(self.sigma)
+        self.defect_hydrocarbon.nf = 1
+
+        defectratio = self.defect_hydrocarbon.vol / self.lipid2.vol
+        self.defect_headgroup.vol = defectratio * (
+                    self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
+        self.defect_headgroup.l = hclength + hglength
+        self.defect_headgroup.z = self.headgroup1.fnGetZ() - 0.5 * self.headgroup1.l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.nSL = defectratio * (
+                    self.headgroup2.fnGetnSL(self.bulknsld) * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(
+                self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(
+                self.bulknsld) * self.headgroup2_3.nf)
+        self.defect_headgroup.fnSetSigma(self.sigma)
+        self.defect_headgroup.nf = 1
+
+    # printf("Exit AdjustParameters \n")
+
+    # Return value is area at position z
+    def fnGetArea(self, dz):
+        result = self.substrate.fnGetArea(dz) + self.siox.fnGetArea(dz) + self.lipid1.fnGetArea(
+            dz) + self.headgroup1.fnGetArea(dz) + self.methyl1.fnGetArea(dz)
+        result += self.methyl2.fnGetArea(dz) + self.lipid2.fnGetArea(dz) + self.headgroup2.fnGetArea(dz)
+        result += self.headgroup1_2.fnGetArea(dz) + self.headgroup2_2.fnGetArea(dz) + self.headgroup1_3.fnGetArea(dz)
+        result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(
+            dz) + self.defect_headgroup.fnGetArea(dz)
+        return result
+
+    # get nSLD from molecular subgroups
+    def fnGetnSLD(self, dz):
+        # printf("Enter fnGetnSLD \n")
+        substratearea = self.substrate.fnGetArea(dz)
+        sioxarea = self.siox.fnGetArea(dz)
+        lipid1area = self.lipid1.fnGetArea(dz)
+        headgroup1area = self.headgroup1.fnGetArea(dz)
+        headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
+        headgroup1_3_area = self.headgroup1_3.fnGetArea(dz)
+        methyl1area = self.methyl1.fnGetArea(dz)
+        methyl2area = self.methyl2.fnGetArea(dz)
+        lipid2area = self.lipid2.fnGetArea(dz)
+        headgroup2area = self.headgroup2.fnGetArea(dz)
+        headgroup2_2_area = self.headgroup2_2.fnGetArea(dz)
+        headgroup2_3_area = self.headgroup2_3.fnGetArea(dz)
+        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetArea(dz)
+        defect_headgroup_area = self.defect_headgroup.fnGetArea(dz)
+
+        sum = substratearea + sioxarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
+        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
+
+        # printf("%e \n", defect_headgroup.fnGetnSLD(dz))
+
+        if sum == 0:
+            return 0
+        else:
+            result = self.substrate.fnGetnSLD(dz, self.bulknsld) * substratearea
+            result += self.siox.fnGetnSLD(dz, self.bulknsld) * sioxarea
+            result += self.headgroup1.fnGetnSLD(dz, self.bulknsld) * headgroup1area
+            result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
+            result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
+            result += self.lipid1.fnGetnSLD(dz) * lipid1area
+            result += self.methyl1.fnGetnSLD(dz) * methyl1area
+            result += self.methyl2.fnGetnSLD(dz) * methyl2area
+            result += self.lipid2.fnGetnSLD(dz) * lipid2area
+            result += self.headgroup2.fnGetnSLD(dz, self.bulknsld) * headgroup2area
+            result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
+            result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
+            result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
+            result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
+            result /= sum
+            return result
+
+    # Use limits of molecular subgroups
+    def fnGetLowerLimit(self):
+        return self.substrate.fnGetLowerLimit()
+
+    def fnGetUpperLimit(self):
+        a = self.headgroup2.fnGetUpperLimit()
+        b = self.headgroup2_2.fnGetUpperLimit()
+        c = self.headgroup2_3.fnGetUpperLimit()
+        return max([a, b, c])
+
+    # void ssBLM_quaternary::fnSet(double _sigma, double _global_rough, double _rho_substrate, double _bulknsld, double _rho_siox, double _l_siox, double _l_submembrane,  double _l_lipid1, double _l_lipid2, double _vf_bilayer, double _nf_lipid_2, double _nf_lipid_3, double _nf_chol, double _hc_substitution_1, double _hc_substitution_2, double _radius_defect){
+
+    # printf("Enter fnSet \n")
+
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _rho_siox, _l_siox, _l_submembrane, _l_lipid1,
+              _l_lipid2, _vf_bilayer, _nf_lipid_2=0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0.,
+              _hc_substitution_2=0., _radius_defect=100.):
+        self.sigma = _sigma
+        self.bulknsld = _bulknsld
+        self.global_rough = _global_rough
+        self.rho_substrate = _rho_substrate
+        self.rho_siox = _rho_siox
+        self.l_siox = _l_siox  # error undefined variable
+        self.l_submembrane = _l_submembrane  # error undefined variabe
+        self.l_lipid1 = _l_lipid1
+        self.l_lipid2 = _l_lipid2
+        self.vf_bilayer = _vf_bilayer
+        self.nf_lipid_2 = _nf_lipid_2
+        self.nf_lipid_3 = _nf_lipid_3
+        self.nf_chol = _nf_chol
+        self.hc_substitution_1 = _hc_substitution_1
+        self.hc_substitution_2 = _hc_substitution_2
+        self.radius_defect = _radius_defect
+
+        self.fnAdjustParameters()
+
+    # printf("Exit fnSet \n")
+
+    def fnSetSigma(self, sigma):
+        self.substrate.sigma2 = self.global_rough
+        self.siox.sigma1 = self.global_rough
+        self.siox.sigma2 = self.global_rough
+        self.headgroup1.fnSetSigma(sigma)
+        self.headgroup1_2.fnSetSigma(sigma)
+        self.headgroup1_3.fnSetSigma(sigma)
+        self.lipid1.fnSetSigma(sigma, sigma + 2)
+        self.methyl1.fnSetSigma(sigma + 2, sigma + 2)
+        self.methyl2.fnSetSigma(sigma + 2, sigma + 2)
+        self.lipid2.fnSetSigma(sigma + 2, sigma)
+        self.headgroup2.fnSetSigma(sigma)
+        self.headgroup2_2.fnSetSigma(sigma)
+        self.headgroup2_3.fnSetSigma(sigma)
+        self.defect_hydrocarbon.fnSetSigma(sigma)
+        self.defect_headgroup.fnSetSigma(sigma)
+
+    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
+        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+        return self.normarea, aArea, anSL
+
+    def fnWritePar2File(self, fp, cName, dimension, stepsize):
+        self.substrate.fnWritePar2File(fp, "substrate", dimension, stepsize)
+        self.siox.fnWritePar2File(fp, "siox", dimension, stepsize)
+        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
+        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
+        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
+        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
+        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
+        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
+        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
+        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
+        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
+        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
+        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
+        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
+        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+
+
+# ------------------------------------------------------------------------------------------------------
+# Tethered Lipid bilayer - binary system
+# ------------------------------------------------------------------------------------------------------
+class tBLM_quaternary(nSLDObj):
+    def __init__(self):
+        super().__init__()
+        self.substrate = Box2Err()
+        self.bME = Box2Err()
+        self.tether = Box2Err()
+        self.tetherg = Box2Err()
+        self.headgroup1 = PCm()  # mirrored PC head group
+        self.lipid1 = Box2Err()
+        self.methyl1 = Box2Err()
+        self.methyl2 = Box2Err()
+        self.lipid2 = Box2Err()
+        self.headgroup2 = PC()  # PC head group
+        self.headgroup1_2 = Box2Err()  # second headgroups
+        self.headgroup2_2 = Box2Err()
+        self.headgroup1_3 = Box2Err()
+        self.headgroup2_3 = Box2Err()
+
+        self.defect_hydrocarbon = Box2Err()
+        self.defect_headgroup = Box2Err()
+
+        self.substrate.l = 20
+        self.substrate.z = 10
+        self.substrate.nf = 1
+        self.substrate.sigma1 = 2.0
+
+        self.bME.vol = 110
+        self.bME.nSL = 3.243e-5
+        self.bME.l = 5.2
+        self.tether.vol = 380
+        self.tether.nSL = 2.1864e-4
+        self.tetherg.vol = 110
+        self.tetherg.nSL = 1.8654e-4
+
+        self.volacyllipid = 925
+        self.nslacyllipid = -2.67e-4
+        self.volmethyllipid = 98.8
+        self.nslmethyllipid = -9.15e-5
+        self.volmethyltether = 98.8
+        self.nslmethyltether = -9.15e-5
+        self.volacyltether = 982
+        self.nslacyltether = -2.85e-4
+
+        self.hc_substitution_1 = 0
+        self.hc_substitution_2 = 0
+        self.headgroup1_2.vol = 330  # was 330
+        self.headgroup2_2.vol = 330  # was 330
+        self.headgroup1_3.vol = 330  # was 330
+        self.headgroup2_3.vol = 330  # was 330
+        self.headgroup1_2.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup2_2.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup1_3.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup2_3.nSL = 6.0012e-4  # was 6.0122e-4
+        self.headgroup1_2.l = 9.5
+        self.headgroup2_2.l = 9.5
+        self.headgroup1_3.l = 9.5
+        self.headgroup2_3.l = 9.5
+
+        self.volacyllipid_2 = 925
+        self.nslacyllipid_2 = -2.67e-4
+        self.volmethyllipid_2 = 98.8
+        self.nslmethyllipid_2 = -9.15e-5
+
+        self.volacyllipid_3 = 925
+        self.nslacyllipid_3 = -2.67e-4
+        self.volmethyllipid_3 = 98.8
+        self.nslmethyllipid_3 = -9.15e-5
+
+        self.volchol = 630
+        self.nslchol = 1.3215e-4
+
+        self.nf_lipid_2 = 0.
+        self.nf_lipid_3 = 0.
+        self.nf_chol = 0.
+
+        self.vf_bilayer = 1.0
+        self.absorb = 0.
+        self.l_lipid1 = 11.
+        self.l_lipid2 = 11.
+        self.bulknsld = -0.56e-6
+        self.normarea = 60.
+        self.sigma = 2.
+        self.radius_defect = 100.
+        self.hc_substitution_1 = 0
+        self.hc_substitution_2 = 0
+        self.global_rough = 2.0
+        self.nf_tether = 0.6
+        # self.nf_ihc_tether = 0.6
+        self.l_tether = 3
+        self.mult_tether = 5
+        # self.nf_ihc_tether = 0.3
+        self.substrate.l = 20
+        self.substrate.z = 10
+        self.substrate.nf = 1
+        self.substrate.sigma1 = 2.0
+        self.rho_substrate = 1
+
+        self.fnAdjustParameters()
+
+    def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,
+               lh3, vc, nc):
+        self.volacyllipid = va1
+        self.nslacyllipid = na1
+        self.volmethyllipid = vm1
+        self.nslmethyllipid = nm1
+        self.volacyllipid_2 = va2
+        self.nslacyllipid_2 = na2
+        self.volmethyllipid_2 = vm2
+        self.nslmethyllipid_2 = nm2
+        self.volacyllipid_3 = va3
+        self.nslacyllipid_3 = na3
+        self.volmethyllipid_3 = vm3
+        self.nslmethyllipid_3 = nm3
+
+        self.volchol = vc
+        self.nslchol = nc
+
+        self.headgroup1.vol = vh1
+        self.headgroup1_2.vol = vh2
+        self.headgroup1_3.vol = vh3
+        self.headgroup2.vol = vh1
+        self.headgroup2_2.vol = vh2
+        self.headgroup2_3.vol = vh3
+        self.headgroup1.nSL = nh1
+        self.headgroup1_2.nSL = nh2
+        self.headgroup1_3.nSL = nh3
+        self.headgroup2.nSL = nh1
+        self.headgroup2_2.nSL = nh2
+        self.headgroup2_3.nSL = nh3
+        self.headgroup1.l = lh1
+        self.headgroup1_2.l = lh2
+        self.headgroup1_3.l = lh3
+        self.headgroup2.l = lh1
+        self.headgroup2_2.l = lh2
+        self.headgroup2_3.l = lh3
+
+        self.fnAdjustParameters()
+
+    def fnAdjustParameters(self):
+        # printf("Enter AdjustParameters \n")
+        self.fnSetSigma(self.sigma)
+
+        if self.l_lipid1 <= 0:
+            self.l_lipid1 = 0.01
+        if self.l_lipid2 <= 0:
+            self.l_lipid2 = 0.01
+        if self.l_tether <= 0:
+            self.l_tether = 0.01
+        if self.nf_lipid_2 < 0:
+            self.nf_lipid_2 = 0
+        if self.nf_lipid_3 < 0:
+            self.nf_lipid_3 = 0
+        if self.nf_chol < 0:
+            self.nf_chol = 0
+        if self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol > 1:
+            self.nf_lipid_2 = self.nf_lipid_2 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+            self.nf_lipid_3 = self.nf_lipid_3 / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+            self.nf_chol = self.nf_chol / (self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol)
+        if self.vf_bilayer <= 0:
+            self.vf_bilayer = 1e-5
+        if self.vf_bilayer > 1:
+            self.vf_bilayer = 1
+
+        # outer hydrocarbons
+        l_ohc = self.l_lipid2
+        nf_ohc_lipid = 1 - self.nf_lipid_2 - self.nf_lipid_3 - self.nf_chol
+        nf_ohc_lipid_2 = self.nf_lipid_2
+        nf_ohc_lipid_3 = self.nf_lipid_3
+        nf_ohc_chol = self.nf_chol
+        V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (
+                    self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (
+                            self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
+        nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (
+                    self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (
+                              self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
+
+        self.normarea = V_ohc / l_ohc
+        c_s_ohc = self.vf_bilayer
+        c_A_ohc = 1
+        c_V_ohc = 1
+
+        # printf("ssBLM: normarea %lf \n",normarea)
+
+        self.lipid2.l = l_ohc
+        self.lipid2.vol = V_ohc
+        self.lipid2.nSL = nSL_ohc
+        self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
+        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
+
+        # outer methyl
+        nf_om_lipid = nf_ohc_lipid
+        nf_om_lipid_2 = nf_ohc_lipid_2
+        nf_om_lipid_3 = nf_ohc_lipid_3
+        V_om = nf_om_lipid * self.volmethyllipid + nf_om_lipid_2 * self.volmethyllipid_2 + nf_om_lipid_3 * self.volmethyllipid_3
+        l_om = l_ohc * V_om / V_ohc
+        nSL_om = nf_om_lipid * self.nslmethyllipid + nf_om_lipid_2 * self.nslmethyllipid_2 + nf_om_lipid_3 * self.nslmethyllipid_3
+
+        c_s_om = c_s_ohc
+        c_A_om = 1
+        c_V_om = 1
+
+        self.methyl2.l = l_om
+        self.methyl2.vol = V_om
+        self.methyl2.nSL = nSL_om
+        self.methyl2.nf = c_s_om * c_A_om * c_V_om
+
+        # inner hydrocarbons
+        l_ihc = self.l_lipid1
+        nf_ihc_tether = self.nf_tether
+        nf_ihc_lipid = (1 - nf_ihc_tether) * nf_ohc_lipid
+        nf_ihc_lipid_2 = nf_ohc_lipid_2
+        nf_ihc_lipid_3 = nf_ohc_lipid_3
+        nf_ihc_chol = nf_ohc_chol
+
+        nf_ihc_lipid_2 = (1 - nf_ihc_tether) * nf_ohc_lipid_2
+        nf_ihc_lipid_3 = (1 - nf_ihc_tether) * nf_ohc_lipid_3
+        nf_ihc_chol = (1 - nf_ihc_tether) * nf_ohc_chol
+
+        V_ihc = nf_ihc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ihc_lipid_2 * (
+                    self.volacyllipid_2 - self.volmethyllipid_2) + nf_ihc_lipid_3 * (
+                            self.volacyllipid_3 - self.volmethyllipid_3) + nf_ihc_chol * self.volchol + nf_ihc_tether * (
+                            self.volacyltether - self.volmethyltether)
+        nSL_ihc = nf_ihc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ihc_lipid_2 * (
+                    self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ihc_lipid_3 * (
+                              self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ihc_chol * self.nslchol + nf_ihc_tether * (
+                              self.nslacyltether - self.nslmethyltether)
+
+        c_s_ihc = self.vf_bilayer
+        c_A_ihc = self.normarea * l_ihc / V_ihc
+        c_V_ihc = 1
+
+        self.lipid1.l = l_ihc
+        self.lipid1.vol = V_ihc
+        self.lipid1.nSL = nSL_ihc
+        self.lipid1.nf = c_s_ihc * c_A_ihc * c_V_ihc
+
+        # inner methyl -- add tether
+        nf_im_lipid = nf_ihc_lipid
+        nf_im_lipid_2 = nf_ihc_lipid_2
+        nf_im_lipid_3 = nf_ihc_lipid_3
+        nf_im_tether = nf_ihc_tether
+        V_im = nf_im_lipid * self.volmethyllipid + nf_im_lipid_2 * self.volmethyllipid_2 + nf_im_lipid_3 * self.volmethyllipid_3 + nf_im_tether * self.volmethyltether
+        l_im = l_ihc * V_im / V_ihc
+        nSL_im = nf_im_lipid * self.nslmethyllipid + nf_im_lipid_2 * self.nslmethyllipid_2 + nf_im_lipid_3 * self.nslmethyllipid_3 + nf_im_tether * self.nslmethyltether
+
+        c_s_im = c_s_ihc
+        c_A_im = c_A_ihc
+        c_V_im = 1
+
+        self.methyl1.l = l_im
+        self.methyl1.vol = V_im
+        self.methyl1.nSL = nSL_im
+        self.methyl1.nf = c_s_im * c_A_im * c_V_im
+
+        # outer headgroups
+        self.headgroup2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid * (1 - self.hc_substitution_2)
+        self.headgroup2_2.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_2 * (1 - self.hc_substitution_2)
+        self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
+
+        # inner headgroups
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+
+        # tether glycerol part -- transliteration here
+        V_tg = self.tetherg.vol
+
+        c_s_tg = c_s_ihc
+        c_A_tg = c_A_ihc
+        c_V_tg = nf_ihc_tether * (1 - self.hc_substitution_2)
+
+        self.tetherg.l = self.tetherg.vol / ((self.volacyltether - self.volmethyltether) / self.lipid1.l) / 0.9
+        self.tetherg.nf = c_s_tg * c_A_tg * c_V_tg
+
+        # tether EO part
+        l_EO = self.l_tether
+        V_EO = self.tether.vol
+
+        c_s_EO = c_s_ihc
+        c_A_EO = c_A_ihc
+        c_V_EO = nf_ihc_tether * (1 - self.hc_substitution_2)
+        self.tether.nf = c_s_EO * c_A_EO * c_V_EO
+        self.tether.l = l_EO
+
+        if (self.tether.nf * self.tether.vol / self.tether.l) > self.normarea:
+            self.tether.l = (self.tether.nf * self.tether.vol) / self.normarea
+        self.l_tether = self.tether.l
+
+        # bME
+        self.bME.l = 5.2
+        l_bME = self.bME.l
+        self.headgroup1.l = 9.575
+        V_bME = self.bME.vol
+
+        d1 = self.headgroup1.l + self.bME.l - self.tether.l - self.tetherg.l
+        if (d1 > 0):
+            self.bME.l = self.bME.l - d1 / 2
+            self.headgroup1.l = self.headgroup1.l - d1 / 2
+
+        if ((
+                self.tether.nf * self.tether.vol / self.tether.l + self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l) > self.normarea):
+            # print(self.tether.nf, self.tether.vol, self.tether.l, self.mult_tether, self.bME.vol, self.bME.l)
+            self.mult_tether = ((self.normarea - self.tether.nf * self.tether.vol / self.tether.l) / (
+                        self.bME.vol / self.bME.l)) / self.tether.nf
+            if (self.mult_tether < 0):
+                self.mult_tether = 0
+
+        self.bME.nf = self.tether.nf * self.mult_tether  # 2.333
+
+        # substrate
+        self.substrate.vol = self.normarea * self.substrate.l
+        self.substrate.nSL = self.rho_substrate * self.substrate.vol
+
+        # set all lengths
+        self.bME.z = 0.5 * self.bME.l + self.substrate.l
+        self.tether.z = 0.5 * self.tether.l + self.substrate.l
+        self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
+        self.lipid1.z = self.tetherg.z + 0.5 * (self.tetherg.l + self.lipid1.l)
+        self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
+        self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
+        self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
+        self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
+        self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
+        self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
+        self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
+        self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
+        self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
+
+        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
+        # defects
+        hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
+        hglength = self.headgroup1.l + self.headgroup2.l
+
+        if self.radius_defect < (0.5 * (hclength + hglength)):
+            self.radius_defect = 0.5 * (hclength + hglength)
+        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
+
+        volhalftorus = 3.14159265359 * 3.14159265359 * (
+                    self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
+        volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
+        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
+        defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
+        # printf("defectarea %lf \n", defectarea)
+
+        self.defect_hydrocarbon.vol = defectarea * hclength
+        self.defect_hydrocarbon.l = hclength
+        self.defect_hydrocarbon.z = self.lipid1.z - 0.5 * self.lipid1.l + 0.5 * hclength
+        self.defect_hydrocarbon.nSL = self.lipid2.nSL / self.lipid2.vol * self.defect_hydrocarbon.vol
+        self.defect_hydrocarbon.fnSetSigma(self.sigma)
+        self.defect_hydrocarbon.nf = 1
+
+        defectratio = self.defect_hydrocarbon.vol / self.lipid2.vol
+        self.defect_headgroup.vol = defectratio * (
+                    self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
+        self.defect_headgroup.l = hclength + hglength
+        self.defect_headgroup.z = self.headgroup1.fnGetZ() - 0.5 * self.headgroup1.l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.nSL = defectratio * (
+                    self.headgroup2.fnGetnSL(self.bulknsld) * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(
+                self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(
+                self.bulknsld) * self.headgroup2_3.nf)
+        self.defect_headgroup.fnSetSigma(self.sigma)
+        self.defect_headgroup.nf = 1
+
+    # Return value is area at position z
+    def fnGetArea(self, dz):
+        result = self.substrate.fnGetArea(dz) + self.bME.fnGetArea(dz) + self.tether.fnGetArea(
+            dz) + self.tetherg.fnGetArea(dz) + self.lipid1.fnGetArea(dz) + self.headgroup1.fnGetArea(
+            dz) + self.methyl1.fnGetArea(dz)
+        result += self.methyl2.fnGetArea(dz) + self.lipid2.fnGetArea(dz) + self.headgroup2.fnGetArea(dz)
+        result += self.headgroup1_2.fnGetArea(dz) + self.headgroup2_2.fnGetArea(dz) + self.headgroup1_3.fnGetArea(dz)
+        result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(
+            dz) + self.defect_headgroup.fnGetArea(dz)
+        return result
+
+    # get nSLD from molecular subgroups
+
+    def fnGetnSLD(self, dz):
+        # printf("Enter fnGetnSLD \n")
+        substratearea = self.substrate.fnGetArea(dz)
+        bMEarea = self.bME.fnGetArea(dz)
+        tetherarea = self.tether.fnGetArea(dz)
+        tethergarea = self.tetherg.fnGetArea(dz)
+        lipid1area = self.lipid1.fnGetArea(dz)
+        headgroup1area = self.headgroup1.fnGetArea(dz)
+        headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
+        headgroup1_3_area = self.headgroup1_3.fnGetArea(dz)
+        methyl1area = self.methyl1.fnGetArea(dz)
+        methyl2area = self.methyl2.fnGetArea(dz)
+        lipid2area = self.lipid2.fnGetArea(dz)
+        headgroup2area = self.headgroup2.fnGetArea(dz)
+        headgroup2_2_area = self.headgroup2_2.fnGetArea(dz)
+        headgroup2_3_area = self.headgroup2_3.fnGetArea(dz)
+        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetArea(dz)
+        defect_headgroup_area = self.defect_headgroup.fnGetArea(dz)
+
+        sum = substratearea + bMEarea + tetherarea + tethergarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
+        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
+
+        if sum == 0:
+            return 0
+        else:
+            result = self.substrate.fnGetnSLD(dz, self.bulknsld) * substratearea
+            result += self.bME.fnGetnSLD(dz, self.bulknsld) * bMEarea
+            result += self.tether.fnGetnSLD(dz, self.bulknsld) * tetherarea
+            result += self.tetherg.fnGetnSLD(dz, self.bulknsld) * tethergarea
+            result += self.headgroup1.fnGetnSLD(dz, self.bulknsld) * headgroup1area
+            result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
+            result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
+            result += self.lipid1.fnGetnSLD(dz) * lipid1area
+            result += self.methyl1.fnGetnSLD(dz) * methyl1area
+            result += self.methyl2.fnGetnSLD(dz) * methyl2area
+            result += self.lipid2.fnGetnSLD(dz) * lipid2area
+            result += self.headgroup2.fnGetnSLD(dz, self.bulknsld) * headgroup2area
+            result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
+            result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
+            result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
+            result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
+            result /= sum
+            return result
+
+    # Use limits of molecular subgroups
+    def fnGetLowerLimit(self):
+        return self.substrate.fnGetLowerLimit()
+
+    def fnGetUpperLimit(self):
+        a = self.headgroup2.fnGetUpperLimit()
+        b = self.headgroup2_2.fnGetUpperLimit()
+        c = self.headgroup2_3.fnGetUpperLimit()
+        return max([a, b, c])
+
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_tether, _l_lipid1,
+              _l_lipid2, _vf_bilayer, _nf_lipid_2=0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0.,
+              _hc_substitution_2=0., _radius_defect=100.):
+        self.sigma = _sigma
+        self.bulknsld = _bulknsld
+        self.global_rough = _global_rough
+        self.rho_substrate = _rho_substrate
+        self.nf_tether = _nf_tether
+        self.mult_tether = _mult_tether
+        self.l_tether = _l_tether
+        self.l_lipid1 = _l_lipid1
+        self.l_lipid2 = _l_lipid2
+        self.vf_bilayer = _vf_bilayer
+        self.nf_lipid_2 = _nf_lipid_2
+        self.nf_lipid_3 = _nf_lipid_3
+        self.nf_chol = _nf_chol
+        self.hc_substitution_1 = _hc_substitution_1
+        self.hc_substitution_2 = _hc_substitution_2
+        self.radius_defect = _radius_defect
+
+        self.fnAdjustParameters()
+
+    def fnSetSigma(self, sigma):
+        self.substrate.sigma2 = self.global_rough
+        self.bME.sigma1 = self.global_rough
+        self.bME.sigma2 = self.global_rough
+        self.tether.sigma1 = self.global_rough
+        self.tether.sigma2 = sigma
+        self.tetherg.fnSetSigma(sigma)
+        self.headgroup1.fnSetSigma(sigma)
+        self.headgroup1_2.fnSetSigma(sigma)
+        self.headgroup1_3.fnSetSigma(sigma)
+        self.lipid1.fnSetSigma(sigma, sigma + 2)
+        self.methyl1.fnSetSigma(sigma + 2, sigma + 2)
+        self.methyl2.fnSetSigma(sigma + 2, sigma + 2)
+        self.lipid2.fnSetSigma(sigma + 2, sigma)
+        self.headgroup2.fnSetSigma(sigma)
+        self.headgroup2_2.fnSetSigma(sigma)
+        self.headgroup2_3.fnSetSigma(sigma)
+        self.defect_hydrocarbon.fnSetSigma(sigma)
+        self.defect_headgroup.fnSetSigma(sigma)
+
+    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
+        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+        return self.normarea, aArea, anSL
+
+    def fnWritePar2File(self, fp, cName, dimension, stepsize):
+        self.substrate.fnWritePar2File(fp, "substrate", dimension, stepsize)
+        self.bME.fnWritePar2File(fp, "bME", dimension, stepsize)
+        self.tether.fnWritePar2File(fp, "tether", dimension, stepsize)
+        self.tetherg.fnWritePar2File(fp, "tetherg", dimension, stepsize)
+        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
+        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
+        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
+        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
+        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
+        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
+        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
+        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
+        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
+        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
+        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
+        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
+        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+
 # ------------------------------------------------------------------------------------------------------
 # Hermite Spline
 # ------------------------------------------------------------------------------------------------------
 
-class Hermite(object):
+class Hermite(nSLDObj):
     def __init__(self, n, dstartposition, dnSLD, dnormarea):
+        super().__init__()
         self.numberofcontrolpoints = n
         self.nSLD=dnSLD
         self.normarea=dnormarea
@@ -920,14 +1886,8 @@ class Hermite(object):
             self.dp[i] = dStart + dSpacing*i + dDp[i]
         self.nf = dnf
 
-    def fnSetSigma(self, sigma): 
-        pass
-
-    def fnWritePar2File(self, fp, cName, dimension, stepsize): 
-        pass
-
     def fnGetSplineAntiDerivative(self, dz, dp, dh): 
-        interval = self.fnGetSplinePars(dz, dp, dh, self.m0, self.m1, self.p0, self.p1)
+        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, dh, 0, 0, 0, 0)
         if (0 <= interval < self.numberofcontrolpoints-1):
             dd=dp[interval+1]-dp[interval] 
             t=(dz-dp[interval])/dd 
@@ -938,10 +1898,11 @@ class Hermite(object):
             h01=(-1/2)*t_4+t_3             
             h10= (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
             h11= (1/4)*t_4-(1/3)*t_3             
-            return dd*(h00*self.p0 + h10*dd*self.m0 + h01*self.p1 + h11*dd*self.m1)         
+            return dd*(h00*p0 + h10*dd*m0 + h01*p1 + h11*dd*m1)         
         return 0
 
     def fnGetSplineArea(self, dz, dp, dh, damping):
+        m0, m1, p0, p1 = 0, 0, 0, 0
         if (damping == 0):
             self.damp = dh.copy()  
         else:
@@ -951,7 +1912,7 @@ class Hermite(object):
                     if (dh[i] >= self.damptrigger):
                         dampfactor=dampfactor*(1/(1 + math.exp(-2.1*(dh[i]- self.dampthreshold)/self.dampFWHM))) 
 
-        interval=self.fnGetSplinePars(self, dz, dp, self.damp, self.m0, self.m1, self.p0, self.p1) 
+        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, self.damp, m0, m1, p0, p1) 
 
         if (0 <= interval < self.numberofcontrolpoints-1):
             dd=dp[interval+1]-dp[interval] 
@@ -962,17 +1923,16 @@ class Hermite(object):
             h10= t_3 - 2*t_2 + t 
             h01= (-2)*t_3 + 3*t_2 
             h11= t_3-t_2
-            return h00*self.p0+h10*dd*self.m0+h01*self.p1+h11*dd*self.m1 
-
+            return h00*p0+h10*dd*m0+h01*p1+h11*dd*m1 
         return 0   
 
-    def fnGetSplinePars(self, d, dp, dh, m0, m1, p0, p1): 
+    def fnGetSplinePars(self, dz, dp, dh, m0, m1, p0, p1): 
         interval=-1 
         for i in range(self.numberofcontrolpoints):
-            if ((dp[i]<=self.dz) and (dp[i+1]>self.dz)):
+            if ((dp[i] <= dz) and (dp[i+1] > dz)):
                 # printf("Found interval %i \n", i)
                 interval = i
-        if (self.dz==dp[-1]):
+        if (dz==dp[-1]):
             interval=self.numberofcontrolpoints-2 
         
         if (interval>=0):                                           #tangent calculation
@@ -1056,13 +2016,11 @@ class Hermite(object):
             p0=dh[interval] 
             p1=dh[interval+1] 
     
-        return interval 
+        return interval, m0, m1, p0, p1
         
     def fnGetSplineIntegral(self, dz1, dz2, dp, dh, damping): 
         if (dz1 > dz2):
-            temp=dz2 
-            dz2=dz1 
-            dz1=temp 
+            dz1, dz2 = dz2, dz1
         
         #check for boundaries
         dz1 = max(dz1, dp[0])
@@ -1070,16 +2028,13 @@ class Hermite(object):
         integral=0  
         d=dz1 
         while (d <= dz2):
-            integral += self.fnGetSplineArea(d,dp,dh, damping)*0.5 
-            d += 0.5 
-        
+            integral += self.fnGetSplineArea(d, dp, dh, damping)*0.5 
+            d += 0.5  
         return integral 
 
     def fnGetSplineProductIntegral(self, dz1, dz2, dp, dh1, dh2, damping1, damping2): 
-        if (dz1>dz2) :
-            temp=dz2 
-            dz2=dz1 
-            dz1=temp 
+        if (dz1>dz2):
+            dz1, dz2 = dz2, dz1
         
         #check for boundaries
         dz1 = max(dp[0], dz1)
@@ -1088,9 +2043,7 @@ class Hermite(object):
         integral=0  
         d=dz1 
         while (d<=dz2):
-            integral+=self.fnGetSplineArea(d,dp,dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
-             #printf("d %g damping1 %i area1 %g damping2 %i area2 %g \n", d, damping1, fnGetSplineArea(d,dp,dh1, damping1), damping2, fnGetSplineArea(d,dp,dh2, damping2)) 
+            integral+=self.fnGetSplineArea(d, dp, dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
             d+=0.5 
         
-        return integral 
-    
+        return integral
