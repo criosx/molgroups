@@ -7,7 +7,9 @@ from refl1d.names import *
 from copy import copy
 from refl1d.flayer import FunctionalProfile
 
-def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_lipid1, l_lipid2, vf_bilayer):
+
+
+def bilayer(z, sigma, bulknsld, global_rough, rho_substrate,nf_tether, mult_tether, l_tether, l_lipid1, l_lipid2, vf_bilayer):
     """ Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero """
     
     #global blm                     # Alternative to reinstantiating ssBLM_quaternary every time
@@ -18,7 +20,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     l_siox = 0.0 # could make a parameter in the future
     rho_siox = 0.0
 
-    blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer)
+    blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tether, l_tether, l_lipid1, l_lipid2, vf_bilayer)
     
     normarea, area, nsl = blm.fnWriteProfile(np.zeros_like(z), np.zeros_like(z), dimension, stepsize, 1.0)
 
@@ -28,8 +30,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     return nsld
 
 ## === Data files ===
-probe = load4('ch061.refl', back_reflectivity=True)
-probeh = load4('ch060.refl', back_reflectivity=True)
+probe = load4('os061.refl', back_reflectivity=True)
+probeh = load4('os060.refl', back_reflectivity=True)
 
 # Background parameter
 # probe.background.value = 0.0000
@@ -48,10 +50,12 @@ sigma = Parameter(name='bilayer roughness', value=5).range(2, 9)
 global_rough = Parameter(name ='substrate roughness', value=5).range(2, 9)
 l_tiox = Parameter(name='total tiox thickness', value=120).range(50, 150)
 l_submembrane = Parameter(name='submembrane thickness', value=10).range(0, 50)
+d_oxide = Parameter(name='silicon oxide layer', value=10).range(5, 60)
+d_Cr =  Parameter(name='chromium layer', value=10).range(10, 150)
+d_gold =  Parameter(name='gold layer', value=10).range(5, 60)
 
 
-
-blm = mol.ssBLM_quaternary()        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
+blm = mol.tBLM_quaternary()        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
 dimension=300
 stepsize=0.5
 
@@ -64,6 +68,7 @@ h2o = SLD(name='h2o', rho=-0.56, irho=0.0000)
 tiox = SLD(name='tiox', rho=2.1630, irho=0.0000)
 siox = SLD(name='siox', rho=4.1000, irho=0.0000)
 silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
+cr = SLD(name='silicon', rho=2.0690, irho=0.0000)
 
 ## Then layers are created, each with its own 'material'.  If you want to force
 ## two layers to always match SLD you can use the same material in multiple layers.
@@ -73,20 +78,24 @@ silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
 #bulknsld
 mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
                                 bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
-                                l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
 layer_d2o = Slab(material=d2o, thickness=0.0000, interface=5.0000)
 layer_h2o = Slab(material=h2o, thickness=0.0000, interface=5.0000)
 layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l, interface=0.0)
 layer_siox = Slab(material=siox, thickness=7.5804, interface=10.000)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=0.0000)
+layer_cr = Slab(material=cr, thickness=0.0000, interface=0.0000)
+layer_gold = Slab(material=gold, thickness=0.0000, interface=0.0000)
 
 
 #sample with d2o
 sample = Stack()
+
 sample.add(layer_silicon)
 sample.add(layer_siox)
-sample.add(layer_tiox)
+sample.add(layer_cr)
+sample.add(layer_gold)
 sample.add(mollayer)
 sample.add(layer_d2o)
 
@@ -95,16 +104,19 @@ sample.add(layer_d2o)
 
 mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
                                 bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
-                                l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
 
 
 
 sampleh = Stack()
-sampleh.add(layer_silicon)
-sampleh.add(layer_siox)
-sampleh.add(layer_tiox)
-sampleh.add(mollayerh)
+
+
+sample.add(layer_silicon)
+sample.add(layer_siox)
+sample.add(layer_cr)
+sample.add(layer_gold)
+sample.add(mollayerh)
 sampleh.add(layer_h2o)
 
 
@@ -200,6 +212,6 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=zed, step_interfaces = step
 # fitting a single model:
 problem = MultiFitProblem([model, modelh])
 
-problem.name = "ssblm_tiox_both"
+problem.name = "tblm_tiox_both"
 
 
