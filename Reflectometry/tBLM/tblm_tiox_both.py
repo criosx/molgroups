@@ -71,7 +71,7 @@ stepsize=0.5
 ## scattering length density, stored in a Refl1d object called 'SLD'
 d2o = SLD(name='d2o', rho=6.3000, irho=0.0000)
 h2o = SLD(name='h2o', rho=-0.56, irho=0.0000)
-tiox = SLD(name='tiox', rho=2.1630, irho=0.0000)
+#tiox = SLD(name='tiox', rho=2.1630, irho=0.0000) #take out all the tiox
 siox = SLD(name='siox', rho=4.1000, irho=0.0000)
 silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
 cr = SLD(name='chromium', rho=2.7, irho=0.0)
@@ -84,12 +84,11 @@ gold = SLD(name='gold', rho=4.4, irho=0.0) #iro is the absorption of neutrons, s
 
 #bulknsld
 mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
+                                bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
                                 nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
 layer_d2o = Slab(material=d2o, thickness=0.0000, interface=5.0000)
 layer_h2o = Slab(material=h2o, thickness=0.0000, interface=5.0000)
-
 #layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l, interface=0.0)
 layer_siox = Slab(material=siox, thickness=d_oxide, interface=global_rough)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=global_rough)
@@ -110,20 +109,18 @@ sample.add(layer_d2o)
 #sample with h2o
 
 mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
+                                bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
                                 nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
 
 
 
 sampleh = Stack()
-
-
-sample.add(layer_silicon)
-sample.add(layer_siox)
-sample.add(layer_cr)
-sample.add(layer_gold)
-sample.add(mollayerh)
+sampleh.add(layer_silicon)
+sampleh.add(layer_siox)
+sampleh.add(layer_cr)
+sampleh.add(layer_gold)
+sampleh.add(mollayerh)
 sampleh.add(layer_h2o)
 
 
