@@ -30,8 +30,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate,nf_tether, mult_teth
     return nsld
 
 ## === Data files ===
-probe = load4('os061.refl', back_reflectivity=True)
-probeh = load4('os060.refl', back_reflectivity=True)
+probe = load4('os060.refl', back_reflectivity=True)
+probeh = load4('os061.refl', back_reflectivity=True)
 
 # Background parameter
 # probe.background.value = 0.0000
