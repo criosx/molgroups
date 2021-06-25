@@ -51,8 +51,14 @@ global_rough = Parameter(name ='substrate roughness', value=5).range(2, 9)
 l_tiox = Parameter(name='total tiox thickness', value=120).range(50, 150)
 l_submembrane = Parameter(name='submembrane thickness', value=10).range(0, 50)
 d_oxide = Parameter(name='silicon oxide layer', value=10).range(5, 60)
-d_Cr =  Parameter(name='chromium layer', value=10).range(10, 150)
-d_gold =  Parameter(name='gold layer', value=10).range(5, 60)
+d_Cr =  Parameter(name='chromium layer', value=40).range(10, 150)
+d_gold =  Parameter(name='gold layer', value=100).range(60, 170) #thickness of gold
+rough_cr_au =  Parameter(name='gold chromium roughness', value=10).range(2, 14.0) #thickness of gold
+nf_tether =  Parameter(name='number fraction tether', value=0.7).range(0.2, 1.0) #thickness of gold
+mult_tether =  Parameter(name='multiplicity tether', value=2).range(0.1, 4) #ratio of tether between tether and bme (no. bmes per tether)
+l_tether =  Parameter(name='length tether', value=10).range(6, 18) #thickness of gold
+
+
 
 
 blm = mol.tBLM_quaternary()        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
@@ -68,7 +74,8 @@ h2o = SLD(name='h2o', rho=-0.56, irho=0.0000)
 tiox = SLD(name='tiox', rho=2.1630, irho=0.0000)
 siox = SLD(name='siox', rho=4.1000, irho=0.0000)
 silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
-cr = SLD(name='silicon', rho=2.0690, irho=0.0000)
+cr = SLD(name='chromium', rho=2.7, irho=0.0)
+gold = SLD(name='gold', rho=4.4, irho=0.0) #iro is the absorption of neutrons, should be 0
 
 ## Then layers are created, each with its own 'material'.  If you want to force
 ## two layers to always match SLD you can use the same material in multiple layers.
@@ -82,16 +89,16 @@ mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma
                                 vf_bilayer=vf_bilayer)
 layer_d2o = Slab(material=d2o, thickness=0.0000, interface=5.0000)
 layer_h2o = Slab(material=h2o, thickness=0.0000, interface=5.0000)
-layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l, interface=0.0)
-layer_siox = Slab(material=siox, thickness=7.5804, interface=10.000)
-layer_silicon = Slab(material=silicon, thickness=0.0000, interface=0.0000)
-layer_cr = Slab(material=cr, thickness=0.0000, interface=0.0000)
-layer_gold = Slab(material=gold, thickness=0.0000, interface=0.0000)
+
+#layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l, interface=0.0)
+layer_siox = Slab(material=siox, thickness=d_oxide, interface=global_rough)
+layer_silicon = Slab(material=silicon, thickness=0.0000, interface=global_rough)
+layer_cr = Slab(material=cr, thickness=d_Cr, interface=rough_cr_au)
+layer_gold = Slab(material=gold, thickness=d_gold - blm.substrate.l, interface=0.0000) #thickness can also be 20 angstroms
 
 
 #sample with d2o
 sample = Stack()
-
 sample.add(layer_silicon)
 sample.add(layer_siox)
 sample.add(layer_cr)
@@ -165,8 +172,13 @@ h2o.rho.range(-0.6, 0.6)
 #ohg.rho.range(-0.6, 6.4)
 #tails.rho.range(-0.5, 3.0)
 #ihg.rho.range(-0.6, 6.4)
-tiox.rho.range(1.1630, 3.1630)
+#tiox.rho.range(1.1630, 3.1630)
+
+
 siox.rho.range(3.1000, 5.1000)
+cr.rho.range(2.7000, 4.0000)
+gold.rho.range(4.2000, 4.8000)
+
 #silicon.rho.range(1.0690, 3.0690)
 
 ## LAYER ABSORPTIONS (imaginary rho)
@@ -177,7 +189,11 @@ siox.rho.range(3.1000, 5.1000)
 
 ## LAYER THICKNESSES
 #layer_ipa.thickness.range(0.0000, 100.00)
-layer_tiox.thickness.range(66.379, 266.38)
+#layer_tiox.thickness.range(66.379, 266.38)
+
+
+
+
 layer_siox.thickness.range(5, 40)
 #layer3.thickness.range(0.0000, 100.00)
 
