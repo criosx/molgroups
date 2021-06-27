@@ -348,24 +348,15 @@ class CBumpsInteractor(CDataInteractor):
             $""", re.VERBOSE)
 
     def fnLoadMCMCResults(self):
-
-        import bumps.dream.state
-
-        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
-        state.mark_outliers()  # ignore outlier chains
+        state = self.fnRestoreState()
 
         # load Parameter
-        data = self.fnLoadSingleColumns(self.mcmcpath + '/' + self.runfile + '.par', header=False,
-                                        headerline=['parname', 'bestfitvalue'])
-        lParName = []
-        vars = []
-        i = 0
-        for parname in data['parname']:
-            lParName.append(parname)
-            vars.append(i)
-            i += 1
+        diParameters, _ = self.fnLoadParameters()
+        lParName = diParameters.keys()
 
-        draw = state.draw(1, vars, None)
+        # parvars is a list of variables(parameters) to return for each point
+        parvars = [i for i in range(len(lParName))]
+        draw = state.draw(1, parvars, None)
         points = draw.points
         logp = draw.logp
 
@@ -374,61 +365,28 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
     def fnLoadParameters(self):
-        def parse_var(line):
-            """
-            Parse a line returned by format_vars back into the statistics for the
-            variable on that line.
-            """
+        problem = self.fnRestoreFitProblem()
+        state = self.fnRestoreState()
 
-            m1 = self.VAR_PATTERN1.match(line)
-            m2 = self.VAR_PATTERN2.match(line)
-            results = None
-            if m2:
-                exp = int(m2.group('exp')) if m2.group('exp') else 0
-                results = {'index': int(m2.group('parnum')), 'name': m2.group('parname'),
-                           'mean': float(m2.group('mean')) * 10 ** exp, 'median': float(m2.group('median')),
-                           'best': float(m2.group('best')), 'p68': (float(m2.group('lo68')), float(m2.group('hi68'))),
-                           'p95': (float(m2.group('lo95')), float(m2.group('hi95')))}
-            elif m1:
-                results = {'name': m1.group('parname'), 'best': float(m1.group('best')),
-                           'bounds': (float(m1.group('lowbound')), float(m1.group('highbound')))}
-            return results
+        p = state.best()[0]
+        problem.setp(p)
+        overall = problem.chisq()
 
-        # this code is from bumps.util parse_errfile with modifications
-        diParameters = {}
-        chisq = []          # not used here
-        overall = None
-        filename = self.mcmcpath + '/' + self.runfile + '.err'
-        with open(filename) as fid:
-            for line in fid:
-                if line.startswith("[overall"):
-                    m = self.VAR_PATTERN_OVERALLCHISQ.match(line)
-                    overall = float(m.group('value'))
-                    continue
+        pnamekeys = problem.model_parameters().keys()
+        diParameters = dict.fromkeys(pnamekeys)
+        bounds = problem.bounds()
 
-                if line.startswith("[chisq"):
-                    m = self.VAR_PATTERN_CHISQ.match(line)
-                    chisq.append(float(m.group('value')))
-                    continue
-
-                p = parse_var(line)
-                if p is not None:
-                    parametername = p['name']
-                    if parametername not in diParameters:
-                        diParameters[parametername] = {}
-                    if 'bounds' in p:
-                        diParameters[parametername]['lowerlimit'] = p['bounds'][0]
-                        diParameters[parametername]['upperlimit'] = p['bounds'][1]
-                        diParameters[parametername]['value'] = p['best']
-                        diParameters[parametername]['relval'] = (p['best'] - p['bounds'][0]) / \
-                                                                (p['bounds'][1] - p['bounds'][0])
-                        diParameters[parametername]['variable'] = p['name']
-                    else:
-                        diParameters[parametername]['number'] = p['index']
-                        diParameters[parametername]['error'] = (p['p68'][1] - p['p68'][0])/2
-
-        if overall is None:
-            overall = chisq[0]
+        for key in pnamekeys:
+            parindex = pnamekeys.index(key)
+            diParameters[key]['number'] = parindex
+            diParameters[key]['lowerlimit'] = bounds[0][parindex]
+            diParameters[key]['upperlimit'] = bounds[1][parindex]
+            diParameters[key]['value'] = p[parindex]
+            diParameters[key]['relval'] = (diParameters[key]['value']-diParameters[key]['lowerlimit']) / \
+                                          (diParameters[key]['upperlimit']-diParameters[key]['lowerlimit'])
+            diParameters[key]['variable'] = problem.model_parameters()[key].name
+            # TODO: Do we still need this? Would have to figure out how to get the confidence limits from state
+            diParameters[key]['error'] = 0.01
 
         return diParameters, overall
 
@@ -464,6 +422,12 @@ class CBumpsInteractor(CDataInteractor):
         from bumps.fitproblem import load_problem
         problem = load_problem(self.spath + '/' + self.runfile + '.py')
         return problem
+
+    def fnRestoreState(self):
+        import bumps.dream.state
+        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
+        state.mark_outliers()  # ignore outlier chains
+        return state
 
     def fnRestoreMolgroups(self, problem):
         diMolgroups = self.fnLoadMolgroups()
