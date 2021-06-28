@@ -26,6 +26,7 @@ class CDataInteractor():
         self.spath = spath
         self.mcmcpath = mcmcpath
         self.runfile = runfile
+        self.diParameters = {}
 
     def fnLoadMolgroups(self):
         diMolgroups = {}
@@ -310,62 +311,17 @@ class CBumpsInteractor(CDataInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
         super().__init__(spath, mcmcpath, runfile)
 
-        # patterns to extract parmeter information from .err results files
-        self.VAR_PATTERN1 = re.compile(r"""
-            ^.(?P<parname>.+?)\ =\ 
-            (?P<best>[0-9.eE+-]+?)\ in\ \[           
-            (?P<lowbound>[0-9.eE+-]+?),
-            (?P<highbound>[0-9.eE+-]+?)\]
-            .*?
-            $""", re.VERBOSE)
-
-        self.VAR_PATTERN2 = re.compile(r"""
-           ^\ *
-           (?P<parnum>[0-9]+)\ +
-           (?P<parname>.+?)\ +
-           (?P<mean>[0-9.-]+?)
-           \((?P<err>[0-9]+)\)
-           (e(?P<exp>[+-]?[0-9]+))?\ +
-           (?P<median>[0-9.eE+-]+?)\ +
-           (?P<best>[0-9.eE+-]+?)\ +
-           \[\ *(?P<lo68>[0-9.eE+-]+?)\ +
-           (?P<hi68>[0-9.eE+-]+?)\]\ +
-           \[\ *(?P<lo95>[0-9.eE+-]+?)\ +
-           (?P<hi95>[0-9.eE+-]+?)\]
-           \ *$
-           """, re.VERBOSE)
-
-        self.VAR_PATTERN_CHISQ = re.compile(r"""
-            ^\[chisq= 
-            (?P<value>[0-9.eE+-]+?)\(
-            .*?
-            $""", re.VERBOSE)
-
-        self.VAR_PATTERN_OVERALLCHISQ = re.compile(r"""
-            ^\[overall\ chisq= 
-            (?P<value>[0-9.eE+-]+?)\(
-            .*?
-            $""", re.VERBOSE)
-
     def fnLoadMCMCResults(self):
-
-        import bumps.dream.state
-
-        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
-        state.mark_outliers()  # ignore outlier chains
+        state = self.fnRestoreState()
 
         # load Parameter
-        data = self.fnLoadSingleColumns(self.mcmcpath + '/' + self.runfile + '.par', header=False,
-                                        headerline=['parname', 'bestfitvalue'])
-        lParName = []
-        vars = []
-        i = 0
-        for parname in data['parname']:
-            lParName.append(parname)
-            vars.append(i)
-            i += 1
+        if self.diParameters == {}:
+            self.diParameters, _ = self.fnLoadParameters()
+        lParName = self.diParameters.keys()
 
-        draw = state.draw(1, vars, None)
+        # parvars is a list of variables(parameters) to return for each point
+        parvars = [i for i in range(len(lParName))]
+        draw = state.draw(1, parvars, None)
         points = draw.points
         logp = draw.logp
 
@@ -374,63 +330,31 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
     def fnLoadParameters(self):
-        def parse_var(line):
-            """
-            Parse a line returned by format_vars back into the statistics for the
-            variable on that line.
-            """
+        problem = self.fnRestoreFitProblem()
+        state = self.fnRestoreState()
 
-            m1 = self.VAR_PATTERN1.match(line)
-            m2 = self.VAR_PATTERN2.match(line)
-            results = None
-            if m2:
-                exp = int(m2.group('exp')) if m2.group('exp') else 0
-                results = {'index': int(m2.group('parnum')), 'name': m2.group('parname'),
-                           'mean': float(m2.group('mean')) * 10 ** exp, 'median': float(m2.group('median')),
-                           'best': float(m2.group('best')), 'p68': (float(m2.group('lo68')), float(m2.group('hi68'))),
-                           'p95': (float(m2.group('lo95')), float(m2.group('hi95')))}
-            elif m1:
-                results = {'name': m1.group('parname'), 'best': float(m1.group('best')),
-                           'bounds': (float(m1.group('lowbound')), float(m1.group('highbound')))}
-            return results
+        p = state.best()[0]
+        problem.setp(p)
+        overall = problem.chisq()
 
-        # this code is from bumps.util parse_errfile with modifications
-        diParameters = {}
-        chisq = []          # not used here
-        overall = None
-        filename = self.mcmcpath + '/' + self.runfile + '.err'
-        with open(filename) as fid:
-            for line in fid:
-                if line.startswith("[overall"):
-                    m = self.VAR_PATTERN_OVERALLCHISQ.match(line)
-                    overall = float(m.group('value'))
-                    continue
+        pnamekeys = list(problem.model_parameters().keys())
+        for element in pnamekeys:
+            self.diParameters[element] = {}
+        bounds = problem.bounds()
 
-                if line.startswith("[chisq"):
-                    m = self.VAR_PATTERN_CHISQ.match(line)
-                    chisq.append(float(m.group('value')))
-                    continue
+        for key in pnamekeys:
+            parindex = pnamekeys.index(key)
+            self.diParameters[key]['number'] = parindex
+            self.diParameters[key]['lowerlimit'] = float(bounds[0][parindex])
+            self.diParameters[key]['upperlimit'] = float(bounds[1][parindex])
+            self.diParameters[key]['value'] = float(p[parindex])
+            self.diParameters[key]['relval'] = (self.diParameters[key]['value']-self.diParameters[key]['lowerlimit']) / \
+                                          (self.diParameters[key]['upperlimit']-self.diParameters[key]['lowerlimit'])
+            self.diParameters[key]['variable'] = problem.model_parameters()[key].name
+            # TODO: Do we still need this? Would have to figure out how to get the confidence limits from state
+            self.diParameters[key]['error'] = 0.01
 
-                p = parse_var(line)
-                if p is not None:
-                    parametername = p['name']
-                    if parametername not in diParameters:
-                        diParameters[parametername] = {}
-                    if 'bounds' in p:
-                        diParameters[parametername]['lowerlimit'] = p['bounds'][0]
-                        diParameters[parametername]['upperlimit'] = p['bounds'][1]
-                        diParameters[parametername]['value'] = p['best']
-                        diParameters[parametername]['relval'] = (p['best'] - p['bounds'][0]) / \
-                                                                (p['bounds'][1] - p['bounds'][0])
-                        diParameters[parametername]['variable'] = p['name']
-                    else:
-                        diParameters[parametername]['number'] = p['index']
-                        diParameters[parametername]['error'] = (p['p68'][1] - p['p68'][0])/2
-
-        if overall is None:
-            overall = chisq[0]
-
-        return diParameters, overall
+        return self.diParameters, overall
 
     def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
         if path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
@@ -464,6 +388,12 @@ class CBumpsInteractor(CDataInteractor):
         from bumps.fitproblem import load_problem
         problem = load_problem(self.spath + '/' + self.runfile + '.py')
         return problem
+
+    def fnRestoreState(self):
+        import bumps.dream.state
+        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
+        state.mark_outliers()  # ignore outlier chains
+        return state
 
     def fnRestoreMolgroups(self, problem):
         diMolgroups = self.fnLoadMolgroups()
@@ -517,7 +447,7 @@ class CGaReflInteractor(CRefl1DInteractor):
 
     def fnLoadParameters(self):
         filename = self.spath + '/' + self.runfile
-        diParameters = {}
+        self.diParameters = {}
 
         # check wether an existing MCMC exists
         if path.isfile(self.spath + '/run.par'):
@@ -594,7 +524,7 @@ class CGaReflInteractor(CRefl1DInteractor):
                 print('Parameters do not match in setup and parameter file ')  # no parameter in setup.c left!
                 print('--------------------------------------')
                 raise RuntimeError('Mismatch between setup file and par.dat.')
-            if sParName in diParameters:
+            if sParName in self.diParameters:
                 print('--------------------------------------')
                 print('The parameter %s is defined twice in the garefl setup file.' % sParName)
                 print('This is not supported by rs.py.')
@@ -603,7 +533,7 @@ class CGaReflInteractor(CRefl1DInteractor):
             ipar = int(i)  # parameter number
             frelval = float(tParValues[i])  # relative par value is stored in file
             fvalue = (fupperlimit - flowerlimit) * frelval + flowerlimit  # calculate absolute par value
-            diParameters[sParName] = {'number': ipar, 'variable': sVarName, 'lowerlimit': flowerlimit,
+            self.diParameters[sParName] = {'number': ipar, 'variable': sVarName, 'lowerlimit': flowerlimit,
                                       'upperlimit': fupperlimit, 'relval': frelval, 'value': fvalue}
 
         # There was a time when all parameters were given as relative numbers between the bounds
@@ -624,15 +554,14 @@ class CGaReflInteractor(CRefl1DInteractor):
 
         # redo refl1d convention to multiply small parameters (nSLD, background) by 1E6
         # in case bounds were specified in 1E-6 units (garefl)
-        for sParName in list(diParameters.keys()):
-            if diParameters[sParName]['value'] < diParameters[sParName]['lowerlimit'] or \
-                    diParameters[sParName]['value'] > diParameters[sParName]['upperlimit']:
-                diParameters[sParName]['value'] /= 1E6
+        for sParName in list(self.diParameters.keys()):
+            if self.diParameters[sParName]['value'] < self.diParameters[sParName]['lowerlimit'] or \
+                    self.diParameters[sParName]['value'] > self.diParameters[sParName]['upperlimit']:
+                self.diParameters[sParName]['value'] /= 1E6
 
-        return diParameters, chisq
+        return self.diParameters, chisq
 
     def fnLoadStatData(self, dSparse=0., rescale_small_numbers=True, skip_entries=[]):
-
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
@@ -735,8 +664,8 @@ class CMolStat:
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
-        self.fnLoadStatData(sparse)                     # Load data from file into list
         self.fnLoadParameters()                         # Load Parameters for limits
+        self.fnLoadStatData(sparse)                     # Load data from file into list
 
         if fConfidence > 1:
             fConfidence = 1
@@ -1931,18 +1860,8 @@ class CMolStat:
         return Object
 
     def fnLoadParameters(self):
-        # loads the last row's parameters, and
-        # ranges from par.dat and stores them into
-        # self.diParameters; parameter names are
-        # read from setup.c, since par.dat truncates
-        # parameter names over 17 characters
-
-        # after reading in the parameters check for
-        # definitions of GAUSSIAN,
-        # and check vs. active fit parameters
-        # load them into self.molgroups dictionary
-        self.diParameters = {}
-        self.diParameters, self.chisq = self.Interactor.fnLoadParameters()
+        if self.diParameters == {}:
+            self.diParameters, self.chisq = self.Interactor.fnLoadParameters()
 
     def fnLoadStatData(self, sparse=0):
         self.diStatResults = self.Interactor.fnLoadStatData(sparse)
