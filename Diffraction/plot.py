@@ -74,7 +74,7 @@ def graphProfiles(obj, dimension, stepsize, maxarea, bulknsld, show=False, savef
         if obj.nf_lipid_2 > 0:
             members.update(headgroup2 = ["headgroup1_2", "headgroup2_2"])
         if obj.nf_lipid_3 > 0:
-            members.update(headgroup2 = ["headgroup1_3", "headgroup2_3"])
+            members.update(headgroup3 = ["headgroup1_3", "headgroup2_3"])
     elif isinstance(obj, mol.PC):
             members = {"carbonyl gylcerol": ["cg"], "phosphate": ["phosphate"], "choline": ["choline"] }
     else: members = {}
