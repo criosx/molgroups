@@ -533,55 +533,6 @@ class PCm(PC):
     def fnWritePar2File (self,fp, cName, dimension, stepsize):
         pass
 
-    def fnGetnSLD(self, dz, bulknsld = 0):
-        cgarea=self.cg.fnGetArea(dz)
-        pharea=self.phosphate.fnGetArea(dz)
-        charea=self.choline.fnGetArea(dz)
-        sum=cgarea+pharea+charea
-        #bulknsld=-0.56e-6  
-        if (sum == 0):
-            return 0
-        else:
-            return (self.cg.fnGetnSLD(dz)*cgarea+\
-                self.phosphate.fnGetnSLD(dz)*\
-                pharea+self.choline.fnGetnSLD(dz)*charea)/sum
-
-    def fnGetnSLDProfile(self, z, bulknsld = 0):
-        cgarea=self.cg.fnGetAreaProfile(z)
-        pharea=self.phosphate.fnGetAreaProfile(z)
-        charea=self.choline.fnGetAreaProfile(z)
-        sum=cgarea+pharea+charea
-        #bulknsld=-0.56e-6  
-        if not (numpy.any(sum)):
-            return numpy.zeros_like(z)
-        else:
-            result = (self.cg.fnGetnSLDProfile(z)*cgarea+\
-                self.phosphate.fnGetnSLDProfile(z)*\
-                pharea+self.choline.fnGetnSLDProfile(z)*charea)
-            result[sum>0] /= sum[sum>0]
-            result[sum<=0] = 0
-            return result
-
-
-        """
-        
-        if (sum == 0):
-            return 0
-        elif sum!=0:
-            if self.vol != 0:
-                if self.bProtonExchange:
-                    if bulknsld == 0.:
-                        bulknsld = self.nsldbulk_store
-                     return ((bulknsld+0.56e-6)*self.nSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol
-                    return (self.cg.fnGetnSLD(dz)*cgarea+\
-                    self.phosphate.fnGetnSLD(dz)*\
-                    pharea+self.choline.fnGetnSLD(dz)*charea)/sum
-        elif bulknsld != 0:
-            self.nsldbulk_store = bulknsld
-        if sum !=0   
-        
-       """
-
         
             
 # ------------------------------------------------------------------------------------------------------
@@ -961,6 +912,8 @@ class ssBLM_quaternary(nSLDObj):
     def __init__(self):
 
         super().__init__()
+        self.bWrapping = False
+
         self.substrate  = Box2Err()
         self.siox       = Box2Err()
         self.headgroup1 = PCm()
@@ -1249,8 +1202,8 @@ class ssBLM_quaternary(nSLDObj):
         self.siox.nSL=self.rho_siox*self.siox.vol
     
     #set all lengths
-        self.siox.z=self.substrate.l+0.5*self.siox.l
-        self.lipid1.z= self.substrate.l + self.siox.l + self.l_submembrane + self.headgroup1.l + 0.5 * self.lipid1.l
+        self.siox.z=self.substrate.l/2+0.5*self.siox.l
+        self.lipid1.z= self.substrate.l/2 + self.siox.l + self.l_submembrane + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
