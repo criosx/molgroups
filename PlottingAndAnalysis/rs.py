@@ -335,6 +335,7 @@ class CBumpsInteractor(CDataInteractor):
 
         p = state.best()[0]
         problem.setp(p)
+
         # from bumps.cli import load_best
         # load_best(problem, self.mcmcpath+'/'+self.runfile+'.par')
 
@@ -2559,6 +2560,19 @@ class CMolStat:
                         #    val *= 1E6
                         p.append(val)
                     problem.setp(p)
+                    problem.model_update()
+                    # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
+                    # way, also implement which contrast to use for pulling groups
+                    if 'models' in dir(problem):
+                        for M in problem.models:
+                            overall = M.chisq()
+                            break
+                    else:
+                        overall = problem.chisq()
+
+                    fp = open(self.spath+'/mol.dat', "w")
+                    problem.extra.fnWritePar2File(fp, 'bilayer', problem.dimension, problem.stepsize)
+                    fp.close()
                     stdout.flush()
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):

@@ -76,7 +76,11 @@ class nSLDObj():
             if self.bWrapping and dmirror >= dLowerLimit:
                 dAreaInc = self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror)
                 dnSLDInc = (self.fnGetnSLD(d) * self.fnGetConvolutedArea(d) + self.fnGetnSLD(dmirror) * self.fnGetConvolutedArea(dmirror))
-                dnSLDInc /= (self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror))
+                divisor = (self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror))
+                if divisor != 0:
+                    dnSLDInc /= divisor
+                else:
+                    dnSLDInc = 0.
                 # printf("Bin %i Area %f nSLD %e nSL %e \n", i, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
             else:
                 dAreaInc = self.fnGetConvolutedArea(d)
