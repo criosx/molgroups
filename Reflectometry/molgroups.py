@@ -1,5 +1,6 @@
 import numpy
 import math
+from scipy.special import erf
 
 class nSLDObj():
 
@@ -288,6 +289,18 @@ class Box2Err(nSLDObj):
             return  result
         else:
             return 0.
+    
+    def fnGetAreaProfile(self, z):
+        if (self.l != 0) and (self.sigma1 != 0) and (self.sigma2 != 0):
+            result = erf((z - self.z + 0.5 * self.l) / (numpy.sqrt(2) * self.sigma1))
+            #result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
+            #result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
+            result -= erf((z - self.z - 0.5 * self.l) / (numpy.sqrt(2) * self.sigma2))            
+            result *= (self.vol / self.l) * 0.5
+            result *= self.nf
+            return result
+        else:
+            return numpy.zeros_like(z)
 
     def fnGetnSL(self, bulknsld):
         if self.bProtonExchange:
@@ -312,6 +325,21 @@ class Box2Err(nSLDObj):
         else:
             return 0
 
+    # constant nSLD
+    def fnGetnSLDProfile(self, z, bulknsld = 0.):
+        if bulknsld != 0:
+            self.nsldbulk_store = bulknsld
+        if self.vol != 0:
+            if self.bProtonExchange:
+                if bulknsld == 0.:
+                    bulknsld = self.nsldbulk_store
+                return ((bulknsld+0.56e-6)*self.nSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol * numpy.ones_like(z)
+            else:
+                return self.nSL/self.vol * numpy.ones_like(z)
+        else:
+            return numpy.zeros_like(z)
+
+
     # Gaussians are cut off below and above 3 sigma double
     def fnGetLowerLimit(self):
         return self.z - 0.5 * self.l - 3 * self.sigma1
@@ -332,6 +360,45 @@ class Box2Err(nSLDObj):
 
     def fnSetZ(self, dz):
         self.z = dz
+
+    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
+        """
+        dLowerLimit = self.fnGetLowerLimit()
+        dUpperLimit = self.fnGetUpperLimit()
+        if dUpperLimit==0:
+            dUpperLimit = float(dimension) * stepsize
+        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
+        """
+        z = numpy.linspace(stepsize / 2, stepsize / 2 + dimension * stepsize, dimension, endpoint=False)
+        
+        # TODO implement wrapping
+
+        area = self.fnGetAreaProfile(z)
+        dMaxArea = numpy.max(area)
+        sld = self.fnGetnSLDProfile(z)
+
+        aArea += area
+        anSL += sld * area * stepsize
+
+        """
+        while d<=dUpperLimit:
+            i = int(d/stepsize)
+            dprefactor=1
+            if (i<0) and self.bWrapping:
+                i = -1 * i
+            if (i==0) and self.bWrapping:
+                dprefactor = 2                                            #avoid too low filling when mirroring
+            if (i>=0) and (i<dimension):
+                dAreaInc = self.fnGetConvolutedArea(d)
+                aArea[i] = aArea[i] + dAreaInc * dprefactor
+                if (aArea[i]>dMaxArea):
+                    dMaxArea = aArea[i]
+                anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc*stepsize * dprefactor
+                # printf("Bin %i AreaInc %g total %g MaxArea %g nSL %f total %f \n", i, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
+            d = d + stepsize
+        """
+
+        return dMaxArea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         fp.write("Box2Err "+cName+" z "+str(self.z)+" sigma1 "+str(self.sigma1)+" sigma2 "+str(self.sigma2)+" l "
@@ -395,6 +462,9 @@ class PC(nSLDObj):
     def fnGetArea(self, dz):
         return (self.cg.fnGetArea(dz)+self.phosphate.fnGetArea(dz)+self.choline.fnGetArea(dz))*self.nf
     
+    def fnGetAreaProfile(self, z):
+        return (self.cg.fnGetAreaProfile(z)+self.phosphate.fnGetAreaProfile(z)+self.choline.fnGetAreaProfile(z))*self.nf
+    
     def fnGetnSLD(self, dz, bulknsld = 0):
         cgarea=self.cg.fnGetArea(dz)
         pharea=self.phosphate.fnGetArea(dz)
@@ -407,6 +477,22 @@ class PC(nSLDObj):
             return (self.cg.fnGetnSLD(dz)*cgarea+\
                 self.phosphate.fnGetnSLD(dz)*\
                 pharea+self.choline.fnGetnSLD(dz)*charea)/sum
+
+    def fnGetnSLDProfile(self, z, bulknsld = 0):
+        cgarea=self.cg.fnGetAreaProfile(z)
+        pharea=self.phosphate.fnGetAreaProfile(z)
+        charea=self.choline.fnGetAreaProfile(z)
+        sum=cgarea+pharea+charea
+        #bulknsld=-0.56e-6  
+        if not (numpy.any(sum)):
+            return numpy.zeros_like(z)
+        else:
+            result = (self.cg.fnGetnSLDProfile(z)*cgarea+\
+                self.phosphate.fnGetnSLDProfile(z)*\
+                pharea+self.choline.fnGetnSLDProfile(z)*charea)
+            result[sum>0] /= sum[sum>0]
+            result[sum<=0] = 0
+            return result
     
     def fnGetZ(self): 
         return self.z
@@ -459,7 +545,24 @@ class PCm(PC):
             return (self.cg.fnGetnSLD(dz)*cgarea+\
                 self.phosphate.fnGetnSLD(dz)*\
                 pharea+self.choline.fnGetnSLD(dz)*charea)/sum
-        
+
+    def fnGetnSLDProfile(self, z, bulknsld = 0):
+        cgarea=self.cg.fnGetAreaProfile(z)
+        pharea=self.phosphate.fnGetAreaProfile(z)
+        charea=self.choline.fnGetAreaProfile(z)
+        sum=cgarea+pharea+charea
+        #bulknsld=-0.56e-6  
+        if not (numpy.any(sum)):
+            return numpy.zeros_like(z)
+        else:
+            result = (self.cg.fnGetnSLDProfile(z)*cgarea+\
+                self.phosphate.fnGetnSLDProfile(z)*\
+                pharea+self.choline.fnGetnSLDProfile(z)*charea)
+            result[sum>0] /= sum[sum>0]
+            result[sum<=0] = 0
+            return result
+
+
         """
         
         if (sum == 0):
@@ -874,8 +977,8 @@ class ssBLM_quaternary(nSLDObj):
         self.defect_hydrocarbon = Box2Err()
         self.defect_headgroup    = Box2Err()
 
-        self.substrate.l = 20
-        self.substrate.z = 10
+        self.substrate.l = 40
+        self.substrate.z = 0
         self.substrate.nf = 1
         self.substrate.sigma1 = 2.0
         self.rho_substrate = 1
@@ -973,7 +1076,6 @@ class ssBLM_quaternary(nSLDObj):
         self.l_lipid2 = 11.
         self.bulknsld = -0.56e-6
         self.normarea = 60.
-        self.startz = 50.
         self.sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
@@ -1148,7 +1250,7 @@ class ssBLM_quaternary(nSLDObj):
     
     #set all lengths
         self.siox.z=self.substrate.l+0.5*self.siox.l
-        self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
+        self.lipid1.z= self.substrate.l + self.siox.l + self.l_submembrane + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
@@ -1200,6 +1302,14 @@ class ssBLM_quaternary(nSLDObj):
         result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(dz) + self.defect_headgroup.fnGetArea(dz)
         return result
 
+    def fnGetAreaProfile(self, z):
+        result  = self.substrate.fnGetAreaProfile(z)+ self.siox.fnGetAreaProfile(z) + self.lipid1.fnGetAreaProfile(z) + self.headgroup1.fnGetAreaProfile(z) + self.methyl1.fnGetAreaProfile(z)
+        result += self.methyl2.fnGetAreaProfile(z) + self.lipid2.fnGetAreaProfile(z) + self.headgroup2.fnGetAreaProfile(z)
+        result += self.headgroup1_2.fnGetAreaProfile(z) + self.headgroup2_2.fnGetAreaProfile(z) + self.headgroup1_3.fnGetAreaProfile(z)
+        result += self.headgroup2_3.fnGetAreaProfile(z) + self.defect_hydrocarbon.fnGetAreaProfile(z) + self.defect_headgroup.fnGetAreaProfile(z)
+        return result
+
+
 
 #get nSLD from molecular subgroups
     def fnGetnSLD(self, dz):
@@ -1244,6 +1354,54 @@ class ssBLM_quaternary(nSLDObj):
             result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
             result /= sum
             return result
+
+    def fnGetnSLDProfile(self, z):
+        # printf("Enter fnGetnSLD \n")
+        substratearea=self.substrate.fnGetAreaProfile(z)
+        #import matplotlib.pyplot as plt
+        #print(self.substrate.z, self.substrate.l, z)
+        #plt.plot(z, substratearea)
+        #plt.show()
+        sioxarea=self.siox.fnGetAreaProfile(z)
+        lipid1area = self.lipid1.fnGetAreaProfile(z)
+        headgroup1area = self.headgroup1.fnGetAreaProfile(z)
+        headgroup1_2_area = self.headgroup1_2.fnGetAreaProfile(z)
+        headgroup1_3_area = self.headgroup1_3.fnGetAreaProfile(z)
+        methyl1area = self.methyl1.fnGetAreaProfile(z)
+        methyl2area = self.methyl2.fnGetAreaProfile(z)
+        lipid2area = self.lipid2.fnGetAreaProfile(z)
+        headgroup2area = self.headgroup2.fnGetAreaProfile(z)
+        headgroup2_2_area = self.headgroup2_2.fnGetAreaProfile(z)
+        headgroup2_3_area = self.headgroup2_3.fnGetAreaProfile(z)
+        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetAreaProfile(z)
+        defect_headgroup_area = self.defect_headgroup.fnGetAreaProfile(z)
+        
+        sum  = substratearea + sioxarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
+        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
+        
+        # printf("%e \n", defect_headgroup.fnGetnSLD(dz))
+    
+
+        #if sum==0:
+        #    return 0
+        #else:
+        result = self.substrate.fnGetnSLDProfile(z, self.bulknsld) * substratearea
+        result += self.siox.fnGetnSLDProfile(z, self.bulknsld) * sioxarea
+        result += self.headgroup1.fnGetnSLDProfile(z, self.bulknsld) * headgroup1area
+        result += self.headgroup1_2.fnGetnSLDProfile(z, self.bulknsld) * headgroup1_2_area
+        result += self.headgroup1_3.fnGetnSLDProfile(z, self.bulknsld) * headgroup1_3_area
+        result += self.lipid1.fnGetnSLDProfile(z) * lipid1area
+        result += self.methyl1.fnGetnSLDProfile(z) * methyl1area
+        result += self.methyl2.fnGetnSLDProfile(z) * methyl2area
+        result += self.lipid2.fnGetnSLDProfile(z) * lipid2area
+        result += self.headgroup2.fnGetnSLDProfile(z, self.bulknsld) * headgroup2area
+        result += self.headgroup2_2.fnGetnSLDProfile(z, self.bulknsld) * headgroup2_2_area
+        result += self.headgroup2_3.fnGetnSLDProfile(z, self.bulknsld) * headgroup2_3_area
+        result += self.defect_hydrocarbon.fnGetnSLDProfile(z) * defect_hydrocarbon_area
+        result += self.defect_headgroup.fnGetnSLDProfile(z) * defect_headgroup_area
+        result[sum>0] /= sum[sum>0]
+        result[sum<=0] = 0
+        return result
 
  # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
@@ -1302,10 +1460,22 @@ class ssBLM_quaternary(nSLDObj):
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-
+    def fnWriteProfile_old(self, aArea, anSL, dimension, stepsize, dMaxArea):
+        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+        return self.normarea, aArea, anSL
 
     def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+        
+        z = numpy.linspace(stepsize / 2, stepsize / 2 + dimension * stepsize, dimension, endpoint=False)
+        
+        # TODO implement wrapping
+
+        area = self.fnGetAreaProfile(z)
+        #dMaxArea = numpy.max(area)
+        sld = self.fnGetnSLDProfile(z)
+
+        aArea += area
+        anSL += sld * area * stepsize
         return self.normarea, aArea, anSL
 
 
