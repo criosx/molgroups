@@ -335,9 +335,26 @@ class CBumpsInteractor(CDataInteractor):
 
         p = state.best()[0]
         problem.setp(p)
-        overall = problem.chisq()
+        # from bumps.cli import load_best
+        # load_best(problem, self.mcmcpath+'/'+self.runfile+'.par')
 
-        pnamekeys = list(problem.model_parameters().keys())
+        # distinguish between fitproblem and multifitproblem
+        if 'models' in dir(problem):
+            i = 0
+            overall = 0.
+            for M in problem.models:
+                overall += M.chisq()
+                i += 1
+            overall /= float(i)
+            pnamekeys=[]
+            pars = problem._parameters
+            for par in pars:
+                pnamekeys.append(par.name)
+        else:
+            overall = problem.chisq()
+            # TODO: Not sure this is for bumps(diffraction) or strictly for single model fitproblems
+            pnamekeys = list(problem.model_parameters().keys())
+
         for element in pnamekeys:
             self.diParameters[element] = {}
         bounds = problem.bounds()
@@ -350,14 +367,16 @@ class CBumpsInteractor(CDataInteractor):
             self.diParameters[key]['value'] = float(p[parindex])
             self.diParameters[key]['relval'] = (self.diParameters[key]['value']-self.diParameters[key]['lowerlimit']) / \
                                           (self.diParameters[key]['upperlimit']-self.diParameters[key]['lowerlimit'])
-            self.diParameters[key]['variable'] = problem.model_parameters()[key].name
+            # TODO: Do we still need this? Set to dummy value
+            self.diParameters[key]['variable'] = key
             # TODO: Do we still need this? Would have to figure out how to get the confidence limits from state
             self.diParameters[key]['error'] = 0.01
 
         return self.diParameters, overall
 
     def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
-        if path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
+        # TODO: Loading sErr.dat does currently not work because of par names with spaces!
+        if False and path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
@@ -413,16 +432,6 @@ class CBumpsInteractor(CDataInteractor):
 class CRefl1DInteractor(CBumpsInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
         super().__init__(spath, mcmcpath, runfile)
-
-        # patterns to extract parmeter information from .err results files
-        self.VAR_PATTERN1 = re.compile(r"""
-            ^\[(?P<parnum>[0-9]+)\]\ =\ Parameter\(
-            (?P<best>[0-9.eE+-]+?),\ name='
-            (?P<parname>.+?)',\ bounds=\(
-            (?P<lowbound>[0-9.eE+-]+?),
-            (?P<highbound>[0-9.eE+-]+?)\)
-            .*?
-            $""", re.VERBOSE)
 
     @staticmethod
     def fnRestoreSmoothProfile(M):
