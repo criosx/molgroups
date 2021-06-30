@@ -308,7 +308,7 @@ class Box2Err(nSLDObj):
             return self.nSL
 
     # constant nSLD
-    def fnGetnSLD(self, dz, bulknsld=0):
+    def fnGetnSLD(self, dz, bulknsld=0.):
         if bulknsld != 0:
             self.nsldbulk_store = bulknsld
         if self.vol != 0:
@@ -435,7 +435,9 @@ class PC(nSLDObj):
         self.fnAdjustParameters()
     
     def fnWritePar2File (self, fp, cName, dimension, stepsize):
-        pass
+        fp.write("PC "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
+                 str(self.cg.vol + self.phosphate.vol + self.choline.vol)+" nf " + str(self.nf)+" \n")
+        nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
 
 class PCm(PC):
     def __init__ (self):
@@ -462,7 +464,10 @@ class PCm(PC):
         return self.cg.fnGetUpperLimit()
 
     def fnWritePar2File (self,fp, cName, dimension, stepsize):
-        pass
+        fp.write("PCm " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
+                 str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf) + " \n")
+        nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
+
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
@@ -1202,9 +1207,8 @@ class ssBLM_quaternary(nSLDObj):
         self.defect_headgroup.l = hclength + hglength
         self.defect_headgroup.z = self.headgroup1.fnGetZ() - 0.5 * self.headgroup1.l + 0.5 * (hclength + hglength)
         self.defect_headgroup.nSL = defectratio * (
-                    self.headgroup2.fnGetnSL(self.bulknsld) * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(
-                self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(
-                self.bulknsld) * self.headgroup2_3.nf)
+                    self.headgroup2.fnGetnSL() * self.headgroup2.nf + self.headgroup2_2.fnGetnSL( self.bulknsld) *
+                    self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
@@ -1248,14 +1252,14 @@ class ssBLM_quaternary(nSLDObj):
         else:
             result = self.substrate.fnGetnSLD(dz, self.bulknsld) * substratearea
             result += self.siox.fnGetnSLD(dz, self.bulknsld) * sioxarea
-            result += self.headgroup1.fnGetnSLD(dz, self.bulknsld) * headgroup1area
+            result += self.headgroup1.fnGetnSLD(dz) * headgroup1area
             result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
             result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
             result += self.lipid1.fnGetnSLD(dz) * lipid1area
             result += self.methyl1.fnGetnSLD(dz) * methyl1area
             result += self.methyl2.fnGetnSLD(dz) * methyl2area
             result += self.lipid2.fnGetnSLD(dz) * lipid2area
-            result += self.headgroup2.fnGetnSLD(dz, self.bulknsld) * headgroup2area
+            result += self.headgroup2.fnGetnSLD(dz) * headgroup2area
             result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
             result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
             result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
@@ -1325,19 +1329,19 @@ class ssBLM_quaternary(nSLDObj):
     def fnWritePar2File(self, fp, cName, dimension, stepsize):
         self.substrate.fnWritePar2File(fp, "substrate", dimension, stepsize)
         self.siox.fnWritePar2File(fp, "siox", dimension, stepsize)
-        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
-        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
-        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
-        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
-        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
-        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
-        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
-        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
-        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
-        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
-        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
-        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
-        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+        self.headgroup1.fnWritePar2File(fp, "headgroup1", dimension, stepsize)
+        self.headgroup1_2.fnWritePar2File(fp, "headgroup1_2", dimension, stepsize)
+        self.headgroup1_3.fnWritePar2File(fp, "headgroup1_3", dimension, stepsize)
+        self.lipid1.fnWritePar2File(fp, "lipid1", dimension, stepsize)
+        self.methyl1.fnWritePar2File(fp, "methyl1", dimension, stepsize)
+        self.methyl2.fnWritePar2File(fp, "methyl2", dimension, stepsize)
+        self.lipid2.fnWritePar2File(fp, "lipid2", dimension, stepsize)
+        self.headgroup2.fnWritePar2File(fp, "headgroup2", dimension, stepsize)
+        self.headgroup2_2.fnWritePar2File(fp, "headgroup2_2", dimension, stepsize)
+        self.headgroup2_3.fnWritePar2File(fp, "headgroup2_3", dimension, stepsize)
+        self.defect_hydrocarbon.fnWritePar2File(fp, "defect_hc", dimension, stepsize)
+        self.defect_headgroup.fnWritePar2File(fp, "defect_hg", dimension, stepsize)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -1700,7 +1704,7 @@ class tBLM_quaternary(nSLDObj):
         self.defect_headgroup.l = hclength + hglength
         self.defect_headgroup.z = self.headgroup1.fnGetZ() - 0.5 * self.headgroup1.l + 0.5 * (hclength + hglength)
         self.defect_headgroup.nSL = defectratio * (
-                    self.headgroup2.fnGetnSL(self.bulknsld) * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(
+                    self.headgroup2.fnGetnSL() * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(
                 self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(
                 self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
@@ -1748,14 +1752,14 @@ class tBLM_quaternary(nSLDObj):
             result += self.bME.fnGetnSLD(dz, self.bulknsld) * bMEarea
             result += self.tether.fnGetnSLD(dz, self.bulknsld) * tetherarea
             result += self.tetherg.fnGetnSLD(dz, self.bulknsld) * tethergarea
-            result += self.headgroup1.fnGetnSLD(dz, self.bulknsld) * headgroup1area
+            result += self.headgroup1.fnGetnSLD(dz) * headgroup1area
             result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
             result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
             result += self.lipid1.fnGetnSLD(dz) * lipid1area
             result += self.methyl1.fnGetnSLD(dz) * methyl1area
             result += self.methyl2.fnGetnSLD(dz) * methyl2area
             result += self.lipid2.fnGetnSLD(dz) * lipid2area
-            result += self.headgroup2.fnGetnSLD(dz, self.bulknsld) * headgroup2area
+            result += self.headgroup2.fnGetnSLD(dz) * headgroup2area
             result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
             result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
             result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
@@ -1824,19 +1828,19 @@ class tBLM_quaternary(nSLDObj):
         self.bME.fnWritePar2File(fp, "bME", dimension, stepsize)
         self.tether.fnWritePar2File(fp, "tether", dimension, stepsize)
         self.tetherg.fnWritePar2File(fp, "tetherg", dimension, stepsize)
-        self.headgroup1.fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize)
-        self.headgroup1_2.fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize)
-        self.headgroup1_3.fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize)
-        self.lipid1.fnWritePar2File(fp, "blm_lipid1", dimension, stepsize)
-        self.methyl1.fnWritePar2File(fp, "blm_methyl1", dimension, stepsize)
-        self.methyl2.fnWritePar2File(fp, "blm_methyl2", dimension, stepsize)
-        self.lipid2.fnWritePar2File(fp, "blm_lipid2", dimension, stepsize)
-        self.headgroup2.fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize)
-        self.headgroup2_2.fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize)
-        self.headgroup2_3.fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize)
-        self.defect_hydrocarbon.fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize)
-        self.defect_headgroup.fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize)
-        self.fnWriteConstant(fp, "blm_normarea", self.normarea, 0, dimension, stepsize)
+        self.headgroup1.fnWritePar2File(fp, "headgroup1", dimension, stepsize)
+        self.headgroup1_2.fnWritePar2File(fp, "headgroup1_2", dimension, stepsize)
+        self.headgroup1_3.fnWritePar2File(fp, "headgroup1_3", dimension, stepsize)
+        self.lipid1.fnWritePar2File(fp, "lipid1", dimension, stepsize)
+        self.methyl1.fnWritePar2File(fp, "methyl1", dimension, stepsize)
+        self.methyl2.fnWritePar2File(fp, "methyl2", dimension, stepsize)
+        self.lipid2.fnWritePar2File(fp, "lipid2", dimension, stepsize)
+        self.headgroup2.fnWritePar2File(fp, "headgroup2", dimension, stepsize)
+        self.headgroup2_2.fnWritePar2File(fp, "headgroup2_2", dimension, stepsize)
+        self.headgroup2_3.fnWritePar2File(fp, "headgroup2_3", dimension, stepsize)
+        self.defect_hydrocarbon.fnWritePar2File(fp, "defect_hc", dimension, stepsize)
+        self.defect_headgroup.fnWritePar2File(fp, "defect_hg", dimension, stepsize)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
 
 # ------------------------------------------------------------------------------------------------------
 # Hermite Spline
