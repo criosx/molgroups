@@ -355,6 +355,10 @@ class CBumpsInteractor(CDataInteractor):
             # TODO: Not sure this is for bumps(diffraction) or strictly for single model fitproblems
             pnamekeys = list(problem.model_parameters().keys())
 
+        # Do not accept parameter names with spaces, replace with underscore
+        for i in range(len(pnamekeys)):
+            pnamekeys[i] = pnamekeys[i].replace(" ", "_")
+
         for element in pnamekeys:
             self.diParameters[element] = {}
         bounds = problem.bounds()
@@ -375,8 +379,7 @@ class CBumpsInteractor(CDataInteractor):
         return self.diParameters, overall
 
     def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
-        # TODO: Loading sErr.dat does currently not work because of par names with spaces!
-        if False and path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
+        if path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
