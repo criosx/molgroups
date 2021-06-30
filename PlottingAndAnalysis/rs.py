@@ -2559,6 +2559,7 @@ class CMolStat:
                         #    val *= 1E6
                         p.append(val)
                     problem.setp(p)
+                    stdout.flush()
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
@@ -2569,7 +2570,6 @@ class CMolStat:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
                         print(problem.chisq())
-                    stdout.flush()
 
                     if bRecreateMolgroups:
                         self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)
