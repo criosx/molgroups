@@ -1,7 +1,7 @@
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
 #sys.path.append('G:\\My Drive\\software\\nr\\molgroups\\Diffraction\\Python\\Diffraction_fitting_fp')
-sys.path.append('G:\\My Drive\\software\\nr\\molgroups\\Reflectometry')
+sys.path.append('../Reflectometry')
 import molgroups as mol
 from refl1d.names import *
 from refl1d.flayer import FunctionalProfile
@@ -19,6 +19,10 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     l_siox = 0.0 # could make a parameter in the future
     rho_siox = 0.0
 
+    bulknsld = bulknsld*1e-6
+    rho_siox = rho_siox * 1e-6
+    rho_substrate = rho_substrate * 1e-6
+
     blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer)
     
     normarea, area, nsl = blm.fnWriteProfile(np.zeros_like(z), np.zeros_like(z), dimension, stepsize, 1.0)
@@ -26,7 +30,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     # this replaces fnWriteCanvas2Model
     nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld
 
-    return nsld
+    return nsld * 1e6
 
 ## === Data files ===
 probe = load4('ch061.refl', back_reflectivity=True)
@@ -38,7 +42,7 @@ probe.background.range(-1e-7, 1e-5)
 probeh.background.range(-1e-7, 1e-5)
 probe.intensity.range(0.9, 1.05)
 probeh.intensity = probe.intensity
-probe.theta_offset.range(-0.005, 0.005)
+probe.theta_offset.range(-0.02, 0.02)
 probeh.theta_offset = probe.theta_offset
 probe.sample_broadening.range(-0.005, 0.02)
 probeh.sample_broadening = probe.sample_broadening
@@ -48,13 +52,14 @@ vf_bilayer = Parameter(name='volume fraction bilayer', value=0.9).range(0.0, 1.0
 l_lipid1 = Parameter(name='inner acyl chain thickness', value=10.0).range(8, 16)
 l_lipid2 = Parameter(name='outer acyl chain thickness', value=10.0).range(8, 16)
 sigma = Parameter(name='bilayer roughness', value=5).range(2, 9)
-sigmah = Parameter(name='bilayer roughness h2o', value=5).range(2, 9)
+#sigmah = Parameter(name='bilayer roughness h2o', value=5).range(2, 9)
 global_rough = Parameter(name ='substrate roughness', value=5).range(2, 9)
 l_tiox = Parameter(name='total tiox thickness', value=120).range(50, 150)
 l_submembrane = Parameter(name='submembrane thickness', value=10).range(0, 50)
-l_submembraneh = Parameter(name='submembrane thickness h2o', value=10).range(0, 20)
+#l_submembraneh = Parameter(name='submembrane thickness h2o', value=10).range(0, 20)
 
 blm = mol.ssBLM_quaternary()        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
+blm.volacyllipid=975
 dimension=300
 stepsize=0.5
 
@@ -75,14 +80,14 @@ mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma
                                 bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
                                 l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
-mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigmah,
+mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
                                 bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=tiox.rho,
-                                l_submembrane=l_submembraneh, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                                l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                                 vf_bilayer=vf_bilayer)
 
 layer_d2o = Slab(material=d2o, thickness=0.0000, interface=5.0000)
 layer_h2o = Slab(material=h2o, thickness=0.0000, interface=5.0000)
-layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l, interface=0.0)
+layer_tiox = Slab(material=tiox, thickness=l_tiox - blm.substrate.l/2, interface=0.0)
 layer_siox = Slab(material=siox, thickness=7.5804, interface=10.000)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=0.0000)
 

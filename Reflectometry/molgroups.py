@@ -913,7 +913,6 @@ class ssBLM_quaternary(nSLDObj):
 
         super().__init__()
         self.bWrapping = False
-
         self.substrate  = Box2Err()
         self.siox       = Box2Err()
         self.headgroup1 = PCm()
