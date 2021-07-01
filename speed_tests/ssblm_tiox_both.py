@@ -28,7 +28,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     normarea, area, nsl = blm.fnWriteProfile(np.zeros_like(z), np.zeros_like(z), dimension, stepsize, 1.0)
 
     # this replaces fnWriteCanvas2Model
-    nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld
+    nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld*1e-6
 
     return nsld * 1e6
 
@@ -48,7 +48,7 @@ probe.sample_broadening.range(-0.005, 0.02)
 probeh.sample_broadening = probe.sample_broadening
 
 # Define bilayer parameters
-vf_bilayer = Parameter(name='volume fraction bilayer', value=0.9).range(0.0, 1.0)
+vf_bilayer = Parameter(name='volume fraction bilayer', value=0.98).range(0.0, 1.0)
 l_lipid1 = Parameter(name='inner acyl chain thickness', value=10.0).range(8, 16)
 l_lipid2 = Parameter(name='outer acyl chain thickness', value=10.0).range(8, 16)
 sigma = Parameter(name='bilayer roughness', value=5).range(2, 9)
@@ -105,13 +105,14 @@ sampleh.add(layer_tiox)
 sampleh.add(mollayerh)
 sampleh.add(layer_h2o)
 
+"""
 # speed tests
 import time
 starttime = time.time()
 for _ in range(1):
     bilayer(np.arange(dimension)*stepsize, sigma.value, d2o.rho.value, global_rough.value, tiox.rho.value, l_submembrane.value, l_lipid1.value, l_lipid2.value, vf_bilayer.value)
 print(time.time()-starttime)
-
+"""
 probe.critical_edge(substrate=silicon, surface=d2o)
 
 ## can also be specified as:
@@ -191,7 +192,8 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=zed, step_interfaces = step
 # problem = MultiFitProblem(models=models)
 
 # fitting a single model:
-problem = FitProblem([model, modelh])
+#problem = FitProblem([model, modelh])
+problem = FitProblem([model])
 
 problem.name = "tiox_dopc_both"
 
