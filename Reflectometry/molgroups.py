@@ -963,16 +963,16 @@ class ssBLM_quaternary(nSLDObj):
         self.volchol = 630
         self.nslchol = 1.3215e-4
 
-        self.headgroup1.vol = 330
+        #self.headgroup1.vol = 330
         self.headgroup1_2.vol = 330
         self.headgroup1_3.vol = 330
-        self.headgroup2.vol = 330
+        #self.headgroup2.vol = 330
         self.headgroup2_2.vol = 330
         self.headgroup2_3.vol = 330
-        self.headgroup1.nSL = 6.0012e-4
+        #self.headgroup1.nSL = 6.0012e-4
         self.headgroup1_2.nSL = 6.0012e-4
         self.headgroup1_3.nSL = 6.0012e-4
-        self.headgroup2.nSL = 6.0012e-4
+        #self.headgroup2.nSL = 6.0012e-4
         self.headgroup2_2.nSL = 6.0012e-4
         self.headgroup2_3.nSL = 6.0012e-4
         self.headgroup1.l = 9.5
@@ -1311,10 +1311,6 @@ class ssBLM_quaternary(nSLDObj):
     def fnGetnSLDProfile(self, z):
         # printf("Enter fnGetnSLD \n")
         substratearea=self.substrate.fnGetAreaProfile(z)
-        #import matplotlib.pyplot as plt
-        #print(self.substrate.z, self.substrate.l, z)
-        #plt.plot(z, substratearea)
-        #plt.show()
         sioxarea=self.siox.fnGetAreaProfile(z)
         lipid1area = self.lipid1.fnGetAreaProfile(z)
         headgroup1area = self.headgroup1.fnGetAreaProfile(z)
@@ -1328,6 +1324,7 @@ class ssBLM_quaternary(nSLDObj):
         headgroup2_3_area = self.headgroup2_3.fnGetAreaProfile(z)
         defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetAreaProfile(z)
         defect_headgroup_area = self.defect_headgroup.fnGetAreaProfile(z)
+
         
         sum  = substratearea + sioxarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
         sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
