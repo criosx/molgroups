@@ -5,6 +5,8 @@ sys.path.append('../Reflectometry')
 import molgroups as mol
 from refl1d.names import *
 from refl1d.flayer import FunctionalProfile
+import importlib
+importlib.reload(mol)
 
 #print(mol.__file__)
 
@@ -28,7 +30,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     normarea, area, nsl = blm.fnWriteProfile(np.zeros_like(z), np.zeros_like(z), dimension, stepsize, 1.0)
 
     # this replaces fnWriteCanvas2Model
-    nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld*1e-6
+    nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld
 
     return nsld * 1e6
 
@@ -192,8 +194,8 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=zed, step_interfaces = step
 # problem = MultiFitProblem(models=models)
 
 # fitting a single model:
-#problem = FitProblem([model, modelh])
-problem = FitProblem([model])
+problem = FitProblem([model, modelh])
+#problem = FitProblem([model])
 
 problem.name = "tiox_dopc_both"
 
