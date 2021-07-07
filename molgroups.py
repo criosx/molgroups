@@ -1235,8 +1235,8 @@ class tBLM_quaternary(CompositenSLDObj):
         self.defect_hydrocarbon = Box2Err()
         self.defect_headgroup = Box2Err()
 
-        self.substrate.l = 20
-        self.substrate.z = 10
+        self.substrate.l = 40
+        self.substrate.z = 0
         self.substrate.nf = 1
         self.substrate.sigma1 = 2.0
 
@@ -1531,8 +1531,8 @@ class tBLM_quaternary(CompositenSLDObj):
         self.substrate.nSL = self.rho_substrate * self.substrate.vol
 
         # set all lengths
-        self.bME.z = 0.5 * self.bME.l + self.substrate.l
-        self.tether.z = 0.5 * self.tether.l + self.substrate.l
+        self.bME.z = 0.5 * self.bME.l + self.substrate.l * 0.5
+        self.tether.z = 0.5 * self.tether.l + self.substrate.l * 0.5
         self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
         self.lipid1.z = self.tetherg.z + 0.5 * (self.tetherg.l + self.lipid1.l)
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
