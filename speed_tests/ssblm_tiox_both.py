@@ -1,7 +1,7 @@
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
 #sys.path.append('G:\\My Drive\\software\\nr\\molgroups\\Diffraction\\Python\\Diffraction_fitting_fp')
-sys.path.append('../Reflectometry')
+sys.path.append('..')
 import molgroups as mol
 from refl1d.names import *
 from refl1d.flayer import FunctionalProfile
@@ -15,8 +15,6 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     
     #global blm                     # Alternative to reinstantiating ssBLM_quaternary every time
     #blm = mol.ssBLM_quaternary()    # Default bilayer is DOPC, so we don't need to change any of the molecular volumes
-    dimension=len(z)
-    stepsize = z[1]-z[0]
     # define canvas
     l_siox = 0.0 # could make a parameter in the future
     rho_siox = 0.0
@@ -27,7 +25,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
 
     blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer)
     
-    normarea, area, nsl = blm.fnWriteProfile(np.zeros_like(z), np.zeros_like(z), dimension, stepsize, 1.0)
+    normarea, area, nsl = blm.fnWriteProfile(z)
 
     # this replaces fnWriteCanvas2Model
     nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld
@@ -198,5 +196,9 @@ problem = FitProblem([model, modelh])
 #problem = FitProblem([model])
 
 problem.name = "tiox_dopc_both"
+
+problem.extra = blm
+problem.dimension = dimension
+problem.stepsize = stepsize
 
 
