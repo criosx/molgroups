@@ -2571,7 +2571,7 @@ class CMolStat:
                         overall = problem.chisq()
 
                     fp = open(self.spath+'/mol.dat', "w")
-                    problem.extra.fnWritePar2File(fp, 'bilayer', problem.dimension, problem.stepsize)
+                    problem.extra.fnWritePar2File(fp, 'bilayer', numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False))
                     fp.close()
                     stdout.flush()
                     # distinguish between FitProblem and MultiFitProblem
