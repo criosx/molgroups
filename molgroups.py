@@ -1307,8 +1307,6 @@ class tBLM_quaternary(CompositenSLDObj):
         self.l_tether = 3
         self.mult_tether = 5
         # self.nf_ihc_tether = 0.3
-        self.substrate.l = 20
-        self.substrate.z = 10
         self.substrate.nf = 1
         self.substrate.sigma1 = 2.0
         self.rho_substrate = 1
