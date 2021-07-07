@@ -1,9 +1,10 @@
 import numpy
 import math
+from scipy.special import erf
 
 class nSLDObj():
 
-    def __init__(self):
+    def __init__(self, name=None):
         self.bWrapping=True
         self.bConvolution=False
         self.bProtonExchange=False
@@ -17,6 +18,9 @@ class nSLDObj():
         self.nSL = 0
         self.nf = 0
         self.sigma = 0
+
+        if name is not None:
+            self.name = name
         
     def fnGetAbsorb(self, z):
         return self.absorb
@@ -31,7 +35,11 @@ class nSLDObj():
     def fnGetArea(self, z):
         raise NotImplementedError()
 
+    def fnGetProfiles(self, z):
+        raise NotImplementedError()
+
     def fnGetConvolutedArea(self, dz):
+        # TODO: use scipy image filters or numpy convolution to do this.
         if self.bConvolution:
             dnormsum = 0
             dsum = 0
@@ -64,40 +72,23 @@ class nSLDObj():
         self.dSigmaConvolution = sigma_convolution
         self.iNumberOfConvPoints = iNumberOfConvPoints
         
-    def fnWriteData2File(self, f, cName, dimension, stepsize):
-        f.write("z"+cName+" a"+cName+" nsl"+cName+" \n")
-        dLowerLimit = self.fnGetLowerLimit()
-        dUpperLimit = self.fnGetUpperLimit()
-        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
-        
-        for i in range(dimension):
-            d = float(i) * stepsize
-            dmirror = d - float(2*i) * stepsize
-            if self.bWrapping and dmirror >= dLowerLimit:
-                dAreaInc = self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror)
-                dnSLDInc = (self.fnGetnSLD(d) * self.fnGetConvolutedArea(d) + self.fnGetnSLD(dmirror) * self.fnGetConvolutedArea(dmirror))
-                divisor = (self.fnGetConvolutedArea(d) + self.fnGetConvolutedArea(dmirror))
-                if divisor != 0:
-                    dnSLDInc /= divisor
-                else:
-                    dnSLDInc = 0.
-                # printf("Bin %i Area %f nSLD %e nSL %e \n", i, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
-            else:
-                dAreaInc = self.fnGetConvolutedArea(d)
-                dnSLDInc = self.fnGetnSLD(d)
-                # printf("Bin %i z %g Area %f nSLD %e nSL %e \n", i, d, dAreaInc, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize)
-                
-            f.write(str(d)+" "+str(dAreaInc)+" "+str(dnSLDInc*dAreaInc*stepsize)+"\n")
-        f.write("\n")
+    def fnWriteData2File(self, f, cName, z, **kw):
+        # catching extra keyword arguments is necessary for CompositenSLDObj compatibility
+        header = "z"+cName+" a"+cName+" nsl"+cName
+        area, nsl, _ = self.fnGetProfiles(z)
+        A = numpy.vstack((z, area, nsl)).T
+        numpy.savetxt(f, A, fmt='%0.4e', delimiter=' ', comments='', header=header)
+
+        # TODO: implement wrapping
 
     @staticmethod
-    def fnWriteConstant(fp, name, darea, dSLD, dimension, stepsize):
-        fp.write("Constant " + name + " area " + str(darea) + " \n")
-        fp.write("z_" + name + " a_" + name + " nsl_" + name + " \n")
-        for i in range (dimension):
-            d = float(i) * stepsize
-            fp.write(str(d) + " " + str(darea) + " " + str(dSLD * darea * stepsize) + " \n")
-        fp.write("\n")
+    def fnWriteConstant(fp, name, darea, dSLD, z):
+        header = "Constant " + name + " area " + str(darea) + " \n" + \
+                 "z_" + name + " a_" + name + " nsl_" + name + " \n"
+        area = darea * numpy.ones_like(z)
+        nsl = dSLD * darea * numpy.gradient(z)
+        A = numpy.vstack((z, area, nsl)).T
+        numpy.savetxt(fp, A, fmt='%0.4e', delimiter=' ', comments='', header=header)
 
     # does a Catmull-Rom Interpolation on an equal distance grid
     # 0<t<=1 is the relative position on the interval between p0 and p1
@@ -153,123 +144,94 @@ class nSLDObj():
     # Hopefully the fit algorithm finds a physically meaningful solution. There has to be a global
     # hydration paramter for the bilayer.
     # Returns maximum area
+
+    def fnWriteProfile(self, z, aArea=None, anSL=None):
     
-    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        dLowerLimit = self.fnGetLowerLimit()
-        dUpperLimit = self.fnGetUpperLimit()
-        if dUpperLimit==0:
-            dUpperLimit = float(dimension) * stepsize
-        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
-        
-        while d<=dUpperLimit:
-            i = int(d/stepsize)
-            dprefactor=1
-            if (i<0) and self.bWrapping:
-                i = -1 * i
-            if (i==0) and self.bWrapping:
-                dprefactor = 2                                            #avoid too low filling when mirroring
-            if (i>=0) and (i<dimension):
-                dAreaInc = self.fnGetConvolutedArea(d)
-                aArea[i] = aArea[i] + dAreaInc * dprefactor
-                if (aArea[i]>dMaxArea):
-                    dMaxArea = aArea[i]
-                anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc*stepsize * dprefactor
-                # printf("Bin %i AreaInc %g total %g MaxArea %g nSL %f total %f \n", i, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
-            d = d + stepsize
+        # do we want a 0.5 * stepsize shift? I believe refl1d FunctionalLayer uses 
+        #z = numpy.linspace(0, dimension * stepsize, dimension, endpoint=False)
+        # z, aArea, anSL must be numpy arrays with the same shape
+       
+        # TODO implement wrapping
+        # TODO implement absorption
+
+        aArea = numpy.zeros_like(z) if aArea is None else aArea
+        anSL = numpy.zeros_like(z) if anSL is None else anSL
+
+        assert(aArea.shape == z.shape)
+        assert(anSL.shape == z.shape)
+
+        area, nsl, _ = self.fnGetProfiles(z)
+        dMaxArea = area.max()
+        aArea += area
+        anSL += nsl
+
         return dMaxArea, aArea, anSL
 
-    def fnWriteProfileAbsorb(self, aArea, anSL, aAbsorb, dimension, stepsize, dMaxArea):
-        dLowerLimit = self.fnGetLowerLimit()
-        dUpperLimit = self.fnGetUpperLimit()
-        if dUpperLimit == 0:
-            dUpperLimit = float(dimension) * stepsize
-        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
+    def fnOverlayProfile(self, z, aArea, anSL, dMaxArea):
+        # z, aArea, anSL must be numpy arrays with the same shape
+        assert (aArea.shape == z.shape)
+        assert (anSL.shape == z.shape)
         
-        while d <= dUpperLimit:
-            i = int(d / stepsize)
-            dprefactor = 1
-            # printf("Here we are %i, dimension %i \n", i, dimension)
-            if (i<0) and self.bWrapping:
-                i = -1 * i
-            if (i == 0) and self.bWrapping:
-                # avoid too low filling when mirroring
-                dprefactor = 2       
-            if 0 <= i < dimension:
-                dAreaInc = self.fnGetConvolutedArea(d)
-                aArea[i] = self.aArea[i] + dAreaInc * dprefactor
-                if (aArea[i]>dMaxArea):
-                    dMaxArea = aArea[i]
-                anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
-            d = d + stepsize
-        return dMaxArea
-        
-    def fnOverlayProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        dLowerLimit = self.fnGetLowerLimit()
-        dUpperLimit = self.fnGetUpperLimit()
-        if dUpperLimit == 0:
-            dUpperLimit = float(dimension) * stepsize
-        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
-        
-        while d<=dUpperLimit:
-            i = int(d / stepsize)
-            dprefactor = 1
-            if (i < 0) and self.bWrapping:
-                i=-1*i
-            if (i == 0) and self.bWrapping:
-                dprefactor = 2                                           #avoid too low filling when mirroring
-            if (i >= 0) and i<dimension:
-                dAreaInc = self.fnGetConvolutedArea(d)
-                temparea = dAreaInc * dprefactor + aArea[i]
-                if temparea<=dMaxArea:
-                    aArea[i] = aArea[i] + dAreaInc * dprefactor
-                    anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                else:
-                    if (temparea-dMaxArea) <= aArea[i]:                           #overfill is not larger than existing area
-                        anSL[i] = anSL[i] * (1-((temparea-dMaxArea)/aArea[i]))    #eliminate the overfilled portion using original content
-                        anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                        aArea[i] = dMaxArea
-                        # printf("Replace: Bin %i temparea %g Areainc %g area now %g dMaxArea %g nSLD %g nSLinc %g nSL now %g \n", i, temparea, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d), fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
-                    else:                                                         #overfill is larger!!, this is non-physical
-                        anSL[i] = self.fnGetnSLD(d) * dMaxArea*stepsize
-                        aArea[i] = dMaxArea
-            d = d + stepsize
+        # TODO implement wrapping
+        # TODO implement absorption
+
+        area, nsl, _ = self.fnGetProfiles(z)
+        temparea = aArea + area
+
+        # find any area for which the final area will be greater than dMaxArea
+        overmax = temparea > dMaxArea
+        # note: unphysical overfill will trigger the following assertion error
+        assert (not numpy.any((temparea - dMaxArea)>aArea))
+        anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea[overmax])/aArea[overmax])) + nsl[overmax]
+        aArea[overmax] = dMaxArea
+
+        # deal with area for which the final area is not greater than dMaxArea
+        aArea[~overmax] += area[~overmax]
+        anSL[~overmax] += nsl[~overmax]
+
         return aArea, anSL
 
-    def fnOverlayProfileAbsorb(self, aArea, anSL, aAbsorb, dimension, stepsize, dMaxArea):
-        dLowerLimit = self.fnGetLowerLimit()
-        dUpperLimit = self.fnGetUpperLimit()
-        if dUpperLimit==0:
-            dUpperLimit = float(dimension)*stepsize
-        d = math.floor(dLowerLimit / stepsize + 0.5) * stepsize
+class CompositenSLDObj(nSLDObj):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def fnFindSubgroups(self):
+        # this should be run at the end of init. Could also store keys if memory is an issue and then use self.__dict__[key]
+        # Could use a "subgroup adder" function that adds to subgroups
+        self.subgroups = [getattr(self, attr) for attr in dir(self) if isinstance(getattr(self, attr), nSLDObj)]
+
+    def fnGetProfiles(self, z):
+        area = numpy.zeros_like(z)
+        nsl = numpy.zeros_like(z)
+        nsld = numpy.zeros_like(z)
         
-        while d<=dUpperLimit:
-            i = int(d/stepsize)
-            dprefactor = 1
-            # printf("Here we are %i, dimension %i, maxarea %f \n", i, dimension, dMaxArea)
-            if i < 0 and self.bWrapping:
-                i = -1 * i
-            if i == 0 and self.bWrapping:
-                dprefactor = 2                                                   #avoid too low filling when mirroring
-            if 0 <= i < dimension:
-                dAreaInc = self.fnGetConvolutedArea(d)
-                temparea = dAreaInc * dprefactor+aArea[i]
-                if temparea>dMaxArea:
-                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
-                    # eliminate the overfilled portion using original content
-                    anSL[i] = anSL[i] * (1-((temparea-dMaxArea)/aArea[i]))
-                    anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                    # eliminate the overfilled portion using original content
-                    aAbsorb[i] = aAbsorb[i] * (1-((temparea-dMaxArea)/aArea[i]))
-                    aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize*dprefactor
-                    aArea[i] = dMaxArea
-                else:
-                    # printf("Bin %i Areainc %f area now %f nSLD %g Absorbinc %g Absorb now %g nSLinc %g nSL now %g \n", i, dAreaInc, aArea[i], fnGetnSLD(d), aAbsorb[i], fnGetAbsorb(d)*dAreaInc*stepsize, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
-                    aArea[i] = aArea[i] + dAreaInc * dprefactor
-                    anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc * stepsize * dprefactor
-                    aAbsorb[i] = aAbsorb[i] + self.fnGetAbsorb(d) * dAreaInc * stepsize * dprefactor
-            d = d+stepsize
-        return aArea, anSL, aAbsorb
+        # make sure FindSubGroups was called. TODO: speed tests whether this is too expensive to do every time
+        if not hasattr(self, 'subgroups'):
+            self.fnFindSubgroups()
+
+        for g in self.subgroups:
+            newarea, newnsl, _ = g.fnGetProfiles(z)
+            area += newarea
+            nsl += newnsl
+        
+        nsld = numpy.zeros_like(z)
+        pos = (area > 0)
+        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+
+        return area * self.nf, nsl * self.nf, nsld
+
+    def fnWriteData2File(self, f, cName, z, write_children=True):
+        # set write_children=True to propagate the writing to children; otherwise, it writes the sum
+        if write_children:
+            if not hasattr(self, 'subgroups'):
+                self.fnFindSubgroups()
+
+            for g in self.subgroups:
+                g.fnWriteData2File(f, cName + '.' + g.name, z, write_children=False)
+        else:
+            super().fnWriteData2File(f, cName, z)
+
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -280,8 +242,8 @@ class nSLDObj():
 # ------------------------------------------------------------------------------------------------------
 class Box2Err(nSLDObj):
 
-    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1):
-        super().__init__()
+    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+        super().__init__(name=name)
         self.z = dz
         self.sigma1 = dsigma1
         self.sigma2 = dsigma2
@@ -292,38 +254,39 @@ class Box2Err(nSLDObj):
         self.nsldbulk_store = 0.
         self.nSL2 = 0.
 
-    # Gaussian function definition, integral is volume, return value is area at position z
-    def fnGetArea(self, dz):
-        if (self.l != 0) and (self.sigma1 != 0) and (self.sigma2 != 0):
-            result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
-            result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
-            result *= (self.vol / self.l) * 0.5
-            result *= self.nf
-            return  result
-        else:
-            return 0.
+    def fnGetProfiles(self, z, bulknsld=0):
 
-    def fnGetnSL(self, bulknsld=0.):
-        if self.bProtonExchange:
-            if self.vol == 0: 
-                return 0.
-            return ((bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
-        else:
-            return self.nSL
-
-    # constant nSLD
-    def fnGetnSLD(self, dz, bulknsld=0.):
         if bulknsld != 0:
             self.nsldbulk_store = bulknsld
-        if self.vol != 0:
-            if self.bProtonExchange:
-                if bulknsld == 0.:
-                    bulknsld = self.nsldbulk_store
-                return ((bulknsld+0.56e-6)*self.nSL2+(6.36e-6-bulknsld)*self.nSL)/(6.36e-6+0.56e-6)/self.vol
-            else:
-                return self.nSL/self.vol
+
+        # calculate area
+        # Gaussian function definition, integral is volume, return value is area at positions z
+        if (self.l != 0) and (self.sigma1 != 0) and (self.sigma2 != 0):
+            area = erf((z - self.z + 0.5 * self.l) / (numpy.sqrt(2) * self.sigma1))
+            #result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
+            #result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
+            area -= erf((z - self.z - 0.5 * self.l) / (numpy.sqrt(2) * self.sigma2))            
+            area *= (self.vol / self.l) * 0.5
+            area *= self.nf
         else:
-            return 0
+            area = numpy.zeros_like(z)
+        
+        # calculate nSLD
+        nsld = self.fnGetnSL(bulknsld) / self.vol * numpy.ones_like(z) if self.vol != 0 else numpy.zeros_like(z)
+
+        # calculate nSL.
+        nsl = area * nsld * numpy.gradient(z)
+        
+        return area, nsl, nsld
+
+    def fnGetnSL(self, bulknsld):
+        if self.bProtonExchange:
+            if self.vol != 0:
+                return ((bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
+            else:
+                return 0.
+        else:
+            return self.nSL
 
     # Gaussians are cut off below and above 3 sigma double
     def fnGetLowerLimit(self):
@@ -332,10 +295,14 @@ class Box2Err(nSLDObj):
     def fnGetUpperLimit(self):
         return self.z + 0.5 * self.l + 3 * self.sigma2
 
-    def fnSetnSL(self, _nSL, _nSL2):
+    # 7/6/2021 new feature: only use proton exchange if nSL2 is explicitly set!
+    def fnSetnSL(self, _nSL, _nSL2=None):
         self.nSL = _nSL
-        self.nSL2 = _nSL2
-        self.bProtonExchange = True
+        if _nSL2 is not None:
+            self.nSL2 = _nSL2
+            self.bProtonExchange = True
+        else:
+            self.bProtonExchange = False
 
     def fnSetSigma(self, sigma1, sigma2=0.):
         self.sigma1 = sigma1
@@ -344,21 +311,21 @@ class Box2Err(nSLDObj):
     def fnSetZ(self, dz):
         self.z = dz
 
-    def fnWritePar2File(self, fp, cName, dimension, stepsize):
+    def fnWritePar2File(self, fp, cName, z):
         fp.write("Box2Err "+cName+" z "+str(self.z)+" sigma1 "+str(self.sigma1)+" sigma2 "+str(self.sigma2)+" l "
                  + str(self.l)+" vol "+str(self.vol)+" nSL "+str(self.nSL)+" nSL2 "+str(self.nSL2)+" nf "
                  + str(self.nf)+" \n")
-        nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
+        self.fnWriteData2File(fp, cName, z)
 
 # ------------------------------------------------------------------------------------------------------
 # Headgroups
 # ------------------------------------------------------------------------------------------------------
-class PC(nSLDObj):
-    def __init__(self):
-        super().__init__()
-        self.cg = Box2Err()
-        self.phosphate = Box2Err()
-        self.choline = Box2Err()
+class PC(CompositenSLDObj):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.cg = Box2Err(name='cg')
+        self.phosphate = Box2Err(name='phosphate')
+        self.choline = Box2Err(name='choline')
         self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
         self.cg.l = 4.21 
         self.phosphate.l = 3.86
@@ -379,7 +346,9 @@ class PC(nSLDObj):
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
         self.ph_relative_pos = .5
+        self.nf = 1.
         self.fnAdjustParameters()
+        self.fnFindSubgroups()
 
     def fnAdjustParameters(self):
         self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
@@ -405,24 +374,6 @@ class PC(nSLDObj):
     def fnGetnSL(self):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
     
-    def fnGetArea(self, dz):
-        sum = 0
-        for group in self.groups:
-            sum += self.groups[group].fnGetArea(dz)
-        return sum * self.nf
-    
-    def fnGetnSLD(self, dz):
-        cgarea=self.cg.fnGetArea(dz)
-        pharea=self.phosphate.fnGetArea(dz)
-        charea=self.choline.fnGetArea(dz)
-        sum = self.fnGetArea(dz)/self.nf
-        if (sum == 0):
-            return 0
-        else:
-            return (self.cg.fnGetnSLD(dz)*cgarea+\
-                self.phosphate.fnGetnSLD(dz)*\
-                pharea+self.choline.fnGetnSLD(dz)*charea)/sum
-    
     def fnGetZ(self): 
         return self.z
     
@@ -438,14 +389,14 @@ class PC(nSLDObj):
         self.z = dz
         self.fnAdjustParameters()
     
-    def fnWritePar2File (self, fp, cName, dimension, stepsize):
+    def fnWritePar2File (self, fp, cName, z):
         fp.write("PC "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol)+" nf " + str(self.nf)+" \n")
-        nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
+        self.fnWriteData2File(fp, cName, z)
 
 class PCm(PC):
-    def __init__ (self):
-        super().__init__()
+    def __init__ (self, **kwargs):
+        super().__init__(**kwargs)
         self.cg.sigma2=2.53
         self.cg.sigma1=2.29
         self.phosphate.sigma2=2.29
@@ -467,32 +418,32 @@ class PCm(PC):
     def fnGetUpperLimit(self): 
         return self.cg.fnGetUpperLimit()
 
-    def fnWritePar2File (self,fp, cName, dimension, stepsize):
+    def fnWritePar2File (self,fp, cName, z):
         fp.write("PCm " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf) + " \n")
-        nSLDObj.fnWriteData2File(self, fp, cName, dimension, stepsize)
+        self.fnWriteData2File(fp, cName, z)
 
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
 # ------------------------------------------------------------------------------------------------------
 
-class BLM_quaternary(nSLDObj):
-    def __init__(self):
-        super().__init__()
-        self.headgroup1 = PCm() #Box2Err() 
-        self.lipid1 = Box2Err()
-        self.methyl1 = Box2Err()
-        self.methyl2 = Box2Err()
-        self.lipid2 = Box2Err()
-        self.headgroup2 = PC() #Box2Err() #PC()                          # PC head group
-        self.headgroup1_2 = Box2Err()                        # second headgroups
-        self.headgroup2_2 = Box2Err()
-        self.headgroup1_3 = Box2Err()
-        self.headgroup2_3 = Box2Err()
+class BLM_quaternary(CompositenSLDObj):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.headgroup1 = PCm(name='headgroup1') #Box2Err() 
+        self.lipid1 = Box2Err(name='lipid1')
+        self.methyl1 = Box2Err(name='methyl1')
+        self.methyl2 = Box2Err(name='methyl2')
+        self.lipid2 = Box2Err(name='lipid2')
+        self.headgroup2 = PC(name='headgroup2') #Box2Err() #PC()                          # PC head group
+        self.headgroup1_2 = Box2Err(name='headgroup1_2')                        # second headgroups
+        self.headgroup2_2 = Box2Err(name='headgroup2_2')
+        self.headgroup1_3 = Box2Err(name='headgroup1_3')
+        self.headgroup2_3 = Box2Err(name='headgroup2_3')
         
-        self.defect_hydrocarbon = Box2Err()
-        self.defect_headgroup = Box2Err()
+        self.defect_hydrocarbon = Box2Err(name='defect_hc')
+        self.defect_headgroup = Box2Err(name='defect_hg')
         
         self.groups = {"headgroup1": self.headgroup1, "headgroup1_2": self.headgroup1_2,
                         "headgroup1_3": self.headgroup1_3, "lipid1": self.lipid1,
@@ -539,6 +490,7 @@ class BLM_quaternary(nSLDObj):
         self.nf_lipid_2 = 0.
         self.nf_lipid_3 = 0.
         self.nf_chol = 0
+        self.nf = 1.
 
         self.vf_bilayer = 1.0
         self.absorb = 0.
@@ -554,6 +506,7 @@ class BLM_quaternary(nSLDObj):
         self.hc_substitution_2 = 0
 
         self.fnAdjustParameters()
+        self.fnFindSubgroups()
         
     def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2=0, na2=0, vm2=0,
                nm2=0, vh2=0, nh2=0, lh2=0, va3=0, na3=0, vm3=0, nm3=0, vh3=0,
@@ -740,33 +693,9 @@ class BLM_quaternary(nSLDObj):
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
-    # Return value is area at position z
-    def fnGetArea(self, dz):
-        result = 0
-        for group in self.groups:
-            result += self.groups[group].fnGetArea(dz)
-        return result
-
     # return value of center of the membrane
     def fnGetCenter(self):
         return self.methyl1.z + 0.5 * self.methyl1.l
-
-    # get nSLD from molecular subgroups
-    def fnGetnSLD(self, dz):
-        # printf("Enter fnGetnSLD \n")
-        result = 0
-        sum = self.fnGetArea(dz)
-        if sum == 0:
-            return result
-        bulk = {"headgroup1_1", "headgroup1_2", "headgroup2_1", "headgroup2_2"}
-        for group in self.groups:
-            group_area = self.groups[group].fnGetArea(dz)
-            if group in bulk:
-                result += group_area * self.groups[group].fnGetnSLD(dz, self.bulknsld) 
-            else:
-                result += group_area * self.groups[group].fnGetnSLD(dz)
-        result /= sum
-        return result
 
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
@@ -813,21 +742,19 @@ class BLM_quaternary(nSLDObj):
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+    def fnWriteProfile(self, z):
+        _, aArea, anSL = super().fnWriteProfile(z)
         return self.normarea, aArea, anSL
-    
 
-    def fnWritePar2File(self, fp, cName, dimension, stepsize):
-        for group in self.groups:
-            self.groups[group].fnWritePar2File(fp, group, dimension, stepsize)
-        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
+    def fnWritePar2File(self, fp, cName, z):
+        self.fnWriteData2File(fp, cName, z, write_children=True)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 class child_ssBLM_quaternary(BLM_quaternary):
-    def __init__(self):
-        super().__init__()
-        self.substrate  = Box2Err()
-        self.siox       = Box2Err()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.substrate  = Box2Err(name='substrate')
+        self.siox       = Box2Err(name='siox')
         self.groups["substrate"].append(self.substrate)
         self.groups["siox"].append(self.siox)
         self.substrate.l=20
@@ -878,28 +805,28 @@ class child_ssBLM_quaternary(BLM_quaternary):
         pass
 
 
-class ssBLM_quaternary(nSLDObj):
-    def __init__(self):
+class ssBLM_quaternary(CompositenSLDObj):
+    def __init__(self, **kwargs):
 
-        super().__init__()
-        self.substrate = Box2Err()
-        self.siox = Box2Err()
-        self.headgroup1 = PCm()
-        self.lipid1 = Box2Err()
-        self.methyl1 = Box2Err()
-        self.methyl2 = Box2Err()
-        self.lipid2 = Box2Err()
-        self.headgroup2 = PC()  # PC head group
-        self.headgroup1_2 = Box2Err()  # second headgroups
-        self.headgroup2_2 = Box2Err()
-        self.headgroup1_3 = Box2Err()
-        self.headgroup2_3 = Box2Err()
+        super().__init__(**kwargs)
+        self.substrate = Box2Err(name='substrate')
+        self.siox = Box2Err(name='siox')
+        self.headgroup1 = PCm(name='headgroup1')
+        self.lipid1 = Box2Err(name='lipid1')
+        self.methyl1 = Box2Err(name='methyl1')
+        self.methyl2 = Box2Err(name='methyl2')
+        self.lipid2 = Box2Err(name='lipid2')
+        self.headgroup2 = PC(name='headgroup2')  # PC head group
+        self.headgroup1_2 = Box2Err(name='headgroup1_2')  # second headgroups
+        self.headgroup2_2 = Box2Err(name='headgrou2_2')
+        self.headgroup1_3 = Box2Err(name='headgroup1_3')
+        self.headgroup2_3 = Box2Err(name='headgroup2_3')
 
-        self.defect_hydrocarbon = Box2Err()
-        self.defect_headgroup = Box2Err()
+        self.defect_hydrocarbon = Box2Err(name='defect_hc')
+        self.defect_headgroup = Box2Err(name='defect_hg')
 
-        self.substrate.l = 20
-        self.substrate.z = 10
+        self.substrate.l = 40
+        self.substrate.z = 0
         self.substrate.nf = 1
         self.substrate.sigma1 = 2.0
         self.rho_substrate = 1
@@ -984,6 +911,7 @@ class ssBLM_quaternary(nSLDObj):
         self.nf_lipid_2 = 0.
         self.nf_lipid_3 = 0.
         self.nf_chol = 0.
+        self.nf = 1.
 
         self.vf_bilayer = 1.0
         self.absorb = 0.
@@ -993,12 +921,14 @@ class ssBLM_quaternary(nSLDObj):
         self.normarea = 60.
         self.startz = 50.
         self.sigma = 2.
+        self.methyl_sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0
         self.global_rough = 2.0
 
         self.fnAdjustParameters()
+        self.fnFindSubgroups()
 
     def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3,
                nh3, lh3, vc, nc):
@@ -1170,8 +1100,8 @@ class ssBLM_quaternary(nSLDObj):
         self.siox.nSL = self.rho_siox * self.siox.vol
 
         # set all lengths
-        self.siox.z = self.substrate.l + 0.5 * self.siox.l
-        self.lipid1.z = self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
+        self.siox.z=self.substrate.l / 2  +0.5*self.siox.l
+        self.lipid1.z= self.substrate.l / 2 + self.siox.l + self.l_submembrane + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1_2.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_2.l)
         self.headgroup1_3.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1_3.l)
@@ -1218,59 +1148,6 @@ class ssBLM_quaternary(nSLDObj):
 
     # printf("Exit AdjustParameters \n")
 
-    # Return value is area at position z
-    def fnGetArea(self, dz):
-        result = self.substrate.fnGetArea(dz) + self.siox.fnGetArea(dz) + self.lipid1.fnGetArea(
-            dz) + self.headgroup1.fnGetArea(dz) + self.methyl1.fnGetArea(dz)
-        result += self.methyl2.fnGetArea(dz) + self.lipid2.fnGetArea(dz) + self.headgroup2.fnGetArea(dz)
-        result += self.headgroup1_2.fnGetArea(dz) + self.headgroup2_2.fnGetArea(dz) + self.headgroup1_3.fnGetArea(dz)
-        result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(
-            dz) + self.defect_headgroup.fnGetArea(dz)
-        return result
-
-    # get nSLD from molecular subgroups
-    def fnGetnSLD(self, dz):
-        # printf("Enter fnGetnSLD \n")
-        substratearea = self.substrate.fnGetArea(dz)
-        sioxarea = self.siox.fnGetArea(dz)
-        lipid1area = self.lipid1.fnGetArea(dz)
-        headgroup1area = self.headgroup1.fnGetArea(dz)
-        headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
-        headgroup1_3_area = self.headgroup1_3.fnGetArea(dz)
-        methyl1area = self.methyl1.fnGetArea(dz)
-        methyl2area = self.methyl2.fnGetArea(dz)
-        lipid2area = self.lipid2.fnGetArea(dz)
-        headgroup2area = self.headgroup2.fnGetArea(dz)
-        headgroup2_2_area = self.headgroup2_2.fnGetArea(dz)
-        headgroup2_3_area = self.headgroup2_3.fnGetArea(dz)
-        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetArea(dz)
-        defect_headgroup_area = self.defect_headgroup.fnGetArea(dz)
-
-        sum = substratearea + sioxarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
-        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
-
-        # printf("%e \n", defect_headgroup.fnGetnSLD(dz))
-
-        if sum == 0:
-            return 0
-        else:
-            result = self.substrate.fnGetnSLD(dz, self.bulknsld) * substratearea
-            result += self.siox.fnGetnSLD(dz, self.bulknsld) * sioxarea
-            result += self.headgroup1.fnGetnSLD(dz) * headgroup1area
-            result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
-            result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
-            result += self.lipid1.fnGetnSLD(dz) * lipid1area
-            result += self.methyl1.fnGetnSLD(dz) * methyl1area
-            result += self.methyl2.fnGetnSLD(dz) * methyl2area
-            result += self.lipid2.fnGetnSLD(dz) * lipid2area
-            result += self.headgroup2.fnGetnSLD(dz) * headgroup2area
-            result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
-            result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
-            result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
-            result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
-            result /= sum
-            return result
-
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
         return self.substrate.fnGetLowerLimit()
@@ -1316,44 +1193,31 @@ class ssBLM_quaternary(nSLDObj):
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
-        self.lipid1.fnSetSigma(sigma, sigma + 2)
-        self.methyl1.fnSetSigma(sigma + 2, sigma + 2)
-        self.methyl2.fnSetSigma(sigma + 2, sigma + 2)
-        self.lipid2.fnSetSigma(sigma + 2, sigma)
+        self.lipid1.fnSetSigma(sigma, sigma + self.methyl_sigma)
+        self.methyl1.fnSetSigma(sigma + self.methyl_sigma, sigma + self.methyl_sigma)
+        self.methyl2.fnSetSigma(sigma + self.methyl_sigma, sigma + self.methyl_sigma)
+        self.lipid2.fnSetSigma(sigma + self.methyl_sigma, sigma)
         self.headgroup2.fnSetSigma(sigma)
         self.headgroup2_2.fnSetSigma(sigma)
         self.headgroup2_3.fnSetSigma(sigma)
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+    def fnWriteProfile(self, *args):
+        _, aArea, anSL = super().fnWriteProfile(*args)
         return self.normarea, aArea, anSL
 
-    def fnWritePar2File(self, fp, cName, dimension, stepsize):
-        self.substrate.fnWritePar2File(fp, "substrate", dimension, stepsize)
-        self.siox.fnWritePar2File(fp, "siox", dimension, stepsize)
-        self.headgroup1.fnWritePar2File(fp, "headgroup1", dimension, stepsize)
-        self.headgroup1_2.fnWritePar2File(fp, "headgroup1_2", dimension, stepsize)
-        self.headgroup1_3.fnWritePar2File(fp, "headgroup1_3", dimension, stepsize)
-        self.lipid1.fnWritePar2File(fp, "lipid1", dimension, stepsize)
-        self.methyl1.fnWritePar2File(fp, "methyl1", dimension, stepsize)
-        self.methyl2.fnWritePar2File(fp, "methyl2", dimension, stepsize)
-        self.lipid2.fnWritePar2File(fp, "lipid2", dimension, stepsize)
-        self.headgroup2.fnWritePar2File(fp, "headgroup2", dimension, stepsize)
-        self.headgroup2_2.fnWritePar2File(fp, "headgroup2_2", dimension, stepsize)
-        self.headgroup2_3.fnWritePar2File(fp, "headgroup2_3", dimension, stepsize)
-        self.defect_hydrocarbon.fnWritePar2File(fp, "defect_hc", dimension, stepsize)
-        self.defect_headgroup.fnWritePar2File(fp, "defect_hg", dimension, stepsize)
-        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
+    def fnWritePar2File(self, fp, cName, z):
+        self.fnWriteData2File(fp, cName, z, write_children=True)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 
 # ------------------------------------------------------------------------------------------------------
 # Tethered Lipid bilayer - binary system
 # ------------------------------------------------------------------------------------------------------
-class tBLM_quaternary(nSLDObj):
-    def __init__(self):
-        super().__init__()
+class tBLM_quaternary(CompositenSLDObj):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.substrate = Box2Err()
         self.bME = Box2Err()
         self.tether = Box2Err()
@@ -1425,6 +1289,7 @@ class tBLM_quaternary(nSLDObj):
         self.nf_lipid_2 = 0.
         self.nf_lipid_3 = 0.
         self.nf_chol = 0.
+        self.nf = 1.
 
         self.vf_bilayer = 1.0
         self.absorb = 0.
@@ -1433,6 +1298,7 @@ class tBLM_quaternary(nSLDObj):
         self.bulknsld = -0.56e-6
         self.normarea = 60.
         self.sigma = 2.
+        self.methyl_sigma = 2.
         self.radius_defect = 100.
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0
@@ -1449,6 +1315,7 @@ class tBLM_quaternary(nSLDObj):
         self.rho_substrate = 1
 
         self.fnAdjustParameters()
+        self.fnFindSubgroups()
 
     def fnInit(self, va1, na1, vm1, nm1, vh1, nh1, lh1, va2, na2, vm2, nm2, vh2, nh2, lh2, va3, na3, vm3, nm3, vh3, nh3,
                lh3, vc, nc):
@@ -1714,63 +1581,6 @@ class tBLM_quaternary(nSLDObj):
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
-    # Return value is area at position z
-    def fnGetArea(self, dz):
-        result = self.substrate.fnGetArea(dz) + self.bME.fnGetArea(dz) + self.tether.fnGetArea(
-            dz) + self.tetherg.fnGetArea(dz) + self.lipid1.fnGetArea(dz) + self.headgroup1.fnGetArea(
-            dz) + self.methyl1.fnGetArea(dz)
-        result += self.methyl2.fnGetArea(dz) + self.lipid2.fnGetArea(dz) + self.headgroup2.fnGetArea(dz)
-        result += self.headgroup1_2.fnGetArea(dz) + self.headgroup2_2.fnGetArea(dz) + self.headgroup1_3.fnGetArea(dz)
-        result += self.headgroup2_3.fnGetArea(dz) + self.defect_hydrocarbon.fnGetArea(
-            dz) + self.defect_headgroup.fnGetArea(dz)
-        return result
-
-    # get nSLD from molecular subgroups
-
-    def fnGetnSLD(self, dz):
-        # printf("Enter fnGetnSLD \n")
-        substratearea = self.substrate.fnGetArea(dz)
-        bMEarea = self.bME.fnGetArea(dz)
-        tetherarea = self.tether.fnGetArea(dz)
-        tethergarea = self.tetherg.fnGetArea(dz)
-        lipid1area = self.lipid1.fnGetArea(dz)
-        headgroup1area = self.headgroup1.fnGetArea(dz)
-        headgroup1_2_area = self.headgroup1_2.fnGetArea(dz)
-        headgroup1_3_area = self.headgroup1_3.fnGetArea(dz)
-        methyl1area = self.methyl1.fnGetArea(dz)
-        methyl2area = self.methyl2.fnGetArea(dz)
-        lipid2area = self.lipid2.fnGetArea(dz)
-        headgroup2area = self.headgroup2.fnGetArea(dz)
-        headgroup2_2_area = self.headgroup2_2.fnGetArea(dz)
-        headgroup2_3_area = self.headgroup2_3.fnGetArea(dz)
-        defect_hydrocarbon_area = self.defect_hydrocarbon.fnGetArea(dz)
-        defect_headgroup_area = self.defect_headgroup.fnGetArea(dz)
-
-        sum = substratearea + bMEarea + tetherarea + tethergarea + lipid1area + headgroup1area + methyl1area + methyl2area + lipid2area + headgroup2area + headgroup1_2_area
-        sum += headgroup2_2_area + headgroup1_3_area + headgroup2_3_area + defect_headgroup_area + defect_hydrocarbon_area
-
-        if sum == 0:
-            return 0
-        else:
-            result = self.substrate.fnGetnSLD(dz, self.bulknsld) * substratearea
-            result += self.bME.fnGetnSLD(dz, self.bulknsld) * bMEarea
-            result += self.tether.fnGetnSLD(dz, self.bulknsld) * tetherarea
-            result += self.tetherg.fnGetnSLD(dz, self.bulknsld) * tethergarea
-            result += self.headgroup1.fnGetnSLD(dz) * headgroup1area
-            result += self.headgroup1_2.fnGetnSLD(dz, self.bulknsld) * headgroup1_2_area
-            result += self.headgroup1_3.fnGetnSLD(dz, self.bulknsld) * headgroup1_3_area
-            result += self.lipid1.fnGetnSLD(dz) * lipid1area
-            result += self.methyl1.fnGetnSLD(dz) * methyl1area
-            result += self.methyl2.fnGetnSLD(dz) * methyl2area
-            result += self.lipid2.fnGetnSLD(dz) * lipid2area
-            result += self.headgroup2.fnGetnSLD(dz) * headgroup2area
-            result += self.headgroup2_2.fnGetnSLD(dz, self.bulknsld) * headgroup2_2_area
-            result += self.headgroup2_3.fnGetnSLD(dz, self.bulknsld) * headgroup2_3_area
-            result += self.defect_hydrocarbon.fnGetnSLD(dz) * defect_hydrocarbon_area
-            result += self.defect_headgroup.fnGetnSLD(dz) * defect_headgroup_area
-            result /= sum
-            return result
-
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
         return self.substrate.fnGetLowerLimit()
@@ -1813,46 +1623,31 @@ class tBLM_quaternary(nSLDObj):
         self.headgroup1.fnSetSigma(sigma)
         self.headgroup1_2.fnSetSigma(sigma)
         self.headgroup1_3.fnSetSigma(sigma)
-        self.lipid1.fnSetSigma(sigma, sigma + 2)
-        self.methyl1.fnSetSigma(sigma + 2, sigma + 2)
-        self.methyl2.fnSetSigma(sigma + 2, sigma + 2)
-        self.lipid2.fnSetSigma(sigma + 2, sigma)
+        self.lipid1.fnSetSigma(sigma, sigma + self.methyl_sigma)
+        self.methyl1.fnSetSigma(sigma + self.methyl_sigma, sigma + self.methyl_sigma)
+        self.methyl2.fnSetSigma(sigma + self.methyl_sigma, sigma + self.methyl_sigma)
+        self.lipid2.fnSetSigma(sigma + self.methyl_sigma, sigma)
         self.headgroup2.fnSetSigma(sigma)
         self.headgroup2_2.fnSetSigma(sigma)
         self.headgroup2_3.fnSetSigma(sigma)
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-    def fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea):
-        _, aArea, anSL = nSLDObj.fnWriteProfile(self, aArea, anSL, dimension, stepsize, dMaxArea)
+    def fnWriteProfile(self, *args):
+        _, aArea, anSL = super().fnWriteProfile(*args)
         return self.normarea, aArea, anSL
 
-    def fnWritePar2File(self, fp, cName, dimension, stepsize):
-        self.substrate.fnWritePar2File(fp, "substrate", dimension, stepsize)
-        self.bME.fnWritePar2File(fp, "bME", dimension, stepsize)
-        self.tether.fnWritePar2File(fp, "tether", dimension, stepsize)
-        self.tetherg.fnWritePar2File(fp, "tetherg", dimension, stepsize)
-        self.headgroup1.fnWritePar2File(fp, "headgroup1", dimension, stepsize)
-        self.headgroup1_2.fnWritePar2File(fp, "headgroup1_2", dimension, stepsize)
-        self.headgroup1_3.fnWritePar2File(fp, "headgroup1_3", dimension, stepsize)
-        self.lipid1.fnWritePar2File(fp, "lipid1", dimension, stepsize)
-        self.methyl1.fnWritePar2File(fp, "methyl1", dimension, stepsize)
-        self.methyl2.fnWritePar2File(fp, "methyl2", dimension, stepsize)
-        self.lipid2.fnWritePar2File(fp, "lipid2", dimension, stepsize)
-        self.headgroup2.fnWritePar2File(fp, "headgroup2", dimension, stepsize)
-        self.headgroup2_2.fnWritePar2File(fp, "headgroup2_2", dimension, stepsize)
-        self.headgroup2_3.fnWritePar2File(fp, "headgroup2_3", dimension, stepsize)
-        self.defect_hydrocarbon.fnWritePar2File(fp, "defect_hc", dimension, stepsize)
-        self.defect_headgroup.fnWritePar2File(fp, "defect_hg", dimension, stepsize)
-        self.fnWriteConstant(fp, "normarea", self.normarea, 0, dimension, stepsize)
+    def fnWritePar2File(self, fp, cName, z):
+        self.fnWriteData2File(fp, cName, z, write_children=True)
+        self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 # ------------------------------------------------------------------------------------------------------
 # Hermite Spline
 # ------------------------------------------------------------------------------------------------------
 
 class Hermite(nSLDObj):
-    def __init__(self, n, dstartposition, dnSLD, dnormarea):
-        super().__init__()
+    def __init__(self, n, dstartposition, dnSLD, dnormarea, **kwargs):
+        super().__init__(**kwargs)
         self.numberofcontrolpoints = n
         self.nSLD=dnSLD
         self.normarea=dnormarea
