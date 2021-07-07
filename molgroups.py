@@ -72,23 +72,27 @@ class nSLDObj():
         self.dSigmaConvolution = sigma_convolution
         self.iNumberOfConvPoints = iNumberOfConvPoints
         
-    def fnWriteData2File(self, f, cName, z, **kw):
-        # catching extra keyword arguments is necessary for CompositenSLDObj compatibility
+    def fnWriteData2File(self, f, cName, z):
+
         header = "z"+cName+" a"+cName+" nsl"+cName
         area, nsl, _ = self.fnGetProfiles(z)
         A = numpy.vstack((z, area, nsl)).T
-        numpy.savetxt(f, A, fmt='%0.4e', delimiter=' ', comments='', header=header)
-
+        numpy.savetxt(f, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
+        f.write('\n')
         # TODO: implement wrapping
+
+    def fnWritePar2File(self, fp, cName, z):
+        raise NotImplementedError()
 
     @staticmethod
     def fnWriteConstant(fp, name, darea, dSLD, z):
         header = "Constant " + name + " area " + str(darea) + " \n" + \
-                 "z_" + name + " a_" + name + " nsl_" + name + " \n"
+                 "z_" + name + " a_" + name + " nsl_" + name
         area = darea * numpy.ones_like(z)
         nsl = dSLD * darea * numpy.gradient(z)
         A = numpy.vstack((z, area, nsl)).T
-        numpy.savetxt(fp, A, fmt='%0.4e', delimiter=' ', comments='', header=header)
+        numpy.savetxt(fp, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
+        fp.write('\n')
 
     # does a Catmull-Rom Interpolation on an equal distance grid
     # 0<t<=1 is the relative position on the interval between p0 and p1
@@ -221,18 +225,13 @@ class CompositenSLDObj(nSLDObj):
 
         return area * self.nf, nsl * self.nf, nsld
 
-    def fnWriteData2File(self, f, cName, z, write_children=True):
-        # set write_children=True to propagate the writing to children; otherwise, it writes the sum
-        if write_children:
-            if not hasattr(self, 'subgroups'):
-                self.fnFindSubgroups()
+    def fnWritePar2File(self, f, cName, z):
+        if not hasattr(self, 'subgroups'):
+            self.fnFindSubgroups()
 
-            for g in self.subgroups:
-                g.fnWriteData2File(f, cName + '.' + g.name, z, write_children=False)
-        else:
-            super().fnWriteData2File(f, cName, z)
-
-
+        for g in self.subgroups:
+            #g.fnWritePar2File(f, cName + '.' + g.name, z) # this allows objects with the same names from multiple bilayers
+            g.fnWritePar2File(f, g.name, z) # current behavior
 
 # ------------------------------------------------------------------------------------------------------
 # Function Object Implementation
@@ -747,7 +746,7 @@ class BLM_quaternary(CompositenSLDObj):
         return self.normarea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, z):
-        self.fnWriteData2File(fp, cName, z, write_children=True)
+        super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 class child_ssBLM_quaternary(BLM_quaternary):
@@ -1208,7 +1207,7 @@ class ssBLM_quaternary(CompositenSLDObj):
         return self.normarea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, z):
-        self.fnWriteData2File(fp, cName, z, write_children=True)
+        super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 
@@ -1638,7 +1637,7 @@ class tBLM_quaternary(CompositenSLDObj):
         return self.normarea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, z):
-        self.fnWriteData2File(fp, cName, z, write_children=True)
+        super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 # ------------------------------------------------------------------------------------------------------
