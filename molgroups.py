@@ -185,6 +185,7 @@ class nSLDObj():
         # find any area for which the final area will be greater than dMaxArea
         overmax = temparea > dMaxArea
         # note: unphysical overfill will trigger the following assertion error
+        # TODO: implement a correction instead of throwing an error
         assert (not numpy.any((temparea - dMaxArea)>aArea))
         anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea[overmax])/aArea[overmax])) + nsl[overmax]
         aArea[overmax] = dMaxArea
@@ -303,9 +304,9 @@ class Box2Err(nSLDObj):
         else:
             self.bProtonExchange = False
 
-    def fnSetSigma(self, sigma1, sigma2=0.):
+    def fnSetSigma(self, sigma1, sigma2=None):
         self.sigma1 = sigma1
-        self.sigma2 = sigma1 if sigma2 == 0 else sigma2
+        self.sigma2 = sigma1 if sigma2 is None else sigma2
 
     def fnSetZ(self, dz):
         self.z = dz
@@ -1217,23 +1218,23 @@ class ssBLM_quaternary(CompositenSLDObj):
 class tBLM_quaternary(CompositenSLDObj):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.substrate = Box2Err()
-        self.bME = Box2Err()
-        self.tether = Box2Err()
-        self.tetherg = Box2Err()
-        self.headgroup1 = PCm()  # mirrored PC head group
-        self.lipid1 = Box2Err()
-        self.methyl1 = Box2Err()
-        self.methyl2 = Box2Err()
-        self.lipid2 = Box2Err()
-        self.headgroup2 = PC()  # PC head group
-        self.headgroup1_2 = Box2Err()  # second headgroups
-        self.headgroup2_2 = Box2Err()
-        self.headgroup1_3 = Box2Err()
-        self.headgroup2_3 = Box2Err()
+        self.substrate = Box2Err(name='substrate')
+        self.bME = Box2Err(name='bME')
+        self.tether = Box2Err(name='tether')
+        self.tetherg = Box2Err(name='tetherg')
+        self.headgroup1 = PCm(name='headgroup1')  # mirrored PC head group
+        self.lipid1 = Box2Err(name='lipid1')
+        self.methyl1 = Box2Err(name='methyl1')
+        self.methyl2 = Box2Err(name='methyl2')
+        self.lipid2 = Box2Err(name='lipid2')
+        self.headgroup2 = PC(name='headgroup2')  # PC head group
+        self.headgroup1_2 = Box2Err(name='headgroup1_2')  # second headgroups
+        self.headgroup2_2 = Box2Err(name='headgroup2_2')
+        self.headgroup1_3 = Box2Err(name='headgroup1_3')
+        self.headgroup2_3 = Box2Err(name='headgroup2_3')
 
-        self.defect_hydrocarbon = Box2Err()
-        self.defect_headgroup = Box2Err()
+        self.defect_hydrocarbon = Box2Err(name='defect_hc')
+        self.defect_headgroup = Box2Err(name='defect_hg')
 
         self.substrate.l = 40
         self.substrate.z = 0
@@ -1728,7 +1729,7 @@ class Hermite(nSLDObj):
 
     def fnGetSplinePars(self, dz, dp, dh, m0, m1, p0, p1): 
         interval=-1 
-        for i in range(self.numberofcontrolpoints):
+        for i in range(self.numberofcontrolpoints-1):
             if ((dp[i] <= dz) and (dp[i+1] > dz)):
                 # printf("Found interval %i \n", i)
                 interval = i
