@@ -742,10 +742,6 @@ class BLM_quaternary(CompositenSLDObj):
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-    def fnWriteProfile(self, z):
-        _, aArea, anSL = super().fnWriteProfile(z)
-        return self.normarea, aArea, anSL
-
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
@@ -1203,10 +1199,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
 
-    def fnWriteProfile(self, *args):
-        _, aArea, anSL = super().fnWriteProfile(*args)
-        return self.normarea, aArea, anSL
-
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
@@ -1630,10 +1622,6 @@ class tBLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.fnSetSigma(sigma)
         self.defect_hydrocarbon.fnSetSigma(sigma)
         self.defect_headgroup.fnSetSigma(sigma)
-
-    def fnWriteProfile(self, *args):
-        _, aArea, anSL = super().fnWriteProfile(*args)
-        return self.normarea, aArea, anSL
 
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
