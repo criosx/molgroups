@@ -320,29 +320,36 @@ class Box2Err(nSLDObj):
 # ------------------------------------------------------------------------------------------------------
 # Headgroups
 # ------------------------------------------------------------------------------------------------------
+
 class PC(CompositenSLDObj):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cg = Box2Err(name='cg')
         self.phosphate = Box2Err(name='phosphate')
         self.choline = Box2Err(name='choline')
+
         self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
+
         self.cg.l = 4.21 
-        self.phosphate.l = 3.86
-        self.choline.l = 6.34
         self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
-        self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
-        self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
-        self.l = 9.575
         self.cg.vol=147 
+        self.cg.nSL=3.7755e-4
+
+        self.phosphate.l = 3.86
+        self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
         self.phosphate.vol=54 
-        self.choline.vol=120
-        self.cg.nSL=3.7755e-4 
         self.phosphate.nSL=2.8350e-4 
+
+        self.choline.l = 6.34
+        self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
+        self.choline.vol=120
         self.choline.nSL=-6.0930e-5
+
         self.cg.nf=1 
         self.phosphate.nf=1 
         self.choline.nf=1
+
+        self.l = 9.575
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
         self.ph_relative_pos = .5
@@ -353,8 +360,8 @@ class PC(CompositenSLDObj):
     def fnAdjustParameters(self):
         self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
         self.choline.z = self.z + 0.5*self.l - 0.5*self.choline.l
-        z0 = self.cg.z-0.5*self.cg.l
-        z1 = self.choline.z+self.choline.l*0.5
+        z0 = self.cg.z + 0.5*self.cg.l
+        z1 = self.choline.z - 0.5*self.choline.l
         self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
     def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
@@ -408,8 +415,8 @@ class PCm(PC):
     def fnAdjustParameters(self):
         self.cg.z = self.z + 0.5*self.l-0.5*self.cg.l
         self.choline.z = self.z - 0.5*self.l+0.5*self.choline.l
-        z0 = self.choline.z-self.choline.l*0.5 
-        z1 = self.cg.z+0.5*self.cg.l
+        z0 = self.choline.z + 0.5*self.choline.l
+        z1 = self.cg.z - 0.5*self.cg.l
         self.phosphate.z = z0 + (z1 - z0) * (1-self.ph_relative_pos)
 
     def fnGetLowerLimit(self):
@@ -441,7 +448,7 @@ class BLM_quaternary(CompositenSLDObj):
         self.headgroup2_2 = Box2Err(name='headgroup2_2')
         self.headgroup1_3 = Box2Err(name='headgroup1_3')
         self.headgroup2_3 = Box2Err(name='headgroup2_3')
-        
+       
         self.defect_hydrocarbon = Box2Err(name='defect_hc')
         self.defect_headgroup = Box2Err(name='defect_hg')
         
