@@ -1,6 +1,7 @@
 import numpy
 import math
 from scipy.special import erf
+from scipy.interpolate import PchipInterpolator, CubicHermiteSpline
 
 class nSLDObj():
 
@@ -652,9 +653,9 @@ class BLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
         
         # inner headgroups
-        self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
         # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
         
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
@@ -1090,9 +1091,9 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
 
         # inner headgroups
-        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
         # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
 
         # substrate
@@ -1475,9 +1476,9 @@ class tBLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
 
         # inner headgroups
-        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
 
         # tether glycerol part -- transliteration here
         V_tg = self.tetherg.vol
@@ -1644,19 +1645,48 @@ class Hermite(nSLDObj):
         self.numberofcontrolpoints = n
         self.nSLD=dnSLD
         self.normarea=dnormarea
-        self.monotonic=1
-        self.damping=1
+        self.monotonic=True
+        self.damping=True
         self.dampthreshold=0.001
         self.dampFWHM=0.0002
         self.damptrigger=0.04
+        self.dstartposition = dstartposition
         
-        self.dp     = [0.]*n
-        self.vf     = [0.]*n
-        self.damp   = [0.]*n
-        
-    def fnGetArea(self, dz): 
-        temp = self.fnGetSplineArea(dz, self.dp, self.vf, self.damping)*self.normarea*self.nf
-        return max(temp, 0)
+        self.dp     = numpy.arange(n)
+        self.vf     = numpy.zeros(n)
+        #self.damp   = numpy.zeros(n) # not currently needed
+
+        # TODO: get the interface with a previous layer correct by defining an erf function at the first control point or between the first two control points.
+        # TODO: set damping as soon as vf is set, so it doesn't have to be recalculated every time fnGetProfiles is called
+    
+    def fnGetProfiles(self, z):
+        # TODO: test damping code for accuracy
+        dampfactor = numpy.ones_like(self.vf)
+        if self.damping:
+            above_damptrigger = numpy.where(self.vf > self.damptrigger)[0] # find index of first point beyond damping trigger
+            if len(above_damptrigger) > 0 : # if no points above trigger, damping doesn't apply
+                dampfactor[above_damptrigger[0] + 1:] = 1./(1+numpy.exp(-2.1*(self.vf[above_damptrigger[0] + 1:]-self.dampthreshold)/self.dampFWHM))    # does nothing if peaked point is at the end
+                dampfactor = numpy.cumprod(dampfactor)
+
+        damp = self.vf * dampfactor
+
+        if self.monotonic:  # monotone interpolation
+            spline = PchipInterpolator(self.dp, damp, extrapolate=False)
+
+        else:   # catmull-rom
+            dp_xtnd = numpy.insert(self.dp, 0, self.dp[0] - (self.dp[1]-self.dp[0]))
+            dp_xtnd = numpy.append(dp_xtnd, self.dp[-1]-self.dp[-2] + self.dp[-1])
+
+            vf_xtnd = numpy.insert(damp, 0, damp[0])
+            vf_xtnd = numpy.append(vf_xtnd, damp[-1])
+            dydx = 0.5 * (vf_xtnd[2:] - vf_xtnd[:-2]) / (dp_xtnd[2:] - dp_xtnd[:-2])
+            spline = CubicHermiteSpline(self.dp, damp, dydx, extrapolate=False)
+
+        vf = spline(z)
+        vf[(vf < 0) | numpy.isnan(vf)] = 0.0
+        area = vf * self.normarea * self.nf
+
+        return area, area * numpy.gradient(z) * self.nSLD, self.nSLD * numpy.ones_like(z)
 
     def fnGetnSLD(self, dz): 
         return self.nSLD
@@ -1667,8 +1697,11 @@ class Hermite(nSLDObj):
     def fnGetUpperLimit(self): 
         return self.dp[-1]
 
-    def fnGetVolume(self, dz1, dz2): 
-        return self.fnGetSplineIntegral(dz1, dz2, self.dp, self.vf, self.damping)*self.normarea*self.nf
+    def fnGetVolume(self, z):
+        # is this even necessary? might be better off doing this with a defined z vector as follows (so that area isn't being calculated over and over)
+        # numpy.trapz(area[(z>z1) & (z<z2)], z[(z>z1) & (z<z2)])
+        area, _, _ = self.fnGetProfiles(z)
+        return numpy.trapz(area, z)
 
     def fnSetNormarea(self, dnormarea): 
         self.normarea = dnormarea
@@ -1677,169 +1710,15 @@ class Hermite(nSLDObj):
         self.nSLD = dnSLD
 
     def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnf): 
-        for i in range(self.numberofcontrolpoints):
-            self.vf[i] = max(0, dVf[i])
-            self.dp[i] = dStart + dSpacing*i + dDp[i]
+        self.vf = numpy.array(dVf)
+        self.numberofcontrolpoints = len(self.vf)
+        self.dp = dStart + dSpacing*numpy.arange(self.numberofcontrolpoints) + numpy.array(dDp)
+        # make sure the control points have compatible shapes (previous command should fail if not)
+        assert(self.vf.shape == self.dp.shape)
+        self.dstartposition = dStart
         self.nf = dnf
 
-    def fnGetSplineAntiDerivative(self, dz, dp, dh): 
-        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, dh, 0, 0, 0, 0)
-        if (0 <= interval < self.numberofcontrolpoints-1):
-            dd=dp[interval+1]-dp[interval] 
-            t=(dz-dp[interval])/dd 
-            t_2=t*t 
-            t_3=t_2*t 
-            t_4=t_3*t 
-            h00= (1/2)*t_4-t_3+t 
-            h01=(-1/2)*t_4+t_3             
-            h10= (1/4)*t_4-(2/3)*t_3+(1/2)*t_2   
-            h11= (1/4)*t_4-(1/3)*t_3             
-            return dd*(h00*p0 + h10*dd*m0 + h01*p1 + h11*dd*m1)         
-        return 0
-
-    def fnGetSplineArea(self, dz, dp, dh, damping):
-        m0, m1, p0, p1 = 0, 0, 0, 0
-        if (damping == 0):
-            self.damp = dh.copy()  
-        else:
-            dampfactor = 1 
-            for i in range (self.numberofcontrolpoints):
-                    self.damp[i] = dh[i] * dampfactor 
-                    if (dh[i] >= self.damptrigger):
-                        dampfactor=dampfactor*(1/(1 + math.exp(-2.1*(dh[i]- self.dampthreshold)/self.dampFWHM))) 
-
-        interval, m0, m1, p0, p1 = self.fnGetSplinePars(dz, dp, self.damp, m0, m1, p0, p1) 
-
-        if (0 <= interval < self.numberofcontrolpoints-1):
-            dd=dp[interval+1]-dp[interval] 
-            t=(dz-dp[interval])/dd 
-            t_2=t*t 
-            t_3=t_2*t 
-            h00= 2*t_3 - 3*t_2 + 1 
-            h10= t_3 - 2*t_2 + t 
-            h01= (-2)*t_3 + 3*t_2 
-            h11= t_3-t_2
-            return h00*p0+h10*dd*m0+h01*p1+h11*dd*m1 
-        return 0   
-
-    def fnGetSplinePars(self, dz, dp, dh, m0, m1, p0, p1): 
-        interval=-1 
-        for i in range(self.numberofcontrolpoints-1):
-            if ((dp[i] <= dz) and (dp[i+1] > dz)):
-                # printf("Found interval %i \n", i)
-                interval = i
-        if (dz==dp[-1]):
-            interval=self.numberofcontrolpoints-2 
-        
-        if (interval>=0):                                           #tangent calculation
-            if (self.monotonic==1):                                     #Monotonic cubic spline, see Wikipedia
-                
-                if (dh[interval]==dh[interval+1]):
-                    m0=0 
-                    m1=0 
-                else:
-                    if (interval==0):
-                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
-                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
-                        k2=(dh[interval+3]-dh[interval+2])/(dp[interval+3]-dp[interval+2]) 
-                        km1=k0 
-
-                    elif (interval==(self.numberofcontrolpoints-2)):
-                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
-                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
-                        k1=k0 
-                        k2=k0 
-
-                    elif (interval==(self.numberofcontrolpoints-3)):
-                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
-                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
-                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
-                        k2=k0 
-
-                    else:
-                        km1=(dh[interval]-dh[interval-1])/(dp[interval]-dp[interval-1]) 
-                        k0=(dh[interval+1]-dh[interval])/(dp[interval+1]-dp[interval]) 
-                        k1=(dh[interval+2]-dh[interval+1])/(dp[interval+2]-dp[interval+1]) 
-                        k2=(dh[interval+3]-dh[interval+2])/(dp[interval+3]-dp[interval+2]) 
-
-                    m0=(k0+km1)/2 
-                    m1=(k1+k0)/2 
-                    m2=(k2+k1)/2 
-                    
-                    if (k0==0):
-                        m0=0 
-                        m1=0 
-
-                    else :
-                        alpha0=m0/k0  
-                        beta0=m1/k0                     
-                        if ((alpha0<0) or (beta0<0)):
-                            m0=0 
-    
-                        elif ((alpha0*alpha0+beta0*beta0)>9):
-                            tau=3/math.sqrt(alpha0*alpha0+beta0*beta0) 
-                            m0=tau*alpha0*k0 
-                            m1=tau*beta0*k0 
-
-                    if (k1==0):
-                        m1=0 
-                        m2=0 
-
-                    else :                        
-                        alpha1=m1/k1  
-                        beta1=m2/k1 
-                        if ((alpha1<0) or (beta1<0)):
-                            m1=0 
-    
-                        elif ((alpha1*alpha1+beta1*beta1)>9):
-                            tau=3/math.sqrt(alpha1*alpha1+beta1*beta1) 
-                            m1=tau*alpha1*k1 
-                            m2=tau*beta1*k1 
-
-            else:                                                    #Catmull-Rom spline, see Wikipedia
-                if (interval==0):
-                    m0=0 
-                    m1=(dh[2]-dh[0])/(dp[2]-dp[0]) 
-
-                elif (interval==(self.numberofcontrolpoints-2)):
-                    m0=(dh[interval+1]-dh[interval-1])/(dp[interval+1]-dp[interval-1]) 
-                    m1=0 
-
-                else:
-                    m0=(dh[interval+1]-dh[interval-1])/(dp[interval+1]-dp[interval-1]) 
-                    m1=(dh[interval+2]-dh[interval])/(dp[interval+2]-dp[interval]) 
-  
-            p0=dh[interval] 
-            p1=dh[interval+1] 
-    
-        return interval, m0, m1, p0, p1
-        
-    def fnGetSplineIntegral(self, dz1, dz2, dp, dh, damping): 
-        if (dz1 > dz2):
-            dz1, dz2 = dz2, dz1
-        
-        #check for boundaries
-        dz1 = max(dz1, dp[0])
-        dz2 = min(dz2, dp[-1])
-        integral=0  
-        d=dz1 
-        while (d <= dz2):
-            integral += self.fnGetSplineArea(d, dp, dh, damping)*0.5 
-            d += 0.5  
-        return integral 
-
-    def fnGetSplineProductIntegral(self, dz1, dz2, dp, dh1, dh2, damping1, damping2): 
-        if (dz1>dz2):
-            dz1, dz2 = dz2, dz1
-        
-        #check for boundaries
-        dz1 = max(dp[0], dz1)
-        dz2 = min(dz2, dp[-1])
-        
-        integral=0  
-        d=dz1 
-        while (d<=dz2):
-            integral+=self.fnGetSplineArea(d, dp, dh1, damping1)*self.fnGetSplineArea(d,dp,dh2, damping2)*0.5 
-            d+=0.5 
-        
-        return integral
+    def fnWritePar2File(self, fp, cName, z):
+        fp.write("Hermite "+cName+" numberofcontrolpoints "+str(self.numberofcontrolpoints)+" normarea "
+                 +str(self.normarea)+" nf "+str(self.nf)+" \n")
+        self.fnWriteData2File(fp, cName, z)
