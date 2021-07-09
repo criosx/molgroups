@@ -1,6 +1,7 @@
 import numpy
 import math
 from scipy.special import erf
+from scipy.interpolate import PchipInterpolator, CubicHermiteSpline
 
 class nSLDObj():
 
@@ -1644,16 +1645,45 @@ class Hermite(nSLDObj):
         self.numberofcontrolpoints = n
         self.nSLD=dnSLD
         self.normarea=dnormarea
-        self.monotonic=1
-        self.damping=1
+        self.monotonic=True
+        self.damping=True
         self.dampthreshold=0.001
         self.dampFWHM=0.0002
         self.damptrigger=0.04
         
-        self.dp     = [0.]*n
-        self.vf     = [0.]*n
-        self.damp   = [0.]*n
-        
+        self.dp     = numpy.zeros(n)
+        self.vf     = numpy.zeros(n)
+        self.damp   = numpy.zeros(n)
+
+        # TODO: get the interface with a previous layer correct by defining an erf function at the first control point or between the first two control points.
+    
+    def fnGetProfiles(self, z):
+        # TODO: test damping code for accuracy
+        if self.damping:
+            peaked = numpy.where(self.vf > self.damptrigger)[0][0] # find index of first peaked point
+            dampfactor = numpy.where(numpy.arange(len(self.vf))>peaked, 1./(1+numpy.exp(-2.1*(self.vf-self.dampthreshold)/self.dampFWHM)), numpy.ones_like(self.vf))
+            damp = self.vf * numpy.cumprod(dampfactor)
+        else:
+            damp = self.vf.copy()
+
+        if self.monotonic:  # monotone interpolation
+            spline = PchipInterpolator(self.dp, damp, extrapolate=False)
+
+        else:   # catmull-rom
+            dp_xtnd = numpy.insert(self.dp, 0, self.dp[0] - (self.dp[1]-self.dp[0]))
+            dp_xtnd = numpy.append(dp_xtnd, self.dp[-1]-self.dp[-2] + self.dp[-1])
+
+            vf_xtnd = numpy.insert(damp, 0, damp[0])
+            vf_xtnd = numpy.append(vf_xtnd, damp[-1])
+            dydx = 0.5 * (vf_xtnd[2:] - vf_xtnd[:-2]) / (dp_xtnd[2:] - dp_xtnd[:-2])
+            spline = CubicHermiteSpline(self.dp, damp, dydx, extrapolate=False)
+
+        vf = spline(z)
+        vf[(vf < 0) | numpy.isnan(vf)] = 0.0
+        area = vf * self.normarea * self.nf
+
+        return area, area * numpy.gradient(z) * self.nSLD, self.nSLD * numpy.ones_like(z)
+
     def fnGetArea(self, dz): 
         temp = self.fnGetSplineArea(dz, self.dp, self.vf, self.damping)*self.normarea*self.nf
         return max(temp, 0)
@@ -1667,8 +1697,14 @@ class Hermite(nSLDObj):
     def fnGetUpperLimit(self): 
         return self.dp[-1]
 
-    def fnGetVolume(self, dz1, dz2): 
+    def fnGetVolume_old(self, dz1, dz2): 
         return self.fnGetSplineIntegral(dz1, dz2, self.dp, self.vf, self.damping)*self.normarea*self.nf
+
+    def fnGetVolume(self, z):
+        # is this even necessary? might be better off doing this with a defined z vector as follows (so that area isn't being calculated over and over)
+        # numpy.trapz(area[(z>z1) & (z<z2)], z[(z>z1) & (z<z2)])
+        area, _, _ = self.fnGetProfiles(z)
+        return numpy.trapz(area, z)
 
     def fnSetNormarea(self, dnormarea): 
         self.normarea = dnormarea
@@ -1677,9 +1713,8 @@ class Hermite(nSLDObj):
         self.nSLD = dnSLD
 
     def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnf): 
-        for i in range(self.numberofcontrolpoints):
-            self.vf[i] = max(0, dVf[i])
-            self.dp[i] = dStart + dSpacing*i + dDp[i]
+        self.vf = numpy.array(dVf)
+        self.dp = dStart + dSpacing*numpy.arange(self.numberofcontrolpoints) + numpy.array(dDp)
         self.nf = dnf
 
     def fnGetSplineAntiDerivative(self, dz, dp, dh): 
@@ -1843,3 +1878,27 @@ class Hermite(nSLDObj):
             d+=0.5 
         
         return integral
+
+    def fnWriteProfile_old(self, aArea, anSL, dimension, stepsize, dMaxArea):
+        dLowerLimit = self.fnGetLowerLimit()
+        dUpperLimit = self.fnGetUpperLimit()
+        if dUpperLimit==0:
+            dUpperLimit = float(dimension) * stepsize
+        d = numpy.floor(dLowerLimit / stepsize + 0.5) * stepsize
+        
+        while d<=dUpperLimit:
+            i = int(d/stepsize)
+            dprefactor=1
+            if (i<0) and self.bWrapping:
+                i = -1 * i
+            if (i==0) and self.bWrapping:
+                dprefactor = 2                                            #avoid too low filling when mirroring
+            if (i>=0) and (i<dimension):
+                dAreaInc = self.fnGetConvolutedArea(d)
+                aArea[i] = aArea[i] + dAreaInc * dprefactor
+                if (aArea[i]>dMaxArea):
+                    dMaxArea = aArea[i]
+                anSL[i] = anSL[i] + self.fnGetnSLD(d) * dAreaInc*stepsize * dprefactor
+                # printf("Bin %i AreaInc %g total %g MaxArea %g nSL %f total %f \n", i, dAreaInc, aArea[i], dMaxArea, fnGetnSLD(d)*dAreaInc*stepsize, anSL[i])
+            d = d + stepsize
+        return dMaxArea, aArea, anSL
