@@ -653,9 +653,9 @@ class BLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
         
         # inner headgroups
-        self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf   = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
         # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
         
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
@@ -1091,9 +1091,9 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
 
         # inner headgroups
-        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
         # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
 
         # substrate
@@ -1476,9 +1476,9 @@ class tBLM_quaternary(CompositenSLDObj):
         self.headgroup2_3.nf = c_s_ohc * c_A_ohc * nf_ohc_lipid_3 * (1 - self.hc_substitution_2)
 
         # inner headgroups
-        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_2)
-        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_2)
-        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_2)
+        self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
+        self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
+        self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
 
         # tether glycerol part -- transliteration here
         V_tg = self.tetherg.vol

@@ -1285,9 +1285,9 @@ void BLM_quaternary::fnAdjustParameters(){
     //    temp=1;
     //}
     
-    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_2);
-    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_2);
-    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_2);
+    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_1);
+    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_1);
+    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_1);
     //printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
     
     
@@ -2197,9 +2197,9 @@ void ssBLM_quaternary::fnAdjustParameters(){
     //    temp=1;
     //}
     
-    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_2);
-    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_2);
-    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_2);
+    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_1);
+    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_1);
+    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_1);
     //printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
     
     
@@ -2764,7 +2764,7 @@ void hybridBLM_quaternary::fnAdjustParameters(){
     headgroup2_3->nf=c_s_ohc*c_A_ohc*nf_ohc_lipid_3*(1-hc_substitution_2);
     
 
-    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_2);
+    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_1);
     //printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
     
     //substrate
@@ -3206,9 +3206,9 @@ void tBLM_quaternary_chol::fnAdjustParameters(){
     //    temp=1;
     //}
     
-    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_2);
-    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_2);
-    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_2);
+    headgroup1->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid*(1-hc_substitution_1);
+    headgroup1_2->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_2*(1-hc_substitution_1);
+    headgroup1_3->nf=c_s_ihc*c_A_ihc*nf_ihc_lipid_3*(1-hc_substitution_1);
     //printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1);
 
     //tether glycerol part
