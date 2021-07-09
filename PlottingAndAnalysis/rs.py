@@ -306,14 +306,13 @@ class CDataInteractor():
 # Garefl methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
 # error analysis cannot be found.
 # The MCMC directory is called 'MCMC'
-
 class CBumpsInteractor(CDataInteractor):
-    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+    def __init__(self, spath=".", mcmcpath=".", runfile="", state=None, problem=None):
         super().__init__(spath, mcmcpath, runfile)
+        self.state = self.fnRestoreState() if state == None else state
+        self.problem = self.fnRestoreFitProblem() if problem == None else problem
 
     def fnLoadMCMCResults(self):
-        state = self.fnRestoreState()
-
         # load Parameter
         if self.diParameters == {}:
             self.diParameters, _ = self.fnLoadParameters()
@@ -321,7 +320,7 @@ class CBumpsInteractor(CDataInteractor):
 
         # parvars is a list of variables(parameters) to return for each point
         parvars = [i for i in range(len(lParName))]
-        draw = state.draw(1, parvars, None)
+        draw = self.state.draw(1, parvars, None)
         points = draw.points
         logp = draw.logp
 
@@ -330,31 +329,28 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
     def fnLoadParameters(self):
-        problem = self.fnRestoreFitProblem()
-        state = self.fnRestoreState()
-
-        p = state.best()[0]
-        problem.setp(p)
+        p = self.state.best()[0]
+        self.problem.setp(p)
 
         # from bumps.cli import load_best
         # load_best(problem, self.mcmcpath+'/'+self.runfile+'.par')
 
         # distinguish between fitproblem and multifitproblem
-        if 'models' in dir(problem):
+        if "models" in dir(self.problem):
             i = 0
-            overall = 0.
-            for M in problem.models:
+            overall = 0.0
+            for M in self.problem.models:
                 overall += M.chisq()
                 i += 1
             overall /= float(i)
-            pnamekeys=[]
-            pars = problem._parameters
+            pnamekeys = []
+            pars = self.problem._parameters
             for par in pars:
                 pnamekeys.append(par.name)
         else:
-            overall = problem.chisq()
+            overall = self.problem.chisq()
             # TODO: Not sure this is for bumps(diffraction) or strictly for single model fitproblems
-            pnamekeys = list(problem.model_parameters().keys())
+            pnamekeys = list(self.problem.model_parameters().keys())
 
         # Do not accept parameter names with spaces, replace with underscore
         for i in range(len(pnamekeys)):
@@ -362,59 +358,77 @@ class CBumpsInteractor(CDataInteractor):
 
         for element in pnamekeys:
             self.diParameters[element] = {}
-        bounds = problem.bounds()
+        bounds = self.problem.bounds()
 
         for key in pnamekeys:
             parindex = pnamekeys.index(key)
-            self.diParameters[key]['number'] = parindex
-            self.diParameters[key]['lowerlimit'] = float(bounds[0][parindex])
-            self.diParameters[key]['upperlimit'] = float(bounds[1][parindex])
-            self.diParameters[key]['value'] = float(p[parindex])
-            self.diParameters[key]['relval'] = (self.diParameters[key]['value']-self.diParameters[key]['lowerlimit']) / \
-                                          (self.diParameters[key]['upperlimit']-self.diParameters[key]['lowerlimit'])
+            self.diParameters[key]["number"] = parindex
+            self.diParameters[key]["lowerlimit"] = float(bounds[0][parindex])
+            self.diParameters[key]["upperlimit"] = float(bounds[1][parindex])
+            self.diParameters[key]["value"] = float(p[parindex])
+            self.diParameters[key]["relval"] = (
+                self.diParameters[key]["value"] - self.diParameters[key]["lowerlimit"]
+            ) / (
+                self.diParameters[key]["upperlimit"]
+                - self.diParameters[key]["lowerlimit"]
+            )
             # TODO: Do we still need this? Set to dummy value
-            self.diParameters[key]['variable'] = key
+            self.diParameters[key]["variable"] = key
             # TODO: Do we still need this? Would have to figure out how to get the confidence limits from state
-            self.diParameters[key]['error'] = 0.01
+            self.diParameters[key]["error"] = 0.01
 
         return self.diParameters, overall
 
     def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
-        if path.isfile(self.mcmcpath + '/sErr.dat') or path.isfile(self.mcmcpath + '/isErr.dat'):
+        if path.isfile(self.mcmcpath + "/sErr.dat") or path.isfile(
+            self.mcmcpath + "/isErr.dat"
+        ):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
 
-            diStatRawData = {'Parameters': {}}
-            diStatRawData['Parameters']['Chisq'] = {}  # TODO: Work on better chisq handling
-            diStatRawData['Parameters']['Chisq']['Values'] = []
+            diStatRawData = {"Parameters": {}}
+            diStatRawData["Parameters"][
+                "Chisq"
+            ] = {}  # TODO: Work on better chisq handling
+            diStatRawData["Parameters"]["Chisq"]["Values"] = []
             for parname in lParName:
-                diStatRawData['Parameters'][parname] = {}
-                diStatRawData['Parameters'][parname]['Values'] = []
+                diStatRawData["Parameters"][parname] = {}
+                diStatRawData["Parameters"][parname]["Values"] = []
 
             seed()
             for j in range(len(points[:, 0])):
-                if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
-                    diStatRawData['Parameters']['Chisq']['Values'].append(logp[j])
+                if (
+                    dSparse == 0
+                    or (dSparse > 1 and j < dSparse)
+                    or (1 > dSparse > random())
+                ):
+                    diStatRawData["Parameters"]["Chisq"]["Values"].append(logp[j])
                     for i, parname in enumerate(lParName):
                         # TODO: this is a hack because Paul does not scale down after scaling up
                         # Rescaling disabled for bumps/refl1d analysis to achieve consistency
                         # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
                         #     points[j, i] *= 1E-6
-                        diStatRawData['Parameters'][parname]['Values'].append(points[j, i])
+                        diStatRawData["Parameters"][parname]["Values"].append(
+                            points[j, i]
+                        )
 
-            self.fnSaveSingleColumnsFromStatDict(self.mcmcpath + '/sErr.dat', diStatRawData['Parameters'], skip_entries)
+            self.fnSaveSingleColumnsFromStatDict(
+                self.mcmcpath + "/sErr.dat", diStatRawData["Parameters"], skip_entries
+            )
 
         return diStatRawData
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
-        problem = load_problem(self.spath + '/' + self.runfile + '.py')
+
+        problem = load_problem(self.spath + "/" + self.runfile + ".py")
         return problem
 
     def fnRestoreState(self):
         import bumps.dream.state
-        state = bumps.dream.state.load_state(self.mcmcpath + '/' + self.runfile)
+
+        state = bumps.dream.state.load_state(self.mcmcpath + "/" + self.runfile)
         state.mark_outliers()  # ignore outlier chains
         return state
 
@@ -614,10 +628,7 @@ class CGaReflInteractor(CRefl1DInteractor):
 
 
 class CMolStat:
-    def __init__(self, fitsource='refl1d', spath='.', mcmcpath='.', runfile='run'):
-        """
-
-        """
+    def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None):
         self.diParameters = {}
         # Dictionary with all the parameters
         # self.diParameters data structure:
@@ -668,8 +679,8 @@ class CMolStat:
         # check for system and type of setup file
 
         self.Interactor = None
-        if self.fitsource == 'bumps':
-            self.Interactor = CBumpsInteractor(spath, mcmcpath, runfile)
+        if self.fitsource == "bumps":
+            self.Interactor = CBumpsInteractor(spath, mcmcpath, runfile, state, problem)
         elif self.fitsource == 'refl1d':
             self.Interactor = CRefl1DInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'garefl':
@@ -2532,8 +2543,10 @@ class CMolStat:
 
         self.fnLoadParameters()
         self.fnLoadStatData(sparse)
-
-        problem = self.Interactor.fnRestoreFitProblem()
+        try: 
+            problem = self.Interactor.problem
+        except:
+            problem = self.Interactor.fnRestoreFitProblem()
 
         j = 0
         self.diStatResults['nSLDProfiles'] = []  # delete list of all nSLD profiles
