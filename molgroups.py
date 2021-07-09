@@ -1661,13 +1661,14 @@ class Hermite(nSLDObj):
     
     def fnGetProfiles(self, z):
         # TODO: test damping code for accuracy
+        dampfactor = numpy.ones_like(self.vf)
         if self.damping:
-            peakfind = numpy.where(self.vf > self.damptrigger)[0] # find index of first peaked point
-            peaked = len(self.vf) if not len(peakfind) else peakfind[0] # if no peak, then set peak to last point (turns off peak detection)
-            dampfactor = numpy.where(numpy.arange(len(self.vf))>peaked, 1./(1+numpy.exp(-2.1*(self.vf-self.dampthreshold)/self.dampFWHM)), numpy.ones_like(self.vf))
-            damp = self.vf * numpy.cumprod(dampfactor)
-        else:
-            damp = self.vf.copy()
+            above_damptrigger = numpy.where(self.vf > self.damptrigger)[0] # find index of first point beyond damping trigger
+            if len(above_damptrigger) > 0 : # if no points above trigger, damping doesn't apply
+                dampfactor[above_damptrigger[0] + 1:] = 1./(1+numpy.exp(-2.1*(self.vf[above_damptrigger[0] + 1:]-self.dampthreshold)/self.dampFWHM))    # does nothing if peaked point is at the end
+                dampfactor = numpy.cumprod(dampfactor)
+
+        damp = self.vf * dampfactor
 
         if self.monotonic:  # monotone interpolation
             spline = PchipInterpolator(self.dp, damp, extrapolate=False)
