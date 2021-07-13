@@ -188,7 +188,7 @@ class nSLDObj():
         # note: unphysical overfill will trigger the following assertion error
         # TODO: implement a correction instead of throwing an error
         assert (not numpy.any((temparea - dMaxArea)>aArea))
-        anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea[overmax])/aArea[overmax])) + nsl[overmax]
+        anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea)/aArea[overmax])) + nsl[overmax]
         aArea[overmax] = dMaxArea
 
         # deal with area for which the final area is not greater than dMaxArea
