@@ -1639,54 +1639,87 @@ class tBLM_quaternary(CompositenSLDObj):
 # Hermite Spline
 # ------------------------------------------------------------------------------------------------------
 
+"""
+Notes on usage:
+1. Instantiate the spline object, e.g. h = SLDHermite()
+    NB: the only initialization variable that isn't overwritten by fnSetRelative is dnormarea, so the others have been removed
+        and dnSLD has been moved to fnSetRelative instead of the initialization. This is to keep the fnSetRelative function calls
+        similar between Hermite and SLDHermite (except in Hermite nSLD is a constant and in SLDHermite it's a list of control points)
+2. Set all internal parameters, e.g. damping parameters, monotonic spline, etc.
+3. Call fnSetRelative.
+    NB: for speed, the spline interpolators are stored in the object. Only fnSetRelative will update them!
+"""
+
+def catmull_rom(xctrl, yctrl, **kwargs):
+    """returns a catmull_rom spline using ctrl points xctrl, yctrl"""
+    assert(len(xctrl)==len(yctrl)) # same shape
+
+    x_xtnd = numpy.insert(xctrl, 0, xctrl[0] - (xctrl[1]-xctrl[0]))
+    x_xtnd = numpy.append(x_xtnd, xctrl[-1]-xctrl[-2] + xctrl[-1])
+
+    y_xtnd = numpy.insert(yctrl, 0, yctrl[0])
+    y_xtnd = numpy.append(y_xtnd, yctrl[-1])
+    dydx = 0.5 * (y_xtnd[2:] - y_xtnd[:-2]) / (x_xtnd[2:] - x_xtnd[:-2])
+
+    return CubicHermiteSpline(xctrl, yctrl, dydx, **kwargs)
+
+
 class Hermite(nSLDObj):
-    def __init__(self, n, dstartposition, dnSLD, dnormarea, **kwargs):
+    def __init__(self, dnormarea, **kwargs):
         super().__init__(**kwargs)
-        self.numberofcontrolpoints = n
-        self.nSLD=dnSLD
+        self.numberofcontrolpoints = 10
+        self.nSLD=None
         self.normarea=dnormarea
         self.monotonic=True
         self.damping=True
         self.dampthreshold=0.001
         self.dampFWHM=0.0002
         self.damptrigger=0.04
-        self.dstartposition = dstartposition
+        self.dstartposition = 0.0
         
-        self.dp     = numpy.arange(n)
-        self.vf     = numpy.zeros(n)
-        #self.damp   = numpy.zeros(n) # not currently needed
+        self.dp     = numpy.arange(self.numberofcontrolpoints)
+        self.vf     = numpy.zeros(self.numberofcontrolpoints)
+        self.damp   = numpy.zeros(self.numberofcontrolpoints)
 
         # TODO: get the interface with a previous layer correct by defining an erf function at the first control point or between the first two control points.
-        # TODO: set damping as soon as vf is set, so it doesn't have to be recalculated every time fnGetProfiles is called
-    
-    def fnGetProfiles(self, z):
-        # TODO: test damping code for accuracy
+
+    def _apply_damping(self):
+        """ only called from _set_area_spline, which is called from fnSetRelative """
         dampfactor = numpy.ones_like(self.vf)
         if self.damping:
             above_damptrigger = numpy.where(self.vf > self.damptrigger)[0] # find index of first point beyond damping trigger
             if len(above_damptrigger) > 0 : # if no points above trigger, damping doesn't apply
                 dampfactor[above_damptrigger[0] + 1:] = 1./(1+numpy.exp(-2.1*(self.vf[above_damptrigger[0] + 1:]-self.dampthreshold)/self.dampFWHM))    # does nothing if peaked point is at the end
                 dampfactor = numpy.cumprod(dampfactor)
+        
+        self.damp = self.vf * dampfactor
 
-        damp = self.vf * dampfactor
+    def _set_area_spline(self):
+
+        self._apply_damping()
 
         if self.monotonic:  # monotone interpolation
-            spline = PchipInterpolator(self.dp, damp, extrapolate=False)
+            self.area_spline = PchipInterpolator(self.dp, self.damp, extrapolate=False)
 
         else:   # catmull-rom
-            dp_xtnd = numpy.insert(self.dp, 0, self.dp[0] - (self.dp[1]-self.dp[0]))
-            dp_xtnd = numpy.append(dp_xtnd, self.dp[-1]-self.dp[-2] + self.dp[-1])
 
-            vf_xtnd = numpy.insert(damp, 0, damp[0])
-            vf_xtnd = numpy.append(vf_xtnd, damp[-1])
-            dydx = 0.5 * (vf_xtnd[2:] - vf_xtnd[:-2]) / (dp_xtnd[2:] - dp_xtnd[:-2])
-            spline = CubicHermiteSpline(self.dp, damp, dydx, extrapolate=False)
+            self.area_spline = catmull_rom(self.dp, self.damp, extrapolate=False)
+        
+        self.area_spline_integral = self.area_spline.antiderivative()
 
-        vf = spline(z)
+    def fnGetProfiles(self, z):
+
+        vf = self.area_spline(z)
         vf[(vf < 0) | numpy.isnan(vf)] = 0.0
         area = vf * self.normarea * self.nf
 
-        return area, area * numpy.gradient(z) * self.nSLD, self.nSLD * numpy.ones_like(z)
+        sld = self.fnGetnSLDProfile(z)
+
+        return area, area * numpy.gradient(z) * sld, sld
+
+    def fnGetnSLDProfile(self, z):
+
+        return self.nSLD * numpy.ones_like(z)
 
     def fnGetnSLD(self, dz): 
         return self.nSLD
@@ -1697,11 +1730,9 @@ class Hermite(nSLDObj):
     def fnGetUpperLimit(self): 
         return self.dp[-1]
 
-    def fnGetVolume(self, z):
-        # is this even necessary? might be better off doing this with a defined z vector as follows (so that area isn't being calculated over and over)
-        # numpy.trapz(area[(z>z1) & (z<z2)], z[(z>z1) & (z<z2)])
-        area, _, _ = self.fnGetProfiles(z)
-        return numpy.trapz(area, z)
+    def fnGetVolume(self, z1, z2):
+        """ use stored antiderivatives to calculate volume """
+        return self.area_spline_integral(z2) - self.area_spline_integral(z1)
 
     def fnSetNormarea(self, dnormarea): 
         self.normarea = dnormarea
@@ -1709,7 +1740,8 @@ class Hermite(nSLDObj):
     def fnSetnSLD(self, dnSLD): 
         self.nSLD = dnSLD
 
-    def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnf): 
+    def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnSLD, dnf):
+        self.fnSetnSLD(dnSLD)
         self.vf = numpy.array(dVf)
         self.numberofcontrolpoints = len(self.vf)
         self.dp = dStart + dSpacing*numpy.arange(self.numberofcontrolpoints) + numpy.array(dDp)
@@ -1717,6 +1749,53 @@ class Hermite(nSLDObj):
         assert(self.vf.shape == self.dp.shape)
         self.dstartposition = dStart
         self.nf = dnf
+        self._set_area_spline()
+
+    def fnWritePar2File(self, fp, cName, z):
+        fp.write("Hermite "+cName+" numberofcontrolpoints "+str(self.numberofcontrolpoints)+" normarea "
+                 +str(self.normarea)+" nf "+str(self.nf)+" \n")
+        self.fnWriteData2File(fp, cName, z)
+
+class SLDHermite(Hermite):
+    def __init__(self, dnormarea, **kwargs):
+        super().__init__(dnormarea, **kwargs)
+        self.sld   = numpy.zeros(self.numberofcontrolpoints)
+
+        # TODO: get the interface with a previous layer correct by defining an erf function at the first control point or between the first two control points.
+
+    def _set_sld_spline(self):
+
+        if self.monotonic:  # monotone interpolation
+            self.sld_spline = PchipInterpolator(self.dp, self.sld, extrapolate=False)
+
+        else:   # catmull-rom
+            self.sld_spline = catmull_rom(self.dp, self.sld, extrapolate=False)
+
+    def fnGetnSLDProfile(self, z):
+
+        sld = self.sld_spline(z)
+        # deal with out of range values
+        sld[z < self.dp[0]] = self.sld[0]
+        sld[z > self.dp[-1]] = self.sld[-1]
+        assert(not numpy.any(numpy.isnan(sld))) # shouldn't be any NaNs left
+
+        return sld
+
+    def fnSetnSLD(self, dnSLD): 
+        self.nSLD = dnSLD
+
+    def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnSLD, dnf):
+        self.vf = numpy.array(dVf)
+        self.numberofcontrolpoints = len(self.vf)
+        self.dp = dStart + dSpacing*numpy.arange(self.numberofcontrolpoints) + numpy.array(dDp)
+        # make sure the control points have compatible shapes (previous command should fail if not)
+        assert(self.vf.shape == self.dp.shape)
+        self.sld = numpy.array(dnSLD)
+        assert(self.sld.shape == self.dp.shape)
+        self.dstartposition = dStart
+        self.nf = dnf
+        self._set_area_spline()
+        self._set_sld_spline()
 
     def fnWritePar2File(self, fp, cName, z):
         fp.write("Hermite "+cName+" numberofcontrolpoints "+str(self.numberofcontrolpoints)+" normarea "
