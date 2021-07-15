@@ -1782,7 +1782,7 @@ class SLDHermite(Hermite):
         return sld
 
     def fnSetnSLD(self, dnSLD): 
-        self.nSLD = dnSLD
+        self.nSLD = None
 
     def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnSLD, dnf):
         self.vf = numpy.array(dVf)
