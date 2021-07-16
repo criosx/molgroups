@@ -1593,7 +1593,7 @@ class CMolStat:
                 if data[i] < (max / 2) and not point2:
                     point2 = True
                     hm2 = i - 1
-                    i = len(data)
+                    break
 
             return max, hm1, hm2
 
@@ -1679,6 +1679,8 @@ class CMolStat:
             areaperlipid, _, _ = fnMaximumHalfPoint(substrate)
             maxbilayerarea, _, _ = fnMaximumHalfPoint(hc)
             # vf_bilayer = maxbilayerarea/areaperlipid
+            if substrate.min() == substrate.max() and substrate.max() == 0: #if no substrate, use maximum bilayer area as area per lipid
+                areaperlipid = maxbilayerarea
 
             # recuperate the non-corrected headgroup distributions that were not saved to file by the fit
             # by reversing the multiplication based on the amount of replaced hc material
@@ -2519,6 +2521,7 @@ class CMolStat:
             diStat['median_area'].append(stat[2])
             diStat['psigma_area'].append(stat[3])
             diStat['p2sigma_area'].append(stat[4])
+
             liOnePosition = [iteration[i] for key, iteration in dinsl.items() if key != 'zaxis']
             stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
             diStat['m2sigma_nsl'].append(stat[0])
@@ -2526,6 +2529,7 @@ class CMolStat:
             diStat['median_nsl'].append(stat[2])
             diStat['psigma_nsl'].append(stat[3])
             diStat['p2sigma_nsl'].append(stat[4])
+
             liOnePosition = [iteration[i] for key, iteration in dinsld.items() if key != 'zaxis']
             stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
             diStat['m2sigma_nsld'].append(stat[0])
@@ -2578,13 +2582,18 @@ class CMolStat:
                     # way, also implement which contrast to use for pulling groups
                     if 'models' in dir(problem):
                         for M in problem.models:
-                            overall = M.chisq()
+                            M.chisq()
                             break
                     else:
-                        overall = problem.chisq()
+                        problem.chisq()
 
                     fp = open(self.spath+'/mol.dat', "w")
-                    problem.extra.fnWritePar2File(fp, 'bilayer', numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False))
+                    z = numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False)
+                    try:
+                        problem.extra[0].fnWritePar2File(fp, 'bilayer', z)
+                        problem.extra[1].fnWritePar2File(fp, 'protein', z)
+                    except:
+                        problem.extra.fnWritePar2File(fp, 'bilayer', z)
                     fp.close()
                     stdout.flush()
                     # distinguish between FitProblem and MultiFitProblem
