@@ -2,6 +2,8 @@ import numpy
 import math
 from scipy.special import erf
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline
+from scipy.spatial.transform import Rotation
+from scipy.ndimage.filters import gaussian_filter
 
 class nSLDObj():
 
@@ -1801,3 +1803,182 @@ class SLDHermite(Hermite):
         fp.write("Hermite "+cName+" numberofcontrolpoints "+str(self.numberofcontrolpoints)+" normarea "
                  +str(self.normarea)+" nf "+str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
+
+class ContinuousEuler(nSLDObj):
+    """ Uses scipy.spatial library to do Euler rotations in real time"""
+    def __init__(self, fn8col, rotcenter=None, **kwargs):
+        """ requires file name fn8col containing 8-column data, any header information commented with #:
+            1. residue number
+            2. x coordinate
+            3. y coordinate
+            4. z coordinate
+            5. residue volume
+            6. electon scattering length
+            7. neutron scattering length (H)
+            8. neutron scattering length (D)
+
+            Use helper function pdbto8col to create this data file
+
+            The simplest approach is to provide coordinates relative to the center of mass; then,
+            "z" corresponds to the absolute z position of the center of mass of the object. Otherwise,
+            if the rotation center "rotcenter" [x0, y0, z0] is specified, all coordinates are translated
+            by "rotcenter" and "z" is the absolute z position of the rotation center.
+        """
+        super().__init__(**kwargs)
+        self.fn = fn8col
+        resdata = numpy.loadtxt(fn8col)
+        self.resnums = resdata[:,0]
+        self.rescoords = resdata[:,1:4]
+        if rotcenter is not None:
+            rotcenter = numpy.array(rotcenter)
+            assert(rotcenter.shape == self.rescoords[0,:].shape)
+            self.rescoords -= rotcenter
+        self.rotcoords = numpy.zeros_like(self.rescoords)
+        self.resscatter = resdata[:, 4:]
+        self.alpha = 0.
+        self.beta = 0.
+        self.sigma = 2.
+        self.z = 0.
+        self.nf = 1.
+        self.R = Rotation.from_euler('zy', [self.alpha, self.beta], degrees=True)
+
+        # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
+        # max(area) = volume_fraction * normarea
+
+    def _apply_transform(self):
+        
+        self.R = Rotation.from_euler('zy', [self.alpha, self.beta], degrees=True)
+        self.rotcoords = self.R.apply(self.rescoords)
+        self.rotcoords[:,2] += self.z
+
+    def fnGetProfiles(self, z, bulknsld=None):
+        # perform rotation. Default is extrinsic rotation alpha (around z axis), then beta (around y axis)
+
+        # get area profile
+        dz = z[1] - z[0]                            # calculate step size (MUST be uniform)
+        zbins = numpy.append(z, z[-1]+dz) - 0.5 * dz    # bin edges; z is treated as bin centers here
+        # TODO: Smoothing with gaussian_filter requires constant step size. What happens if z is a single point?
+        h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,0])
+        area = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
+        area /= dz
+
+        # get nslH profile
+        h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,2])
+        nslH = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
+        #nslH /=dz
+
+        if bulknsld is not None:
+            # get nslD profile
+            h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,3])
+            nslD = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
+            #nslD /= dz
+            nsl = ((bulknsld + 0.56e-6) * nslD + (6.36e-6 - bulknsld) * nslH) / (6.36e-6 + 0.56e-6)
+
+        else:
+            nsl = nslH
+
+        nsld = numpy.zeros_like(z)
+        pos = (area > 0)
+        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+
+        return area * self.nf, nsl * self.nf, nsld
+
+    def fnGetVolume(self, z1, z2):
+        """ Calculates volume based on the number of residues of the rotated molecule located between
+            z positions z1 and z2 (inclusive).
+            
+            Note: the result is (slightly) different from integrating the area, because the roughness has already
+            been applied to the area. However, this remains more accurate than the roughened value because
+            the integration limits  will typically correspond to the limits of a lipid Box2Err function
+            which are themselves defined before the roughness is applied."""
+        # use a single bin defined by bin edges z1 and z2.
+        # First [0] selects the histogram array, second [0] gets the single value from the array
+
+        volume = numpy.histogram(self.rotcoords[:,2], bins=[z1,z2], weights=self.resscatter[:,0])[0][0]
+
+        return volume * self.nf
+
+    def fnSet(self, alpha, beta, zpos, sigma, nf):
+
+        self.alpha = alpha
+        self.beta = beta
+        self.z = zpos
+        self.nf = nf
+        self.sigma = sigma
+        self._apply_transform()
+
+    def fnWritePar2File(self, fp, cName, z):
+        fp.write("ContinuousEuler "+cName+" StartPosition "+str(self.z)+" Alpha "
+                 +str(self.alpha)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
+        self.fnWriteData2File(fp, cName, z)
+
+def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0])):
+    """ Creates an 8-column data file for use with ContinuousEuler from a pdb file\
+        with optional selection. "center_of_mass" is the position in space at which to position the
+        molecule's center of mass"""
+    
+    # residue name : [vol Ang^3, eSL, SLprot Ang, SLdeut Ang, #exchngH]     
+    # volumes from Chothia, C. (1975) Nature 254, 304-308.
+    residprop = {
+            'ALA' : [91.5, 38, 20.1466,  61.7942, 1],
+            'ARG' : [202.1, 85, 56.9491, 129.8324, 6],
+            'ASP' : [124.5, 59, 42.149,  73.3816, 1],
+            'ASN' : [135.2, 60, 45.7009, 76.9366, 3],
+            'CYS' : [105.6, 54, 26.7345, 57.9702, 2],
+            'GLU' : [155.1, 67, 41.371,  93.372, 1],
+            'GLN' : [161.1, 68, 44.8675, 96.927, 3],
+            'GLY' : [66.4,  30, 20.98,   41.8038, 1],
+            'HSD' : [167.3, 72, 55.0709, 107.1304, 2],
+            'HIS' : [167.3, 72, 55.0709, 107.1304, 2],
+            'HSE' : [167.3, 72, 55.0709, 107.1304, 2],
+            'HSP' : [167.3, 72, 55.0709, 107.1304, 3],
+            'ILE' : [168.8, 62, 17.6464, 121.7654, 1],
+            'LEU' : [167.9, 62, 17.6464, 121.7654, 1],
+            'LYS' : [171.3, 71, 30.7473, 124.4544, 4],
+            'MET' : [170.8, 70, 21.3268, 104.622, 1],
+            'PHE' : [203.4, 78, 45.0734, 128.3686, 1],
+            'PRO' : [129.3, 52, 22.2207, 95.104, 0],
+            'MLY' : [224.58, 96, 16.2, 16.2, 0],
+            'MSE' : [253.56, 98, 21.0, 21.0, 0]
+            } #deuteration not correct for MLY and MSE
+    residprop['SER'] = [99.1,  46, 29.6925, 60.9282, 2]
+    residprop['DAV'] = [99.1,  46, 290000.6925, 600000.9282, 2] # for testing!
+    residprop['THR'] = [122.1, 54, 25.1182, 87.5896, 2]
+    residprop['TRP'] = [237.6, 98, 67.7302, 151.0254, 2]
+    residprop['TYR'] = [203.6, 86, 54.6193, 127.5026, 2]
+    residprop['VAL'] = [141.7, 54, 18.4798, 101.775, 1]
+    #volume of Zn2+ from Obst et al. J.Mol.Model 1997,3,224-232 (Zn-O g(r))
+    residprop['ZN2'] = [100.5, 28, 5.68, 5.68, 0] 
+
+    import MDAnalysis
+    molec = MDAnalysis.Universe(pdbfilename)
+    sel = molec.select_atoms(selection)
+    Nres = sel.n_residues
+    
+    if not Nres:
+        print('Warning: no atoms selected')
+
+    sel.translate(-sel.center_of_mass() + center_of_mass)
+    
+    resnums = []
+    rescoords = []
+    resscatter = []
+    HSL = -3.7409
+    DSL = 6.671
+    for i in range(Nres):
+        resnums.append(molec.residues[i].resid)
+        rescoords.append(molec.residues[i].atoms.center_of_mass())
+        resscatter.append(residprop[molec.residues[i].resname])
+
+    resnums = numpy.array(resnums)
+    rescoords = numpy.array(rescoords)
+    resscatter = numpy.array(resscatter)
+    resscatter[:,1] *= 2.8e-5
+    resscatter[:,3] = (resscatter[:,2] + DSL * resscatter[:,4]) * 1e-5
+    resscatter[:,2] = (resscatter[:,2] + HSL * resscatter[:,4]) * 1e-5
+
+    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resscatter[:,:-1])), delimiter='\t',
+            header=pdbfilename + '\nresid\tx\ty\tz\teSL\tnslH\tnslD')
+
+    return datfilename      # allows this to be fed into ContinuousEuler directly
+
