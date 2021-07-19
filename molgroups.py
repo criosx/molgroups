@@ -1923,6 +1923,11 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
         with optional selection. "center_of_mass" is the position in space at which to position the
         molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values"""
     
+    # not currently used but useful
+    rshort = dict({'A': 'ALA', 'R': 'ARG', 'N': 'ASN', 'D':'ASP', 'C':'CYS', 'E':'GLU', 'Q':'GLN', 'G':'GLY', 'H':'HIS',
+               'I': 'ILE', 'L':'LEU', 'K':'LYS', 'M':'MET', 'F': 'PHE', 'P': 'PRO', 'S':'SER', 'T':'THR', 'Y':'TYR',
+                'V': 'VAL', 'W': 'TRP'})
+
     # residue name : [vol Ang^3, eSL, SLprot Ang, SLdeut Ang, #exchngH]     
     # volumes from Chothia, C. (1975) Nature 254, 304-308.
     residprop = {
@@ -1948,7 +1953,7 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
             'MSE' : [253.56, 98, 21.0, 21.0, 0]
             } #deuteration not correct for MLY and MSE
     residprop['SER'] = [99.1,  46, 29.6925, 60.9282, 2]
-    residprop['DAV'] = [99.1,  46, 290000.6925, 600000.9282, 2] # for testing!
+    residprop['DAV'] = [99.1,  46, 290000.6925, 600000.9282, 2] # huge scattering lengths for testing!
     residprop['THR'] = [122.1, 54, 25.1182, 87.5896, 2]
     residprop['TRP'] = [237.6, 98, 67.7302, 151.0254, 2]
     residprop['TYR'] = [203.6, 86, 54.6193, 127.5026, 2]
