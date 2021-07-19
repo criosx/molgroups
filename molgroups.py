@@ -1840,6 +1840,7 @@ class ContinuousEuler(nSLDObj):
         self.sigma = 2.
         self.z = 0.
         self.nf = 1.
+        self.protexchratio = 1.
         self.R = Rotation.from_euler('zy', [self.alpha, self.beta], degrees=True)
 
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
@@ -1851,8 +1852,10 @@ class ContinuousEuler(nSLDObj):
         self.rotcoords = self.R.apply(self.rescoords)
         self.rotcoords[:,2] += self.z
 
-    def fnGetProfiles(self, z, bulknsld=None):
+    def fnGetProfiles(self, z, bulknsld=None, xray=False):
         # perform rotation. Default is extrinsic rotation alpha (around z axis), then beta (around y axis)
+        # xray=True for xray profile
+        # xray=False (default) for a neutron probe; bulknsld determines fraction of exchangeable hydrogens used
 
         # get area profile
         dz = z[1] - z[0]                            # calculate step size (MUST be uniform)
@@ -1862,20 +1865,23 @@ class ContinuousEuler(nSLDObj):
         area = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
         area /= dz
 
-        # get nslH profile
-        h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,2])
-        nslH = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
-        #nslH /=dz
-
-        if bulknsld is not None:
-            # get nslD profile
-            h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,3])
-            nslD = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
-            #nslD /= dz
-            nsl = ((bulknsld + 0.56e-6) * nslD + (6.36e-6 - bulknsld) * nslH) / (6.36e-6 + 0.56e-6)
-
+        if xray:
+            h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,1])
+            nsl = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
         else:
-            nsl = nslH
+            # get nslH profile
+            h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,2])
+            nslH = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
+
+            if bulknsld is not None:
+                # get nslD profile
+                h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,3])
+                nslD = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
+                fracD = self.protexchratio * (bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+                nsl = fracD * nslD + (1 - fracD) * nslH
+
+            else:
+                nsl = nslH
 
         nsld = numpy.zeros_like(z)
         pos = (area > 0)
@@ -1912,10 +1918,10 @@ class ContinuousEuler(nSLDObj):
                  +str(self.alpha)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
-def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0])):
+def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0]), deuterated_residues=None):
     """ Creates an 8-column data file for use with ContinuousEuler from a pdb file\
         with optional selection. "center_of_mass" is the position in space at which to position the
-        molecule's center of mass"""
+        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values"""
     
     # residue name : [vol Ang^3, eSL, SLprot Ang, SLdeut Ang, #exchngH]     
     # volumes from Chothia, C. (1975) Nature 254, 304-308.
@@ -1963,6 +1969,7 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
     resnums = []
     rescoords = []
     resscatter = []
+    deut_header = ''
     HSL = -3.7409
     DSL = 6.671
     for i in range(Nres):
@@ -1973,12 +1980,22 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
     resscatter = numpy.array(resscatter)
-    resscatter[:,1] *= 2.8e-5
-    resscatter[:,3] = (resscatter[:,2] + DSL * resscatter[:,4]) * 1e-5
-    resscatter[:,2] = (resscatter[:,2] + HSL * resscatter[:,4]) * 1e-5
 
-    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resscatter[:,:-1])), delimiter='\t',
-            header=pdbfilename + '\nresid\tx\ty\tz\teSL\tnslH\tnslD')
+    # replace base value in nsl calculation with proper deuterated scattering length\
+    resnsl = resscatter[:,2]
+    if deuterated_residues is not None:
+        deuterated_indices = numpy.searchsorted(resnums, deuterated_residues)
+        resnsl = resscatter[:,2]
+        resnsl[deuterated_indices] = resscatter[deuterated_indices, 3]
+        deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
+
+
+    resesl = resscatter[:,1] * 2.8e-5
+    resnslH = (resnsl + HSL * resscatter[:,4]) * 1e-5
+    resnslD = (resnsl + DSL * resscatter[:,4]) * 1e-5
+
+    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resscatter[:,0][:,None], resesl[:,None], resnslH[:, None], resnslD[:,None])), delimiter='\t',
+            header=pdbfilename + '\n' + deut_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
     return datfilename      # allows this to be fed into ContinuousEuler directly
 
