@@ -1686,8 +1686,12 @@ class Hermite(nSLDObj):
 
     def fnGetVolume(self, z1, z2):
         """ use stored antiderivatives to calculate volume """
+        # make sure z1 and z2 are in the defined interval. If both are above or below, result will be zero
         z1 = max(self.fnGetLowerLimit(), z1)
+        z1 = min(self.fnGetUpperLimit(), z1)
+        z2 = max(self.fnGetLowerLimit(), z2)
         z2 = min(self.fnGetUpperLimit(), z2)
+
         return self.area_spline_integral(z2) - self.area_spline_integral(z1)
 
     def fnSetNormarea(self, dnormarea): 
