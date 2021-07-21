@@ -1,6 +1,4 @@
 import numpy
-import glob
-import os
 from scipy.special import erf
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
@@ -97,54 +95,6 @@ class nSLDObj():
         A = numpy.vstack((z, area, nsl)).T
         numpy.savetxt(fp, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
         fp.write('\n')
-
-    # does a Catmull-Rom Interpolation on an equal distance grid
-    # 0<t<=1 is the relative position on the interval between p0 and p1
-    # p-1 and p2 are needed for derivative calculation
-    def CatmullInterpolate(self, t, pm1, p0, p1, p2):
-        m0 = (p1-pm1)/2
-        m1 = (p2-p0) /2
-        t_2 = t*t
-        t_3 = t_2*t
-        h00 = 2*t_3-3*t_2+1
-        h10 = t_3-2*t_2+t
-        h01 = (-2)*t_3+3*t_2
-        h11 = t_3-t_2
-        return h00*p0+h10*m0+h01*p1+h11*m1
-        
-    # p is a [4][4][4] array, t is a [3] array
-    def fnTriCubicCatmullInterpolate(self, p, t):
-        dFirstStage=numpy.zeros(4,4)
-        dSecondStage=numpy.zeros(4)
-
-        for i in range(4):
-            for j in range(4):
-                dFirstStage[i][j] = self.CatmullInterpolate(t[0],p[0][i][j],p[1][i][j],p[2][i][j],p[3][i][j])
-        
-        for i in range(4):
-            dSecondStage[i]=self.CatmullInterpolate(t[1],dFirstStage[0][i],dFirstStage[1][i],dFirstStage[2][i],dFirstStage[3][i])
-        
-        return self.CatmullInterpolate(t[2],dSecondStage[0],dSecondStage[1],dSecondStage[2],dSecondStage[3])
-        
-    # p is a [4][4][4][4] array, t is a [4] array
-    def fnQuadCubicCatmullInterpolate(self, p, t):
-        dFirstStage = numpy.zeros(4,4,4)
-        dSecondStage = numpy.zeros(4,4)
-        dThirdStage = numpy.zeros(4)
-
-        for i in range(4):
-            for j in range(4):
-                for k in range(4):
-                    dFirstStage[i][j][k] = self.CatmullInterpolate(t[0],p[0][i][j][k],p[1][i][j][k],p[2][i][j][k],p[3][i][j][k])
-        
-        for i in range(4):
-            for j in range(4):
-                dSecondStage[i][j] = self.CatmullInterpolate(t[1],dFirstStage[0][i][j],dFirstStage[1][i][j],dFirstStage[2][i][j],dFirstStage[3][i][j])
-        
-        for i in range(4):
-            dThirdStage[i] = self.CatmullInterpolate(t[2],dSecondStage[0][i],dSecondStage[1][i],dSecondStage[2][i],dSecondStage[3][i])
-        
-        return self.CatmullInterpolate(t[3],dThirdStage[0],dThirdStage[1],dThirdStage[2],dThirdStage[3])
 
     # Philosophy for this first method: You simply add more and more volume and nSLD to the
     # volume and nSLD array. After all objects have filled up those arrays the maximal area is
