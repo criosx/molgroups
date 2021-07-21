@@ -1710,7 +1710,8 @@ class Hermite(nSLDObj):
     def fnGetProfiles(self, z):
 
         vf = self.area_spline(z)
-        vf[(vf < 0) | numpy.isnan(vf)] = 0.0
+        vf[numpy.isnan(vf)] = 0.0
+        vf[vf < 0] = 0.0
         area = vf * self.normarea * self.nf
 
         sld = self.fnGetnSLDProfile(z)
@@ -1732,6 +1733,8 @@ class Hermite(nSLDObj):
 
     def fnGetVolume(self, z1, z2):
         """ use stored antiderivatives to calculate volume """
+        z1 = max(self.fnGetLowerLimit(), z1)
+        z2 = min(self.fnGetUpperLimit(), z2)
         return self.area_spline_integral(z2) - self.area_spline_integral(z1)
 
     def fnSetNormarea(self, dnormarea): 
