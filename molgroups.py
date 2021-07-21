@@ -1,7 +1,8 @@
 import numpy
-import math
+import glob
+import os
 from scipy.special import erf
-from scipy.interpolate import PchipInterpolator, CubicHermiteSpline
+from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 
@@ -1853,7 +1854,6 @@ class ContinuousEuler(nSLDObj):
         self.rotcoords[:,2] += self.z
 
     def fnGetProfiles(self, z, bulknsld=None, xray=False):
-        # perform rotation. Default is extrinsic rotation alpha (around z axis), then beta (around y axis)
         # xray=True for xray profile
         # xray=False (default) for a neutron probe; bulknsld determines fraction of exchangeable hydrogens used
 
@@ -2004,3 +2004,118 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
 
     return datfilename      # allows this to be fed into ContinuousEuler directly
 
+class DiscreteEuler(nSLDObj):
+    """ Uses precalculated Euler rotation densities"""
+    def __init__(self, generic_filename, betas, gammas, betafmt='%i', gammafmt='%i', **kwargs):
+        """ requires precalculated 4-column files for each angle beta and gamma. These should not have any smoothing applied.
+            Each file must have same z vector and one header row. z can be negative.
+            generic_filename contains the path and a generic file name with positions for angles beta and gamma are marked with <beta> and <gamma>.
+            Format strings other than integer angles can be specified with betafmt and gammafmt keyword arguments.
+            "betas" and "gammas" are lists or numpy arrays containing the beta and gamma points to be loaded.
+
+        Example: DiscreteEuler('./dat/exou_beta<beta>_gamma<gamma>.txt', range(0, 190, 10), range(0, 370, 10))
+        """
+        super().__init__(**kwargs)
+        betas = numpy.array(betas, dtype=float)
+        gammas = numpy.array(gammas, dtype=float)
+        areadata = None
+        for i, beta in enumerate(betas):
+            for j, gamma in enumerate(gammas):
+                fn = generic_filename.replace('<beta>', betafmt % beta).replace('<gamma>', gammafmt % gamma)
+                d = numpy.loadtxt(fn, skiprows=1)
+                if areadata is None:
+                    zdata = d[:,0]
+                    areadata = numpy.zeros((len(betas), len(gammas), len(zdata)))
+                    nslHdata = numpy.zeros_like(areadata)
+                    nslDdata = numpy.zeros_like(areadata)
+                areadata[i, j, :] = d[:,1]
+                nslHdata[i, j, :] = d[:,2]
+                nslDdata[i, j, :] = d[:,3]
+
+        self.betas = betas
+        self.gammas = gammas
+        self.areadata = areadata
+        self.zdata = zdata
+        self.nslHdata = nslHdata
+        self.nslDdata = nslDdata
+        self.beta = 0.         # current beta rotation
+        self.gamma = 0.          # current gamma rotation
+        self.sigma = 2.         # smoothing function
+        self.z = 0.             # z offset value
+        self.nf = 1.            # number fraction
+        self.protexchratio = 1. # proton exchange ratio
+
+        # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
+        # max(area) = volume_fraction * normarea
+
+    def fnGetProfiles(self, z, bulknsld=None):
+
+        # perform interpolation
+        self._set_interpolation_points(z)
+        area = interpn((self.betas, self.gammas, self.zdata + self.z), self.areadata, self._interppoint, bounds_error=False, fill_value=0.0)
+        nslH = interpn((self.betas, self.gammas, self.zdata + self.z), self.nslHdata, self._interppoint, bounds_error=False, fill_value=0.0)
+        nslD = interpn((self.betas, self.gammas, self.zdata + self.z), self.nslDdata, self._interppoint, bounds_error=False, fill_value=0.0)
+
+        # apply roughness (sigma)
+        dz = z[1] - z[0]
+        area = gaussian_filter(area, self.sigma / dz, order=0, mode='constant', cval=0)
+        #area /= dz
+
+        nslH = gaussian_filter(nslH, self.sigma / dz, order=0, mode='constant', cval=0)
+
+        if bulknsld is not None:
+            # get nslD profile
+            nslD = gaussian_filter(nslD, self.sigma / dz, order=0, mode='constant', cval=0)
+            fracD = self.protexchratio * (bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+            nsl = fracD * nslD + (1 - fracD) * nslH
+
+        else:
+            nsl = nslH
+
+        nsld = numpy.zeros_like(z)
+        pos = (area > 0)
+        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+
+        return area * self.nf, nsl * self.nf, nsld
+
+    def _set_interpolation_points(self, z):
+        self._interppoint = numpy.zeros((len(z), 3))
+        self._interppoint[:,:-1] = [self.beta, self.gamma]
+        self._interppoint[:, -1] = z
+
+    def fnGetVolume(self, z1, z2):
+        """ Calculates volume based on the number of residues of the rotated molecule located between
+            z positions z1 and z2 (inclusive).
+            
+            Note: the result is (slightly) different from integrating the area, because the roughness has already
+            been applied to the area. However, this remains more accurate than the roughened value because
+            the integration limits  will typically correspond to the limits of a lipid Box2Err function
+            which are themselves defined before the roughness is applied."""
+
+        # For volume calculation, use intrinsic z vector, and no smoothing.
+        zvol = self.zdata + self.z
+        self._set_interpolation_points(zvol)
+
+        area = interpn((self.betas, self.gammas, zvol), self.areadata, self._interppoint, bounds_error=False, fill_value=0.0)
+
+        crit = (zvol > min(z1, z2)) & (zvol < max(z1, z2))
+        if numpy.any(crit):
+            volume= numpy.trapz(area[crit], zvol[crit])
+        else:
+            volume = 0.0
+
+
+        return volume * self.nf
+
+    def fnSet(self, beta, gamma, zpos, sigma, nf):
+
+        self.beta = beta
+        self.gamma = gamma
+        self.z = zpos
+        self.nf = nf
+        self.sigma = sigma
+
+    def fnWritePar2File(self, fp, cName, z):
+        fp.write("DiscreteEuler "+cName+" StartPosition "+str(self.z)+" beta "
+                 +str(self.beta)+" gamma "+str(self.gamma) +" nf "+str(self.nf)+" \n")
+        self.fnWriteData2File(fp, cName, z)
