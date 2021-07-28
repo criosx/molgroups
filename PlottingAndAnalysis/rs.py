@@ -13,11 +13,9 @@ from shutil import rmtree
 from sys import argv, exit
 from subprocess import call, Popen
 from time import time, gmtime, sleep, ctime
-from bumps.dream.stats import parse_var
 import zipfile
 import numpy
 import pandas
-import re
 
 
 class CDataInteractor():
@@ -37,18 +35,14 @@ class CDataInteractor():
         file.close()
 
         i = 0
-        while 1:
+        while i < len(data):
             tdata = (data[i]).split()  # read header that contains molgroup data
             diMolgroups[tdata[1]] = {}
             diMolgroups[tdata[1]].update({'headerdata': {}})
             diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
             diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
-            j = 2
-            while 1:
+            for j in range(2, len(tdata), 2):
                 diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
-                j += 2
-                if j == len(tdata):
-                    break
 
             i += 2  # skip header line for data columns
             zax = li[:]
@@ -56,9 +50,7 @@ class CDataInteractor():
             nslax = li[:]
             diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
 
-            while 1:
-                if i >= len(data):
-                    break
+            while i < len(data):
                 tline = (data[i]).split()
                 if tline:
                     diMolgroups[tdata[1]]['zaxis'].append(float(tline[0]))
@@ -67,10 +59,8 @@ class CDataInteractor():
                     i += 1
                 else:
                     break
-
             i += 1
-            if i >= len(data):
-                break
+
         return diMolgroups
 
     def fnLoadsErr(self):
@@ -439,7 +429,7 @@ class CBumpsInteractor(CDataInteractor):
     @staticmethod
     def fnRestoreSmoothProfile(M):
         # TODO: Decide what and if to return SLD profile for Bumps fits
-        z, rho, irho = [], [], []
+        z, rho, irho = M.sld, [], []
         return z, rho, irho
 
 
@@ -846,25 +836,16 @@ class CMolStat:
 
     def fnCalculateMolgroupProperty(self, fConfidence):
         def fnFindMaxFWHM(lList):
-            imax = 0
-            maxvalue = 0
-            for i in range(len(lList)):
-                if lList[i] > maxvalue:
-                    maxvalue = lList[i]
-                    imax = i
+            maxvalue = max(lList)
+            imax = lList.index(maxvalue)
 
             ifwhmplus = imax
             ifwhmminus = imax
-            while lList[ifwhmplus] > (maxvalue / 2):
-                ifwhmplus = ifwhmplus + 1
-                if ifwhmplus == len(lList):
-                    ifwhmplus = ifwhmplus - 1
-                    break
-            while lList[ifwhmminus] > (maxvalue / 2):
-                ifwhmminus = ifwhmminus - 1
-                if ifwhmminus == (-1):
-                    ifwhmplus = 0
-                    break
+            while lList[ifwhmplus] > (maxvalue / 2) and ifwhmplus < (len(lList) - 1):
+                ifwhmplus += 1
+            while lList[ifwhmminus] > (maxvalue / 2) and ifwhmminus > 0:
+                ifwhmminus -= 1
+
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
         try:
@@ -1566,10 +1547,10 @@ class CMolStat:
             startindex = int((start - startaxis) / incaxis + 0.5)
             stopindex = int((stop - startaxis) / incaxis + 0.5)
 
-            if stopindex > startindex:
-                sum = 0.5 * (array[startindex] + array[stopindex])
-            else:
-                sum = array[startindex]
+            if startindex > stopindex:
+                startindex, stopindex = stopindex, startindex
+
+            sum = 0.5 * (array[startindex] + array[stopindex])
 
             for i in range(startindex + 1, stopindex):
                 sum += array[i]
@@ -1590,7 +1571,7 @@ class CMolStat:
                 if data[i] > (max / 2) and not point1:
                     point1 = True
                     hm1 = i
-                if data[i] < (max / 2) and not point2:
+                if data[i] < (max / 2) and point1 and not point2:
                     point2 = True
                     hm2 = i - 1
                     break
@@ -2428,7 +2409,7 @@ class CMolStat:
                                                            fLowLim, self.diParameters[parameter]['upperlimit']))
         print('Chi squared: %g' % self.chisq)
 
-    def fnPullMolgroup(self, liMolgroupNames, sparse=0):
+    def fnPullMolgroup(self, liMolgroupNames, sparse=0, verbose=True):
         """
         Calls Function that recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2437,7 +2418,7 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         Saves results to file
         """
-        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse)
+        diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse, verbose=verbose)
         diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
 
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_area.dat', diarea)
@@ -2445,7 +2426,7 @@ class CMolStat:
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsld.dat', dinsld)
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroupsstat.dat', diStat)
 
-    def fnPullMolgroupLoader(self, liMolgroupNames, sparse=0):
+    def fnPullMolgroupLoader(self, liMolgroupNames, sparse=0, verbose=True):
         """
         Function recreates statistical data and extracts only area and nSL profiles for
         submolecular groups whose names are given in liMolgroupNames. Those groups
@@ -2461,7 +2442,7 @@ class CMolStat:
         except IOError:
             print('Failure to load StatDataPython.dat.')
             print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical(sparse=sparse)
+            self.fnRecreateStatistical(sparse=sparse, verbose=verbose)
 
         diarea = {
             'zaxis': self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']}
@@ -2540,7 +2521,7 @@ class CMolStat:
 
         return diStat
 
-    def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0):
+    def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0, verbose=True):
 
         # Recreates profile and fit data associated with stat file
         from sys import stdout
@@ -2568,7 +2549,7 @@ class CMolStat:
                     if element not in list(self.diStatResults['Parameters'].keys()):
                         bConsistency = False
                 if bConsistency:  # check for consistency
-                    print('Processing parameter set %i.\n' % (j))
+                    if verbose: print('Processing parameter set %i.\n' % (j))
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
@@ -2601,11 +2582,11 @@ class CMolStat:
                         for M in problem.models:
                             z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
                             self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                            print(M.chisq())
+                            if verbose: print(M.chisq())
                     else:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                        print(problem.chisq())
+                        if verbose: print(problem.chisq())
 
                     if bRecreateMolgroups:
                         self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)

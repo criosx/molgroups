@@ -6,10 +6,9 @@ import molgroups as mol
 def graphBumpsResults(filename):
     q, F, dq, Fy = np.loadtxt(filename, skiprows=1).T
     fig, axes = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": [3, 1]})
-    # fig.set_size_inches(10, 5.5)
-    axes[0].plot(q, Fy, zorder=2)
-    axes[0].errorbar(q, F, dq, zorder=1)
-    axes[0].legend(["model", "experiment"], fontsize=8)
+    axes[0].plot(q, Fy, zorder=2, label='model')
+    axes[0].errorbar(q, F, dq, zorder=1, label='experiment')
+    axes[0].legend(fontsize=8)
     axes[0].set_xlim([q[0], q[-1]])
     axes[0].set_ylabel("|F| (1/Å)", fontsize=10)
     axes[0].tick_params(axis="both", which="major", direction="in", labelsize=10)
