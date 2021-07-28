@@ -510,7 +510,6 @@ class BLM_quaternary(CompositenSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
         
         self.l_lipid1 = max(self.l_lipid1, 0.01)
@@ -519,7 +518,7 @@ class BLM_quaternary(CompositenSLDObj):
         self.nf_lipid_3 = max(self.nf_lipid_3, 0)
         self.nf_chol = max(self.nf_chol, 0)
         sum = self.nf_lipid_2 + self.nf_lipid_3 + self.nf_chol
-        if sum > 1: #modified so these are all divided by the same sum
+        if sum > 1:
             self.nf_lipid_2 = self.nf_lipid_2 / sum
             self.nf_lipid_3 = self.nf_lipid_3 / sum
             self.nf_chol = self.nf_chol / sum
@@ -540,12 +539,10 @@ class BLM_quaternary(CompositenSLDObj):
         c_A_ohc = 1
         c_V_ohc = 1
         
-        # printf("ssBLM: normarea %lf \n",normarea)
         self.lipid2.l = l_ohc
         self.lipid2.vol = V_ohc
         self.lipid2.nSL = nSL_ohc
         self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
-        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
         
         # outer methyl
         nf_om_lipid = nf_ohc_lipid
@@ -610,9 +607,6 @@ class BLM_quaternary(CompositenSLDObj):
         self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
         self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
 
-        print(self.hc_substitution_1)
-        print(self.hc_substitution_2)
-
         self.lipid1.z= self.startz + self.headgroup1.l + 0.5 * self.lipid1.l
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
         self.headgroup1.fnAdjustParameters()
@@ -632,13 +626,10 @@ class BLM_quaternary(CompositenSLDObj):
         
         if self.radius_defect<(0.5*(hclength+hglength)):
             self.radius_defect = 0.5 * (hclength+hglength)
-        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
         
         volhalftorus = 3.14159265359 * 3.14159265359 * (self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
         volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
-        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
         defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
-        # printf("defectarea %lf \n", defectarea)
         
         self.defect_hydrocarbon.vol = defectarea * hclength
         self.defect_hydrocarbon.l = hclength
@@ -928,7 +919,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
 
         if self.l_lipid1 <= 0:
@@ -949,10 +939,6 @@ class ssBLM_quaternary(CompositenSLDObj):
             self.vf_bilayer = 1e-5
         if self.vf_bilayer > 1:
             self.vf_bilayer = 1
-
-        # def ssBLM_quaternary::fnAdjustParameters()
-        # def fnAdjustParameters(self):
-        # printf("Enter AdjustParameters \n")
 
         self.substrate.fnSetSigma(self.global_rough)
         self.siox.fnSetSigma(self.global_rough)
@@ -976,12 +962,10 @@ class ssBLM_quaternary(CompositenSLDObj):
         c_A_ohc = 1
         c_V_ohc = 1
 
-        # printf("ssBLM: normarea %lf \n",normarea)
         self.lipid2.l = l_ohc
         self.lipid2.vol = V_ohc
         self.lipid2.nSL = nSL_ohc
         self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
-        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
 
         # outer methyl
         nf_om_lipid = nf_ohc_lipid
@@ -1048,7 +1032,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.headgroup1.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid * (1 - self.hc_substitution_1)
         self.headgroup1_2.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_2 * (1 - self.hc_substitution_1)
         self.headgroup1_3.nf = c_s_ihc * c_A_ihc * nf_ihc_lipid_3 * (1 - self.hc_substitution_1)
-        # printf("c: c_s_ihc %lf c_A_ihc %lf nf_ihc_lipid %lf hc_substitution_1 %lf \n", c_s_ihc, c_A_ihc, nf_ihc_lipid, hc_substitution_1)
 
         # substrate
         self.substrate.vol = self.normarea * self.substrate.l
@@ -1069,7 +1052,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.headgroup2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2.l)
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
-        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
 
         # defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
@@ -1077,14 +1059,11 @@ class ssBLM_quaternary(CompositenSLDObj):
 
         if self.radius_defect < (0.5 * (hclength + hglength)):
             self.radius_defect = 0.5 * (hclength + hglength)
-        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
 
         volhalftorus = 3.14159265359 * 3.14159265359 * (
                     self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
         volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
-        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
         defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
-        # printf("defectarea %lf \n", defectarea)
 
         self.defect_hydrocarbon.vol = defectarea * hclength
         self.defect_hydrocarbon.l = hclength
@@ -1104,7 +1083,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
-    # printf("Exit AdjustParameters \n")
 
     # Use limits of molecular subgroups
     def fnGetLowerLimit(self):
@@ -1115,10 +1093,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         b = self.headgroup2_2.fnGetUpperLimit()
         c = self.headgroup2_3.fnGetUpperLimit()
         return max([a, b, c])
-
-    # void ssBLM_quaternary::fnSet(double _sigma, double _global_rough, double _rho_substrate, double _bulknsld, double _rho_siox, double _l_siox, double _l_submembrane,  double _l_lipid1, double _l_lipid2, double _vf_bilayer, double _nf_lipid_2, double _nf_lipid_3, double _nf_chol, double _hc_substitution_1, double _hc_substitution_2, double _radius_defect){
-
-    # printf("Enter fnSet \n")
 
     def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _rho_siox, _l_siox, _l_submembrane, _l_lipid1,
               _l_lipid2, _vf_bilayer, _nf_lipid_2=0., _nf_lipid_3=0., _nf_chol=0., _hc_substitution_1=0.,
@@ -1141,8 +1115,6 @@ class ssBLM_quaternary(CompositenSLDObj):
         self.radius_defect = _radius_defect
 
         self.fnAdjustParameters()
-
-    # printf("Exit fnSet \n")
 
     def fnSetSigma(self, sigma):
         self.substrate.sigma2 = self.global_rough
@@ -1309,7 +1281,6 @@ class tBLM_quaternary(CompositenSLDObj):
         self.fnAdjustParameters()
 
     def fnAdjustParameters(self):
-        # printf("Enter AdjustParameters \n")
         self.fnSetSigma(self.sigma)
 
         if self.l_lipid1 <= 0:
@@ -1351,13 +1322,10 @@ class tBLM_quaternary(CompositenSLDObj):
         c_A_ohc = 1
         c_V_ohc = 1
 
-        # printf("ssBLM: normarea %lf \n",normarea)
-
         self.lipid2.l = l_ohc
         self.lipid2.vol = V_ohc
         self.lipid2.nSL = nSL_ohc
         self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
-        # printf("c: c_s_ohc %lf c_A_ohc %lf c_V_ohc %lf \n", c_s_ohc, c_A_ohc, c_V_ohc)
 
         # outer methyl
         nf_om_lipid = nf_ohc_lipid
@@ -1498,21 +1466,17 @@ class tBLM_quaternary(CompositenSLDObj):
         self.headgroup2_2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_2.l)
         self.headgroup2_3.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * self.headgroup2_3.l)
 
-        # printf("nf bme %lf tether %lf tetherg %lf lipid1 %lf headgroup1 %lf headgroup1_2 %lf headgroup1_3 %lf methyl1 %lf methyl2 %lf lipid2 %lf headgroup2 %lf headgroup2_2 %lf headgroup2_3 %lf \n", bME.nf, tether.nf, tetherg.nf, lipid1.nf, headgroup1.nf, headgroup1_2.nf, headgroup1_3.nf, methyl1.nf, methyl2.nf, lipid2.nf, headgroup2.nf, headgroup2_2.nf, headgroup2_3.nf)
         # defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
         hglength = self.headgroup1.l + self.headgroup2.l
 
         if self.radius_defect < (0.5 * (hclength + hglength)):
             self.radius_defect = 0.5 * (hclength + hglength)
-        # printf("defect_radius %lf hclength %lf \n",radius_defect, hclength)
 
         volhalftorus = 3.14159265359 * 3.14159265359 * (
                     self.radius_defect - (2 * hclength / 3 / 3.14159265359)) * hclength * hclength / 4
         volcylinder = 3.14159265359 * self.radius_defect * self.radius_defect * hclength
-        # printf("volhalftorus %lf volcylinder %lf \n", volhalftorus, volcylinder)
         defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
-        # printf("defectarea %lf \n", defectarea)
 
         self.defect_hydrocarbon.vol = defectarea * hclength
         self.defect_hydrocarbon.l = hclength
