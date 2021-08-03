@@ -1657,7 +1657,7 @@ class Hermite(nSLDObj):
         z2 = max(self.fnGetLowerLimit(), z2)
         z2 = min(self.fnGetUpperLimit(), z2)
 
-        return self.area_spline_integral(z2) - self.area_spline_integral(z1)
+        return (self.area_spline_integral(z2) - self.area_spline_integral(z1)) * self.nf * self.normarea
 
     def fnSetNormarea(self, dnormarea): 
         self.normarea = dnormarea
