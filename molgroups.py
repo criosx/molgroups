@@ -306,16 +306,16 @@ class PC(CompositenSLDObj):
         self.l = 9.575
         self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
-        self.ph_relative_pos = .5
+        self.ph_relative_pos = .58
         self.nf = 1.
         self.fnAdjustParameters()
         self.fnFindSubgroups()
 
     def fnAdjustParameters(self):
-        self.cg.z = self.z - 0.5*self.l + 0.5*self.cg.l
-        self.choline.z = self.z + 0.5*self.l - 0.5*self.choline.l
-        z0 = self.cg.z + 0.5*self.cg.l
-        z1 = self.choline.z - 0.5*self.choline.l
+        self.cg.z = self.z - 0.5 * self.l + 0.5*self.cg.l
+        self.choline.z = self.z + 0.5 * self.l - 0.5*self.choline.l
+        z0 = self.z - 0.5*self.l + 0.5 * self.phosphate.l
+        z1 = self.z + 0.5 * self.l - 0.5*self.phosphate.l
         self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
     def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
@@ -358,20 +358,20 @@ class PC(CompositenSLDObj):
 class PCm(PC):
     def __init__ (self, **kwargs):
         super().__init__(**kwargs)
-        self.cg.sigma2=2.53
-        self.cg.sigma1=2.29
-        self.phosphate.sigma2=2.29
-        self.phosphate.sigma1=2.02
-        self.choline.sigma2=2.02
-        self.choline.sigma1=2.26
+        self.cg.sigma2 = 2.53
+        self.cg.sigma1 = 2.29
+        self.phosphate.sigma2 = 2.29
+        self.phosphate.sigma1 = 2.02
+        self.choline.sigma2 = 2.02
+        self.choline.sigma1 = 2.26
         self.fnAdjustParameters()
         
     def fnAdjustParameters(self):
-        self.cg.z = self.z + 0.5*self.l-0.5*self.cg.l
-        self.choline.z = self.z - 0.5*self.l+0.5*self.choline.l
-        z0 = self.choline.z + 0.5*self.choline.l
-        z1 = self.cg.z - 0.5*self.cg.l
-        self.phosphate.z = z0 + (z1 - z0) * (1-self.ph_relative_pos)
+        self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
+        self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
+        z0 = self.z - 0.5 * self.l + 0.5 * self.phosphate.l
+        z1 = self.z + 0.5 * self.l - 0.5 * self.phosphate.l
+        self.phosphate.z = z0 + (z1 - z0) * (1 - self.ph_relative_pos)
 
     def fnGetLowerLimit(self):
         return self.choline.fnGetLowerLimit()
