@@ -186,7 +186,7 @@ class CompositenSLDObj(nSLDObj):
 
         for g in self.subgroups:
             #g.fnWritePar2File(f, cName + '.' + g.name, z) # this allows objects with the same names from multiple bilayers
-            g.fnWritePar2File(f, g.name, z) # current behavior
+            g.fnWritePar2File(f, cName+'_'+g.name, z) # current behavior
 
 # ------------------------------------------------------------------------------------------------------
 # Function Object Implementation
@@ -356,6 +356,8 @@ class PC(CompositenSLDObj):
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol)+" nf " + str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
+        super().fnWritePar2File(fp, cName, z)
+
 class PCm(PC):
     def __init__ (self, **kwargs):
         super().__init__(**kwargs)
@@ -384,6 +386,9 @@ class PCm(PC):
         fp.write("PCm " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf) + " \n")
         self.fnWriteData2File(fp, cName, z)
+
+        super().fnWritePar2File(fp, cName, z)
+
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -698,7 +703,7 @@ class BLM_quaternary(CompositenSLDObj):
 
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
-        self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
+        self.fnWriteConstant(fp, cName+"_normarea", self.normarea, 0, z)
 
 class child_ssBLM_quaternary(BLM_quaternary):
     def __init__(self, **kwargs):

@@ -893,7 +893,7 @@ class CMolStat:
                     f_com = 1E5
                     f_int = 0  # total integral in volume per surface area (unit: Å)
                     # taking into account grid spacing of z-axis
-                f_int = f_int / mgdict['normarea']['areaaxis'][0]
+                f_int = f_int / mgdict['bilayer_normarea']['areaaxis'][0]
 
                 #                for j in range(len(mgdict[sMolgroup]['areaaxis'])):
                 #                    if mgdict[sMolgroup]['areaaxis'][j]:
@@ -918,101 +918,101 @@ class CMolStat:
 
             # percentage water in sub-membrane space and other regions for tBLM and other bilayer
             # get vf_bilayer from molecular group lipid2
-            vf_bilayer = float(mgdict['lipid2']['headerdata']['nf'])
+            vf_bilayer = float(mgdict['bilayer_lipid2']['headerdata']['nf'])
 
             # prepare arrays for summing up molgroups
-            total_components = numpy.zeros(len(mgdict['normarea']['areaaxis']))
+            total_components = numpy.zeros(len(mgdict['bilayer_normarea']['areaaxis']))
 
-            if 'headgroup1' in l_molgroups:
-                total_components += numpy.array(mgdict['headgroup1']['areaaxis'])
-                f_vol_headgroup1 = float(mgdict['headgroup1']['headerdata']['vol']) * \
-                    float(mgdict['headgroup1']['headerdata']['nf'])
+            if 'bilayer_headgroup1' in l_molgroups:
+                total_components += numpy.array(mgdict['bilayer_headgroup1']['areaaxis'])
+                f_vol_headgroup1 = float(mgdict['bilayer_headgroup1']['headerdata']['vol']) * \
+                    float(mgdict['bilayer_headgroup1']['headerdata']['nf'])
                 # look for other headgroups
                 j = 2
                 while True:
-                    if 'headgroup1_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['headgroup1_' + str(j)]['areaaxis'])
-                        f_vol_headgroup1 += float(mgdict['headgroup1_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['headgroup1_' + str(j)]['headerdata']['nf'])
+                    if 'bilayer_headgroup1_' + str(j) in l_molgroups:
+                        total_components += numpy.array(mgdict['bilayer_headgroup1_' + str(j)]['areaaxis'])
+                        f_vol_headgroup1 += float(mgdict['bilayer_headgroup1_' + str(j)]['headerdata']['vol']) * \
+                            float(mgdict['bilayer_headgroup1_' + str(j)]['headerdata']['nf'])
                     else:
                         break
                     j += 1
 
-                if 'tether' in l_molgroups and 'tetherg' in l_molgroups \
-                        and 'normarea' in l_molgroups and 'bME' in l_molgroups:
+                if 'bilayer_tether' in l_molgroups and 'bilayer_tetherg' in l_molgroups \
+                        and 'bilayer_normarea' in l_molgroups and 'bilayer_bME' in l_molgroups:
 
-                    f_vol_submembrane = mgdict['normarea']['areaaxis'][0] * \
-                        (float(mgdict['tether']['headerdata']['l']) + float(mgdict['tetherg']['headerdata']['l'])) * \
+                    f_vol_submembrane = mgdict['bilayer_normarea']['areaaxis'][0] * \
+                        (float(mgdict['bilayer_tether']['headerdata']['l']) + float(mgdict['bilayer_tetherg']['headerdata']['l'])) * \
                         vf_bilayer
 
                     # sub membrane components
-                    f_vol_components = float(mgdict['bME']['headerdata']['vol']) * \
-                        float(mgdict['bME']['headerdata']['nf']) + float(mgdict['tether']['headerdata']['vol']) * \
-                        float(mgdict['tether']['headerdata']['nf']) + float(mgdict['tetherg']['headerdata']['vol']) * \
-                        float(mgdict['tetherg']['headerdata']['nf']) + f_vol_headgroup1
+                    f_vol_components = float(mgdict['bilayer_bME']['headerdata']['vol']) * \
+                        float(mgdict['bilayer_bME']['headerdata']['nf']) + float(mgdict['bilayer_tether']['headerdata']['vol']) * \
+                        float(mgdict['bilayer_tether']['headerdata']['nf']) + float(mgdict['bilayer_tetherg']['headerdata']['vol']) * \
+                        float(mgdict['bilayer_tetherg']['headerdata']['nf']) + f_vol_headgroup1
 
-                    f_total_tether_length = float(mgdict['tether']['headerdata']['l']) + \
-                        float(mgdict['tetherg']['headerdata']['l'])
+                    f_total_tether_length = float(mgdict['bilayer_tether']['headerdata']['l']) + \
+                        float(mgdict['bilayer_tetherg']['headerdata']['l'])
                     if 'fTotalTetherLength' not in list(diResults.keys()):
                         diResults['fTotalTetherLength'] = []
                     diResults['fTotalTetherLength'].append(f_total_tether_length)
 
-                    f_tether_density = float(mgdict['tether']['headerdata']['nf']) / mgdict['normarea']['areaaxis'][0]
+                    f_tether_density = float(mgdict['bilayer_tether']['headerdata']['nf']) / mgdict['bilayer_normarea']['areaaxis'][0]
                     if 'fTetherDensity' not in list(diResults.keys()):
                         diResults['fTetherDensity'] = []
                     diResults['fTetherDensity'].append(f_tether_density)
 
-                    total_components += numpy.array(mgdict['bME']['areaaxis']) + \
-                        numpy.array(mgdict['tether']['areaaxis']) + numpy.array(mgdict['tetherg']['areaaxis'])
+                    total_components += numpy.array(mgdict['bilayer_bME']['areaaxis']) + \
+                        numpy.array(mgdict['bilayer_tether']['areaaxis']) + numpy.array(mgdict['bilayer_tetherg']['areaaxis'])
 
-            if 'lipid1' in l_molgroups and 'methyl1' in l_molgroups:
+            if 'bilayer_lipid1' in l_molgroups and 'bilayer_methyl1' in l_molgroups:
 
-                f_total_lipid1_length = float(mgdict['lipid1']['headerdata']['l']) + float(
-                    mgdict['methyl1']['headerdata']['l'])
+                f_total_lipid1_length = float(mgdict['bilayer_lipid1']['headerdata']['l']) + float(
+                    mgdict['bilayer_methyl1']['headerdata']['l'])
                 if 'fTotalLipid1Length' not in list(diResults.keys()):
                     diResults['fTotalLipid1Length'] = []
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
 
-                total_components += numpy.array(mgdict['lipid1']['areaaxis']) + \
-                    numpy.array(mgdict['methyl1']['areaaxis'])
+                total_components += numpy.array(mgdict['bilayer_lipid1']['areaaxis']) + \
+                    numpy.array(mgdict['bilayer_methyl1']['areaaxis'])
 
-            if 'lipid2' in l_molgroups and 'methyl2' in l_molgroups:
+            if 'bilayer_lipid2' in l_molgroups and 'bilayer_methyl2' in l_molgroups:
 
-                f_total_lipid2_length = float(mgdict['lipid2']['headerdata']['l']) + float(
-                    mgdict['methyl2']['headerdata']['l'])
+                f_total_lipid2_length = float(mgdict['bilayer_lipid2']['headerdata']['l']) + float(
+                    mgdict['bilayer_methyl2']['headerdata']['l'])
                 if 'fTotalLipid2Length' not in list(diResults.keys()):
                     diResults['fTotalLipid2Length'] = []
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
-                f_area_per_lipid2 = float(mgdict['lipid2']['headerdata']['vol']) / float(
-                    mgdict['lipid2']['headerdata']['l'])
+                f_area_per_lipid2 = float(mgdict['bilayer_lipid2']['headerdata']['vol']) / float(
+                    mgdict['bilayer_lipid2']['headerdata']['l'])
                 if 'fAreaPerLipid2' not in list(diResults.keys()):
                     diResults['fAreaPerLipid2'] = []
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
-                total_components += numpy.array(mgdict['lipid2']['areaaxis']) + \
-                    numpy.array(mgdict['methyl2']['areaaxis'])
+                total_components += numpy.array(mgdict['bilayer_lipid2']['areaaxis']) + \
+                    numpy.array(mgdict['bilayer_methyl2']['areaaxis'])
 
-            if 'headgroup2' in l_molgroups:
-                f_vol_headgroup2 = float(mgdict['headgroup2']['headerdata']['vol']) * \
-                    float(mgdict['headgroup2']['headerdata']['nf'])
-                total_components += numpy.array(mgdict['headgroup2']['areaaxis'])
+            if 'bilayer_headgroup2' in l_molgroups:
+                f_vol_headgroup2 = float(mgdict['bilayer_headgroup2']['headerdata']['vol']) * \
+                    float(mgdict['bilayer_headgroup2']['headerdata']['nf'])
+                total_components += numpy.array(mgdict['bilayer_headgroup2']['areaaxis'])
                 # look for other headgroups
                 j = 2
                 while True:
-                    if 'headgroup2_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['headgroup2_' + str(j)]['areaaxis'])
-                        f_vol_headgroup2 += float(mgdict['headgroup2_' + str(j)]['headerdata']['vol']) * \
-                                          float(mgdict['headgroup2_' + str(j)]['headerdata']['nf'])
+                    if 'bilayer_headgroup2_' + str(j) in l_molgroups:
+                        total_components += numpy.array(mgdict['bilayer_headgroup2_' + str(j)]['areaaxis'])
+                        f_vol_headgroup2 += float(mgdict['bilayer_headgroup2_' + str(j)]['headerdata']['vol']) * \
+                                          float(mgdict['bilayer_headgroup2_' + str(j)]['headerdata']['nf'])
                     else:
                         break
                     j += 1
 
-            if 'defect_hc' in l_molgroups:
-                total_components = total_components + mgdict['defect_hc']['areaaxis']
+            if 'bilayer_defect_hc' in l_molgroups:
+                total_components = total_components + mgdict['bilayer_defect_hc']['areaaxis']
                 
-            if 'defect_hg' in l_molgroups:
-                total_components = total_components + mgdict['defect_hg']['areaaxis']
+            if 'bilayer_defect_hg' in l_molgroups:
+                total_components = total_components + mgdict['bilayer_defect_hg']['areaaxis']
 
             if 'protein' in l_molgroups:
                 total_components = total_components + mgdict['protein']['areaaxis']
@@ -1021,19 +1021,19 @@ class CMolStat:
                         total_components[i] = vf_bilayer * mgdict['normarea']['areaaxis'][i]
 
             # calculate water and protein fractions if bilayer is present
-            if 'headgroup1' in l_molgroups:
-                f_start_hg1 = float(mgdict['headgroup1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['headgroup1']['headerdata']['l'])
-                f_start_hc = float(mgdict['lipid1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['lipid1']['headerdata']['l'])
-                f_start_methyl2 = float(mgdict['methyl2']['headerdata']['z']) - 0.5 * float(
-                    mgdict['methyl2']['headerdata']['l'])
-                f_start_hg2 = float(mgdict['headgroup2']['headerdata']['z']) - 0.5 * float(
-                    mgdict['headgroup2']['headerdata']['l'])
-                f_startbulk = float(mgdict['headgroup2']['headerdata']['z']) + 0.5 * float(
-                    mgdict['headgroup2']['headerdata']['l'])
+            if 'bilayer_headgroup1' in l_molgroups:
+                f_start_hg1 = float(mgdict['bilayer_headgroup1']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer_headgroup1']['headerdata']['l'])
+                f_start_hc = float(mgdict['bilayer_lipid1']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer_lipid1']['headerdata']['l'])
+                f_start_methyl2 = float(mgdict['bilayer_methyl2']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer_methyl2']['headerdata']['l'])
+                f_start_hg2 = float(mgdict['bilayer_headgroup2']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer_headgroup2']['headerdata']['l'])
+                f_startbulk = float(mgdict['bilayer_headgroup2']['headerdata']['z']) + 0.5 * float(
+                    mgdict['bilayer_headgroup2']['headerdata']['l'])
 
-                f_step_size = mgdict['normarea']['zaxis'][1] - mgdict['normarea']['zaxis'][0]
+                f_step_size = mgdict['bilayer_normarea']['zaxis'][1] - mgdict['bilayer_normarea']['zaxis'][0]
 
                 i_start_hg1 = int(floor(f_start_hg1 / f_step_size + 0.5))
                 i_start_hc = int(floor(f_start_hc / f_step_size + 0.5))
@@ -1041,7 +1041,7 @@ class CMolStat:
                 i_start_hg2 = int(floor(f_start_hg2 / f_step_size + 0.5))
                 i_start_bulk = int(floor(f_startbulk / f_step_size + 0.5))
 
-                ref = mgdict['normarea']['areaaxis']
+                ref = mgdict['bilayer_normarea']['areaaxis']
                 ratio = 1 - sum(total_components[0:i_start_hg1]) / sum(ref[0:i_start_hg1])
                 if 'WaterFracSubMembrane' not in list(diResults.keys()):
                     diResults['WaterFracSubMembrane'] = []
@@ -1588,8 +1588,9 @@ class CMolStat:
 
         # initialize Statistical Dictionary
         print('Initializing ...')
-        lGroupList = ['substrate', 'siox', 'tether', 'innerhg', 'innerhc', 'outerhc', 'outerhg', 'protein',
-                      'sum', 'water']
+        lGroupList = ['substrate', 'siox', 'tether', 'innerhg', 'inner_cg', 'inner_phosphate', 'inner_choline',
+                      'innerhc', 'innerch2', 'innerch3', 'outerhc', 'outerch2', 'outerch3', 'outerhg',
+                      'outer_cg', 'outer_phosphate', 'outer_choline', 'protein', 'sum', 'water']
         diStat = {}
         for element in lGroupList:
             diStat[element] = []
@@ -1614,19 +1615,29 @@ class CMolStat:
         # entries next
         print('Pulling all molgroups ...')
         print('  substrate ...')
-        diIterations['substrate'], __, __ = self.fnPullMolgroupLoader(['substrate'])
+        diIterations['substrate'], __, __ = self.fnPullMolgroupLoader(['bilayer_substrate'])
         print('  siox ...')
-        diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['siox'])
+        diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer_siox'])
         print('  tether ...')
-        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bME', 'tetherg', 'tether'])
+        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer_bME', 'bilayer_tetherg', 'bilayer_tether'])
         print('  innerhg ...')
-        diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(['headgroup1', 'headgroup1_2', 'headgroup1_3'])
+        diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1', 'bilayer_headgroup1_2', 'bilayer_headgroup1_3'])
+        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_cg'])
+        diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_phosphate'])
+        diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_choline'])
         print('  innerhc ...')
-        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(['lipid1', 'methyl1'])
+        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid1', 'bilayer_methyl1'])
+        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid1'])
+        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer_methyl1'])
         print('  outerhc ...')
-        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(['lipid2', 'methyl2'])
+        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid2', 'bilayer_methyl2'])
+        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid2'])
+        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer_methyl2'])
         print('  outerhg ...')
-        diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(['headgroup2', 'headgroup2_2', 'headgroup2_3'])
+        diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2', 'bilayer_headgroup2_2', 'bilayer_headgroup2_3'])
+        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_cg'])
+        diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_phosphate'])
+        diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_choline'])
         print('  protein ...')
         diIterations['protein'], __, __ = self.fnPullMolgroupLoader(['protein'])
 
