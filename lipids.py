@@ -51,12 +51,8 @@ class Lipid(object):
             TypeError('Lipid.tails must be Molecule or list of Molecules')
         
         self.hg = hg
-        if isinstance(hg, Molecule):
-            hg_volume = hg.cell_volume
-        elif isinstance(hg, CompositenSLDObj):
-            hg_volume = sum([g.vol for g in hg.subgroups])
-        else:
-            TypeError('Lipid.hg must be Headgroup or CompositenSLDObj')
+        assert(isinstance(hg, Molecule) | isinstance(hg, CompositenSLDObj))
+        TypeError('Lipid.hg must be Headgroup or CompositenSLDObj')
 
 if __name__ == '__main__':
     dopc = Lipid()
