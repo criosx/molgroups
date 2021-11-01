@@ -10,7 +10,7 @@ from random import seed, normalvariate, random
 from re import VERBOSE, IGNORECASE, compile
 from scipy import stats, special
 from shutil import rmtree
-from sys import argv, exit
+from sys import argv, exit, stdout
 from subprocess import call, Popen
 from time import time, gmtime, sleep, ctime
 import zipfile
@@ -423,6 +423,7 @@ class CBumpsInteractor(CDataInteractor):
         return state
 
     def fnRestoreMolgroups(self, problem):
+        # Populates the diMolgroups dictionary based from a saved molgroups.dat file
         diMolgroups = self.fnLoadMolgroups()
         return diMolgroups
 
@@ -431,6 +432,20 @@ class CBumpsInteractor(CDataInteractor):
         # TODO: Decide what and if to return SLD profile for Bumps fits
         z, rho, irho = M.sld, [], []
         return z, rho, irho
+
+    def fnSaveMolgroups(self, problem):
+        # saves bilayer and protein information from a bumps / refl1d problem object into a mol.dat file
+        # sequentially using the methods provided in molgroups
+        fp = open(self.spath + '/mol.dat', "w")
+        z = numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False)
+        try:
+            problem.extra[0].fnWritePar2File(fp, 'bilayer', z)
+            problem.extra[1].fnWritePar2File(fp, 'protein', z)
+        except:
+            problem.extra.fnWritePar2File(fp, 'bilayer', z)
+        fp.close()
+        stdout.flush()
+
 
 
 # Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
@@ -2535,7 +2550,6 @@ class CMolStat:
     def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0, verbose=True):
 
         # Recreates profile and fit data associated with stat file
-        from sys import stdout
 
         self.fnLoadParameters()
         self.fnLoadStatData(sparse)
@@ -2579,15 +2593,8 @@ class CMolStat:
                     else:
                         problem.chisq()
 
-                    fp = open(self.spath+'/mol.dat', "w")
-                    z = numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False)
-                    try:
-                        problem.extra[0].fnWritePar2File(fp, 'bilayer', z)
-                        problem.extra[1].fnWritePar2File(fp, 'protein', z)
-                    except:
-                        problem.extra.fnWritePar2File(fp, 'bilayer', z)
-                    fp.close()
-                    stdout.flush()
+                    self.Interactor.fnSaveMolgroups(problem)
+
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
