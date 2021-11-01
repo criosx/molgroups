@@ -275,30 +275,46 @@ class Box2Err(nSLDObj):
 # Headgroups
 # ------------------------------------------------------------------------------------------------------
 
+# TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
+# is in the inner or outer leaflet. The profiles so obtained should be flipped. This should perhaps
+# be standardized, (1) by creating a CompositeHeadgroup class that has this flag already, and (2) by
+# finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
 
 class PC(CompositenSLDObj):
-    def __init__(self, **kwargs):
+    def __init__(self, innerleaflet=False, **kwargs):
+        # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
+        # and choline groups. If False, it's the outer leaflet
         super().__init__(**kwargs)
         self.cg = Box2Err(name='cg')
         self.phosphate = Box2Err(name='phosphate')
         self.choline = Box2Err(name='choline')
+        
+        self.innerleaflet = innerleaflet
 
         self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
 
         self.cg.l = 4.21 
-        self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
         self.cg.vol=147 
         self.cg.nSL=3.7755e-4
 
         self.phosphate.l = 3.86
-        self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
         self.phosphate.vol=54 
         self.phosphate.nSL=2.8350e-4 
 
         self.choline.l = 6.34
-        self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
         self.choline.vol=120
         self.choline.nSL=-6.0930e-5
+
+        if innerleaflet:
+
+            self.cg.sigma2, self.cg.sigma1 = 2.53, 2.29
+            self.phosphate.sigma2, self.phosphate.sigma1 = 2.29, 2.02
+            self.choline.sigma2, self.choline.sigma1 = 2.02, 2.26
+
+        else:
+            self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
+            self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
+            self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
 
         self.cg.nf=1 
         self.phosphate.nf=1 
@@ -313,11 +329,18 @@ class PC(CompositenSLDObj):
         self.fnFindSubgroups()
 
     def fnAdjustParameters(self):
-        self.cg.z = self.z - 0.5 * self.l + 0.5*self.cg.l
-        self.choline.z = self.z + 0.5 * self.l - 0.5*self.choline.l
-        z0 = self.z - 0.5*self.l + 0.5 * self.phosphate.l
-        z1 = self.z + 0.5 * self.l - 0.5*self.phosphate.l
-        self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
+        if self.innerleaflet:
+            self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
+            self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
+            z0 = self.z - 0.5 * self.l + 0.5 * self.phosphate.l
+            z1 = self.z + 0.5 * self.l - 0.5 * self.phosphate.l
+            self.phosphate.z = z0 + (z1 - z0) * (1 - self.ph_relative_pos)
+        else:
+            self.cg.z = self.z - 0.5 * self.l + 0.5*self.cg.l
+            self.choline.z = self.z + 0.5 * self.l - 0.5*self.choline.l
+            z0 = self.z - 0.5*self.l + 0.5 * self.phosphate.l
+            z1 = self.z + 0.5 * self.l - 0.5*self.phosphate.l
+            self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
     def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
         self.cg.nSL = cg_nSL
@@ -328,10 +351,10 @@ class PC(CompositenSLDObj):
         self.fnAdjustParameters()
     
     def fnGetLowerLimit(self):
-        return self.cg.fnGetLowerLimit()
+        return self.choline.fnGetLowerLimit() if self.innerleaflet else self.cg.fnGetLowerLimit()
     
     def fnGetUpperLimit(self):
-        return self.choline.fnGetUpperLimit()
+        return self.cg.fnGetUpperLimit() if self.innerleaflet else self.choline.fnGetUpperLimit()
     
     def fnGetnSL(self):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
@@ -352,13 +375,15 @@ class PC(CompositenSLDObj):
         self.fnAdjustParameters()
     
     def fnWritePar2File (self, fp, cName, z):
-        fp.write("PC "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
+        prefix = "PCm" if self.innerleaflet else "PC"
+        fp.write(prefix + " "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol)+" nf " + str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
         super().fnWritePar2File(fp, cName, z)
 
 class PCm(PC):
+    # deprecated. Use PC(innerleaflet=True)
     def __init__ (self, **kwargs):
         super().__init__(**kwargs)
         self.cg.sigma2 = 2.53
