@@ -593,8 +593,14 @@ class BLM_arbitrary(CompositenSLDObj):
         self.fnFindSubgroups()
         
     def fnAdjustParameters(self):
+
+        self._adjust_lipids()
+        self._adjust_z(self.startz + self.av_hg1_l)
+        self._adjust_defects()
         self.fnSetSigma(self.sigma)
-        
+
+    def _adjust_lipids(self):
+
         self.l_lipid1 = max(self.l_lipid1, 0.01)
         self.l_lipid2 = max(self.l_lipid2, 0.01)
         for nf in self.lipid_nf:
@@ -607,8 +613,8 @@ class BLM_arbitrary(CompositenSLDObj):
         self.vf_bilayer = min(self.vf_bilayer, 1)
 
         # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
-        av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
-        av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
         
         # outer hydrocarbons
         l_ohc = self.l_lipid2
@@ -689,27 +695,19 @@ class BLM_arbitrary(CompositenSLDObj):
         self.methyl1.vol = V_im
         self.methyl1.nSL = nSL_im
         self.methyl1.nf = c_s_im * c_A_im * c_V_im
-        
-        self.lipid1.z= self.startz + av_hg1_l + 0.5 * self.lipid1.l # change here: use average headgroup length instead of a specific headgroup
-        self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
-        self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
-        self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
 
         # headgroup size and position
         for hg1, nf_ihc, hg2, nf_ohc in zip(self.headgroups1, nf_ihc_lipid, self.headgroups2, nf_ohc_lipid):
             hg2.nf = c_s_ohc * c_A_ohc * nf_ohc * (1 - self.hc_substitution_2)
             hg1.nf = c_s_ihc * c_A_ihc * nf_ihc * (1 - self.hc_substitution_1)
-            hg1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * hg1.l)
-            hg2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * hg2.l)
             if hasattr(hg1, 'fnAdjustParameters'):
                 hg1.fnAdjustParameters()
             if hasattr(hg2, 'fnAdjustParameters'):
                 hg2.fnAdjustParameters()
 
-        # defects
+    def _adjust_defects(self):# defects
         hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
-        hglength = av_hg1_l + av_hg2_l
-        #TODO: Should this be a weighted average length
+        hglength = self.av_hg1_l + self.av_hg2_l
 
         if self.radius_defect<(0.5*(hclength+hglength)):
             self.radius_defect = 0.5 * (hclength+hglength)
@@ -734,6 +732,17 @@ class BLM_arbitrary(CompositenSLDObj):
         #self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetnSL()*self.headgroup2.nf * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
+
+    def _adjust_z(self, startz):
+        # startz is the position of the hg1/lipid1 interface.
+        self.lipid1.z= startz + 0.5 * self.lipid1.l # change here: use average headgroup length instead of a specific headgroup
+        self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
+        self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
+        self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
+
+        for hg1, hg2 in zip(self.headgroups1, self.headgroups2):
+            hg1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * hg1.l)
+            hg2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * hg2.l)
 
     # return value of center of the membrane
     def fnGetCenter(self):
