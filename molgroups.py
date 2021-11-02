@@ -491,6 +491,7 @@ class Lipid(object):
         self.methyls = Molecule(name='methyls', formula = methylformula, cell_volume=methylvolsum)
 
 DOPC = Lipid(name='DOPC', hg=PC, tails=2*[oleoyl])
+DOPS = Lipid(name='DOPS', hg=ps, tails=2*[oleoyl])
 chol = Lipid(name='chol', hg=None, tails=[cholesterol], methyls=None)
 
 # ------------------------------------------------------------------------------------------------------
@@ -532,7 +533,7 @@ class BLM_arbitrary(CompositenSLDObj):
             else:
                 raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
 
-            # Note that because there's always one lipid, the objects headgroup1_1 and headgroup1_2 always exist (and are used later)
+            # Note that because there's always one lipid, the objects self.headgroups1[0] and self.headgroups2[0] always exist
             self.__setattr__(ihg_name, ihg_obj)
             self.headgroups1.append(self.__getattribute__(ihg_name))
             self.__setattr__(ohg_name, ohg_obj)
@@ -589,7 +590,7 @@ class BLM_arbitrary(CompositenSLDObj):
         nf_ohc_lipid = self.lipid_nf
         V_ohc = numpy.sum(nf_ohc_lipid * (self.vol_acyl_lipids - self.vol_methyl_lipids))
         nSL_ohc = numpy.sum(nf_ohc_lipid * (self.nsl_acyl_lipids - self.nsl_methyl_lipids))
-#        V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
+        #V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
         #nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
         
         self.normarea = V_ohc / l_ohc
@@ -702,10 +703,10 @@ class BLM_arbitrary(CompositenSLDObj):
         
         defectratio = self.defect_hydrocarbon.vol / self.lipid2.vol
         #self.defect_headgroup.vol = defectratio * (self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
-        self.defect_headgroup.vol = defectratio * sum([h.nf * h.vol for h in self.headgroups2])
+        self.defect_headgroup.vol = defectratio * numpy.sum([hg.nf * hg.vol for hg in self.headgroups2])
         self.defect_headgroup.l = hclength + hglength
         self.defect_headgroup.z = self.headgroups1[0].fnGetZ() - 0.5 * self.headgroups1[0].l + 0.5 * (hclength + hglength)
-        self.defect_headgroup.nSL = defectratio * sum([h.nf * h.fnGetnSL(self.bulknsld) for h in self.headgroups2])
+        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld) for hg in self.headgroups2])
         #self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetnSL()*self.headgroup2.nf * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
