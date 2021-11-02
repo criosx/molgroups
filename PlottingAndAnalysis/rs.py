@@ -26,6 +26,12 @@ class CDataInteractor():
         self.runfile = runfile
         self.diParameters = {}
 
+    def fnBackup(self):
+        raise NotImplementedError()
+
+    def fnBackupSimdat(self):
+        raise NotImplementedError()
+
     def fnLoadMolgroups(self):
         diMolgroups = {}
         li = []
@@ -83,7 +89,6 @@ class CDataInteractor():
         except IOError:
             print('Could not load ' + sFileName + '. \n')
             exit(1)
-
 
     # The sparse parameter loads only a fraction of the data, if sparse is larger or equal than 1 this equates to the
     # number of lines loaded. If sparse is smaller than one this equates to a probability that any line will be stored
@@ -256,6 +261,9 @@ class CDataInteractor():
             file.writelines(newdata)  # working directory
             file.close()
 
+    def fnRemoveBackup(self):  # deletes the backup directory
+        raise NotImplementedError()
+
     # saves all data out to a file
     @staticmethod
     def fnSaveSingleColumns(sFilename, data):
@@ -291,6 +299,12 @@ class CDataInteractor():
             File.write("\n")
 
         File.close()
+
+    def fnSimulateData(self, liExpression):
+        raise NotImplementedError()
+
+    def fnWriteConstraint2Runfile(self, liExpression):
+        raise NotImplementedError()
 
 
 # Garefl methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
@@ -466,6 +480,41 @@ class CGaReflInteractor(CRefl1DInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
         super().__init__(spath, mcmcpath, runfile)
 
+    def fnBackup(self):
+        if not path.isdir('rsbackup'):  # create backup dir
+            pr = Popen(["mkdir", "rsbackup"])
+            pr.wait()
+        pr = Popen(["cp", "pop.dat", "rsbackup/"])  # save all data that will
+        pr.wait()
+        pr = Popen(["cp", "par.dat", "rsbackup/"])  # change during fit
+        pr.wait()
+        pr = Popen(["cp", "covar.dat", "rsbackup/"])
+        pr.wait()
+        call("cp fit*.dat rsbackup/", shell=True)
+        pr = Popen(["cp", "fit", "rsbackup/"])
+        pr.wait()
+        call("cp model*.dat rsbackup/", shell=True)
+        pr = Popen(["cp", "pop_bak.dat", "rsbackup/"])
+        pr.wait()
+        call("cp profile*.dat rsbackup/", shell=True)
+        call("cp " + self.spath+'/'+self.runfile + " rsbackup/", shell=True)
+        pr = Popen(["cp", "setup.o", "rsbackup/"])
+        pr.wait()
+
+    def fnBackupSimdat(self):
+        def backup_simdat(i):
+            if not path.isfile('simbackup' + str(i) + '.dat'):
+                pr = Popen(["cp", 'sim' + str(i) + '.dat', 'simbackup' + str(i) + '.dat'])
+                pr.wait()
+            else:
+                pr = Popen(["cp", 'simbackup' + str(i) + '.dat', 'sim' + str(i) + '.dat'])
+                pr.wait()
+
+        i = 0
+        while path.isfile('fit' + str(i) + '.dat'):
+            backup_simdat(i)
+            i += 1
+
     def fnGetNumberOfModelsFromSetupC(self):
         file = open(self.runfile, "r")  # open setup.c
         data = file.readlines()
@@ -621,6 +670,32 @@ class CGaReflInteractor(CRefl1DInteractor):
         problem = garefl.load(self.spath + '/model.so')
         return problem
 
+    def fnRemoveBackup(self):  # deletes the backup directory
+        self.fnRestoreBackup()
+        call(['rm', '-rf', 'rsbackup'])
+
+    def fnRestoreBackup(self):  # copies all files from the backup directory
+        if path.isfile('rsbackup/pop.dat'):
+            call(['cp', 'rsbackup/pop.dat', '.'])  # back to the working directory
+        if path.isfile('rsbackup/par.dat'):
+            call(['cp', 'rsbackup/par.dat', '.'])
+        if path.isfile('rsbackup/covar.dat'):
+            call(['cp', 'rsbackup/covar.dat', '.'])
+        if path.isfile('rsbackup/fit*.dat'):
+            call(['cp', 'rsbackup/fit*.dat', '.'])
+        if path.isfile('rsbackup/fit'):
+            call(['cp', 'rsbackup/fit', '.'])
+        if path.isfile('rsbackup/fit*.dat'):
+            call(['cp', 'rsbackup/model*.dat', '.'])
+        if path.isfile('rsbackup/pop_bak.dat'):
+            call(['cp', 'rsbackup/pop_bak.dat', '.'])
+        if path.isfile('rsbackup/profile*.dat'):
+            call(['cp', 'rsbackup/profile*.dat', '.'])
+        if path.isfile('rsbackup/' + self.spath+'/'+self.runfile):
+            call(['cp', 'rsbackup/' + self.spath+'/'+self.runfile, '.'])
+        if path.isfile('rsbackup/setup.o'):
+            call(['cp', 'rsbackup/setup.o', '.'])
+
     def fnRestoreMolgroups(self, problem):
         problem.active_model.fitness.output_model()
         diMolgroups = self.fnLoadMolgroups()
@@ -630,6 +705,44 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
+
+    def fnSimulateData(self, liExpression):
+        self.fnWriteConstraint2Runfile(liExpression)                        # change runfile to quasi-fix all parameters
+        self.fnMake()                                                       # compile changed setup.c
+        call(["rm", "-f", "mol.dat"])
+        call(["./fit", "-g"])                                               # write out profile.dat and fit.dat
+        call(["sync"])                                                      # synchronize file system
+        sleep(1)                                                            # wait for system to clean up
+
+        i = 0
+        while path.isfile('fit' + str(i) + '.dat'):
+            simdata = pandas.read_csv('fit' + str(i) + '.dat', sep=' ', header=None,
+                                      names=['Q', 'dQ', 'R', 'dR', 'fit'],
+                                      skip_blank_lines=True, comment='#')
+            del simdata['dQ']
+            del simdata['R']
+            simdata = simdata.rename(columns={'fit': 'R'})
+            simdata = simdata[['Q', 'R', 'dR']]
+            simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+            i += 1
+
+    def fnWriteConstraint2Runfile(self, liExpression):
+        # Writes a list of expressions at the beginning of
+        # the constraint section in setup.c
+        File = open(self.spath+'/'+self.runfile, "r")  # open setup.c
+        data = File.readlines()
+        File.close()
+        newdata = []
+
+        for i in range(len(data)):  # need integer index for slicing
+            if 'void constr_models(' in data[i]:  # searching for function declaration
+                newdata = data[:i + 2] + liExpression + data[i + 2:]  # inserting Expression two lines later,
+                # after the initial '{' of the function
+
+                break  # break loop, only one insertion
+        File = open(self.spath+'/'+self.runfile, "w")  # write changed setup.c
+        File.writelines(newdata)
+        File.close()
 
 
 class CMolStat:
@@ -823,31 +936,6 @@ class CMolStat:
         print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
               {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
         print('Confidence level: %(fCL).4f' % {'fCL': fConfidence})
-
-    # -------------------------------------------------------------------------------
-
-    def fnBackup(self):
-        if not path.isdir('rsbackup'):  # create backup dir
-            pr = Popen(["mkdir", "rsbackup"])
-            pr.wait()
-        pr = Popen(["cp", "pop.dat", "rsbackup/"])  # save all data that will
-        pr.wait()
-        pr = Popen(["cp", "par.dat", "rsbackup/"])  # change during fit
-        pr.wait()
-        pr = Popen(["cp", "covar.dat", "rsbackup/"])
-        pr.wait()
-        call("cp fit*.dat rsbackup/", shell=True)
-        pr = Popen(["cp", "fit", "rsbackup/"])
-        pr.wait()
-        call("cp model*.dat rsbackup/", shell=True)
-        pr = Popen(["cp", "pop_bak.dat", "rsbackup/"])
-        pr.wait()
-        call("cp profile*.dat rsbackup/", shell=True)
-        call("cp " + self.setupfilename + " rsbackup/", shell=True)
-        pr = Popen(["cp", "setup.o", "rsbackup/"])
-        pr.wait()
-
-    # -------------------------------------------------------------------------------
 
     def fnCalculateMolgroupProperty(self, fConfidence):
         def fnFindMaxFWHM(lList):
@@ -1247,7 +1335,7 @@ class CMolStat:
                 return [data[0], data[0], data[0], data[0], data[0]]
 
             # calculate a smoother maximum value
-            a = maxindex;
+            a = maxindex
             c = maxindex
             if 0 < maxindex < len(histo) - 1:
                 a = maxindex - 1
@@ -2633,32 +2721,6 @@ class CMolStat:
         file.writelines(newdata)
         file.close()
 
-    def fnRemoveBackup(self):  # deletes the backup directory
-        self.fnRestoreBackup()
-        call(['rm', '-rf', 'rsbackup'])
-
-    def fnRestoreBackup(self):  # copies all files from the backup directory
-        if path.isfile('rsbackup/pop.dat'):
-            call(['cp', 'rsbackup/pop.dat', '.'])  # back to the working directory
-        if path.isfile('rsbackup/par.dat'):
-            call(['cp', 'rsbackup/par.dat', '.'])
-        if path.isfile('rsbackup/covar.dat'):
-            call(['cp', 'rsbackup/covar.dat', '.'])
-        if path.isfile('rsbackup/fit*.dat'):
-            call(['cp', 'rsbackup/fit*.dat', '.'])
-        if path.isfile('rsbackup/fit'):
-            call(['cp', 'rsbackup/fit', '.'])
-        if path.isfile('rsbackup/fit*.dat'):
-            call(['cp', 'rsbackup/model*.dat', '.'])
-        if path.isfile('rsbackup/pop_bak.dat'):
-            call(['cp', 'rsbackup/pop_bak.dat', '.'])
-        if path.isfile('rsbackup/profile*.dat'):
-            call(['cp', 'rsbackup/profile*.dat', '.'])
-        if path.isfile('rsbackup/' + self.setupfilename):
-            call(['cp', 'rsbackup/' + self.setupfilename, '.'])
-        if path.isfile('rsbackup/setup.o'):
-            call(['cp', 'rsbackup/setup.o', '.'])
-        # -------------------------------------------------------------------------------
 
     def fnRestoreFileList(self, filelist):  # not used
         file = open(self.setupfilename, "r")
@@ -2689,97 +2751,72 @@ class CMolStat:
         File.close()
 
     # -------------------------------------------------------------------------------
-    def fnSimulateReflectivity(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
+    def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
                                tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
                                cbmatmax=1.25e-6, mode='water', pre=1, qrange=0):
         # simulates reflectivity based on a parameter file called simpar.dat
         # requires a compiled and ready to go fit whose fit parameters are modified and fixed
 
-        def convert_fit_to_sim_data(i):
-            simdata = pandas.read_csv('fit' + str(i) + '.dat', sep=' ', header=None,
-                                      names=['Q', 'dQ', 'R', 'dR', 'fit'],
-                                      skip_blank_lines=True, comment='#')
-            del simdata['dQ']
-            del simdata['R']
-            simdata = simdata.rename(columns={'fit': 'R'})
-            simdata = simdata[['Q', 'R', 'dR']]
-            return simdata
+        self.Interactor.fnLoadParameters()                                      # Load Parameters and modify setup.cc
+        self.Interactor.fnBackup()                                              # Backup setup files
 
-        def simulate_data():
-            self.fnMake()  # compile changed setup.c
-            call(["rm", "-f", "mol.dat"])
-            call(["./fit", "-g"])  # write out profile.dat and fit.dat
-            call(["sync"])  # synchronize file system
-            sleep(1)  # wait for system to clean up
-
-        def backup_simdat(i):
-            if not path.isfile('simbackup' + str(i) + '.dat'):
-                pr = Popen(["cp", 'sim' + str(i) + '.dat', 'simbackup' + str(i) + '.dat'])
-                pr.wait()
-            else:
-                pr = Popen(["cp", 'simbackup' + str(i) + '.dat', 'sim' + str(i) + '.dat'])
-                pr.wait()
-
-        self.fnLoadParameters(self.sPath)  # Load Parameters and modify setup.cc
-        self.fnBackup()  # Backup setup.c, and other files
         try:
-            liParameters = list(self.diParameters.keys())  # get list of parameters from setup.c/par.dat
-            liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem][
-                'number'])  # sort by number of appereance in setup.c
+            liParameters = list(self.diParameters.keys())
+            liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+
+            # simpar contains the parameter values to be simulated
+            # this could be done fileless
             simpar = pandas.read_csv('simpar.dat', sep=' ', header=None, names=['par', 'value'], skip_blank_lines=True,
                                      comment='#')
 
             liAddition = []
-            for parameter in liParameters:  # cycle through all parameters
+            for parameter in liParameters:
                 parvalue = simpar[simpar.par == parameter].iloc[0][1]
                 strchange = ''
                 parvaluefinal = parvalue
                 if ('rho' in parameter) and fabs(parvalue) > 1E-4:
                     parvaluefinal = parvalue * 1E-6
                     strchange = ' => changed to ' + str(parvaluefinal)
-                elif (
-                        'background' in parameter) and parvalue > 1E-4:  # The issue with the background is two different uses
-                    parvaluefinal = parvalue * 1E-6  # some setup.cc use negative numbers as parameter values and then
-                    strchange = ' => changed to ' + str(
-                        parvaluefinal)  # compute background=10^value, others use positive values and then
-                    # compute background=value *1E-6
-                    # this should catch it all
+                elif ('background' in parameter) and parvalue > 1E-4:
+                    # The issue with the background is two different uses
+                    # some setup.cc use negative numbers as parameter values and then
+                    # compute background=10^value, others use positive values and then
+                    # compute background=value *1E-6. This should catch it all
+                    parvaluefinal = parvalue * 1E-6
+                    strchange = ' => changed to ' + str(parvaluefinal)
+
                 print(str(parameter) + ' ' + str(parvalue) + strchange)
+                liAddition.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], parvaluefinal)))
 
-                liAddition.append(('%s = %s;\n' %  # change setup.c to quasi fix all parameters
-                                   (self.diParameters[parameter]['variable'], parvaluefinal)))
-            self.fnWriteConstraint2SetupC(liAddition)  # write out
-
-            # in case q-range is changing, make sure to back up original sim dat or reload this to preserve any
+            # if q-range is changing, back up original sim dat or reload this to preserve any
             # changing q-steps in the original
-            i = 0
-            while path.isfile('fit' + str(i) + '.dat') and qrange != 0:
-                backup_simdat(i)
-                i += 1
-            # create first set of simulated data
-            simulate_data()
+            if qrange != 0:
+                self.Interactor.fnBackupSimdat()
 
             # extend simulated data to q-range as defined
             i = 0
-            while path.isfile('fit' + str(i) + '.dat') and qrange != 0:
-                simdata = convert_fit_to_sim_data(i)
+            while path.isfile('sim' + str(i) + '.dat') and qrange != 0:
+                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', header=None, names=['Q', 'dQ', 'R', 'dR'],
+                                          skip_blank_lines=True, comment='#')
                 # first cut data at qrange
                 simdata = simdata[(simdata.Q <= qrange)]
                 # now add data points in case the q-range is too short
                 while simdata['Q'].iloc[-1] < qrange:
-                    newframe = pandas.DataFrame([[2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2], 1, 1]],
-                                                columns=['Q', 'R', 'dR'])
+                    # TODO: Check for dQ addition
+                    newframe = pandas.DataFrame([[2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2],
+                                                  simdata['dQ'].iloc[-1], 1, 1]], columns=['Q', 'dQ', 'R', 'dR'])
                     simdata = simdata.append(newframe)
                 simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
                 i += 1
 
-            # redo simulation, now with correct length of data
-            simulate_data()
+            # simulate data
+            self.Interactor.fnSimulateData(liAddition)
 
             i = 0
             last_defined_rho_solv = 0
-            while path.isfile('fit' + str(i) + '.dat'):
-                simdata = convert_fit_to_sim_data(i)
+            while path.isfile('sim' + str(i) + '.dat'):
+                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', header=None, names=['Q', 'dQ', 'R', 'dR'],
+                                          skip_blank_lines=True, comment='#')
 
                 # add error bars
                 c1 = s1max / qmax
@@ -2810,18 +2847,16 @@ class CMolStat:
                     ns = I * simdata.iloc[index, 1] * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (
                                 c3 + c4 * (simdata.iloc[index, 0]) ** 2)
                     nb = I * cbmat * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (c3 + c4 * (simdata.iloc[index, 0]) ** 2)
-                    dRoR = sqrt(ns + 2 * nb) / (ns)
+                    dRoR = sqrt(ns + 2 * nb) / ns
                     dR = simdata.iloc[index, 1] * dRoR  # see manuscript for details on calculation
                     simdata.iat[index, 2] = dR
-                    simdata.iat[index, 1] = simdata.iloc[index, 1] + normalvariate(0,
-                                                                                   1) * dR  # modify reflectivity within error bars
-                    # if ns<0:
-                    #    print index,ns,I,simdata.iloc[index,1],c1,c2,simdata.iloc[index,0],c3,c4,nb,dRoR,dR,simdata.iloc[index,2]
+                    # modify reflectivity within error bars
+                    simdata.iat[index, 1] = simdata.iloc[index, 1] + normalvariate(0, 1) * dR
 
                 simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
                 i += 1
         finally:
-            self.fnRemoveBackup()
+            self.Interactor.fnRemoveBackup()
 
     # -------------------------------------------------------------------------------
 
@@ -2912,35 +2947,10 @@ class CMolStat:
                 file.writelines(data2)
                 file.close()
 
-            # -------------------------------------------------------------------------------
-
-    def fnWriteConstraint2SetupC(self, liExpression):
-        # Writes a list of expressions at the beginning of
-        # the constraint section in setup.c
-        File = open(self.setupfilename, "r")  # open setup.c
-        data = File.readlines()
-        File.close()
-        newdata = []
-
-        for i in range(len(data)):  # need integer index for slicing
-            if 'void constr_models(' in data[i]:  # searching for function declaration
-                newdata = data[:i + 2] + liExpression + data[i + 2:]  # inserting Expression two lines later,
-                # after the initial '{' of the function
-
-                break  # break loop, only one insertion
-        File = open(self.setupfilename, "w")  # write changed setup.c
-        File.writelines(newdata)
-        File.close()
-
-    # -------------------------------------------------------------------------------
-
     def fnWriteOutGareflModel(self):
         pr = Popen(["./fit", "-g"])  # write out profile.dat and fit.dat
         pr.wait()
 
-
-# -------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------
 
 class CSAXS:
     def __init__(self):
@@ -2950,11 +2960,6 @@ class CSAXS:
         for i in range(iiterations):
             self.datainteractor.fnMCModifyFile([cfilename])
             # to be continued ...
-
-
-# -------------------------------------------------------------------------------
-
-# -------------------------------------------------------------------------------
 
 
 def Auto(convergence=0.001):  # automatic fit
