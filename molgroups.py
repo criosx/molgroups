@@ -1535,6 +1535,77 @@ class ssBLM_quaternary(CompositenSLDObj):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
+class ssBLM_arbitrary(BLM_arbitrary):
+    def __init__(self, **kwargs):
+
+        # add ssBLM-specific subgroups
+        self.substrate = Box2Err(name='substrate')
+        self.siox = Box2Err(name='siox')
+
+        self.substrate.l = 40
+        self.substrate.z = 0
+        self.substrate.nf = 1
+        self.rho_substrate = 2.07e-6
+        self.l_siox = 1
+        self.rho_siox = 1
+
+        self.siox.l = 20
+        self.siox.z = self.substrate.z + self.substrate.l / 2.0 + self.siox.l / 2.0
+        self.siox.nf = 1
+
+        self.l_submembrane = 10.
+        self.global_rough = 2.0
+
+        super().__init__(**kwargs)
+
+    def fnAdjustParameters(self):
+        
+        self._adjust_lipids()
+
+        # substrate
+        self.substrate.vol = self.normarea * self.substrate.l
+        self.substrate.nSL = self.rho_substrate * self.substrate.vol
+        self.siox.l = self.l_siox
+        self.siox.vol = self.normarea * self.siox.l
+        self.siox.nSL = self.rho_siox * self.siox.vol
+        self.siox.z=self.substrate.z + self.substrate.l / 2 + 0.5 * self.siox.l
+
+        self._adjust_z(self.substrate.z + self.substrate.l / 2 + self.siox.l + self.l_submembrane + self.av_hg1_l)
+        self._adjust_defects()
+
+        self.fnSetSigma(self.sigma)
+
+    def fnSetSigma(self, sigma):
+        super().fnSetSigma(sigma)
+        self.substrate.fnSetSigma(self.global_rough)
+        self.siox.fnSetSigma(self.global_rough)
+
+    def fnGetLowerLimit(self):
+        return self.substrate.fnGetLowerLimit()
+        # does this make sense since this goes to negative z and isn't intended to be used?
+
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _rho_siox, _l_siox, _l_submembrane, _l_lipid1,
+              _l_lipid2, _vf_bilayer, _nf_lipids=None, _hc_substitution_1=0.,
+              _hc_substitution_2=0., _radius_defect=100.):
+        self.sigma = _sigma
+        self.bulknsld = _bulknsld
+        self.global_rough = _global_rough
+        self.rho_substrate = _rho_substrate
+        self.rho_siox = _rho_siox
+        self.l_siox = _l_siox 
+        self.l_submembrane = _l_submembrane 
+        self.l_lipid1 = _l_lipid1
+        self.l_lipid2 = _l_lipid2
+        self.vf_bilayer = _vf_bilayer
+        if _nf_lipids is not None:   # pass None to keep lipid_nf unchanged
+            assert len(_nf_lipids)==len(self.lipids), 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_lipids), len(self.lipids))
+            self.lipid_nf = numpy.array(_nf_lipids)
+        self.hc_substitution_1 = _hc_substitution_1
+        self.hc_substitution_2 = _hc_substitution_2
+        self.radius_defect = _radius_defect
+
+        self.fnAdjustParameters()
+
 
 # ------------------------------------------------------------------------------------------------------
 # Tethered Lipid bilayer - binary system
