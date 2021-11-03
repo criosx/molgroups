@@ -426,14 +426,21 @@ class CBumpsInteractor(CDataInteractor):
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
 
-        problem = load_problem(self.spath + "/" + self.runfile + ".py")
+        if path.isfile(self.spath + "/" + self.runfile + ".py"):
+            problem = load_problem(self.spath + "/" + self.runfile + ".py")
+        else:
+            print("No problem to reload.")
+            problem = None
         return problem
 
     def fnRestoreState(self):
         import bumps.dream.state
-
-        state = bumps.dream.state.load_state(self.mcmcpath + "/" + self.runfile)
-        state.mark_outliers()  # ignore outlier chains
+        if path.isfile(self.mcmcpath + "/" + self.runfile + '.py'):
+            state = bumps.dream.state.load_state(self.mcmcpath + "/" + self.runfile)
+            state.mark_outliers()  # ignore outlier chains
+        else:
+            print("No state to reload.")
+            state = None
         return state
 
     def fnRestoreMolgroups(self, problem):
@@ -497,7 +504,8 @@ class CGaReflInteractor(CRefl1DInteractor):
         pr = Popen(["cp", "pop_bak.dat", "rsbackup/"])
         pr.wait()
         call("cp profile*.dat rsbackup/", shell=True)
-        call("cp " + self.spath+'/'+self.runfile + " rsbackup/", shell=True)
+        pr = Popen(["cp", "setup.cc", "rsbackup/"])
+        pr.wait()
         pr = Popen(["cp", "setup.o", "rsbackup/"])
         pr.wait()
 
@@ -527,37 +535,20 @@ class CGaReflInteractor(CRefl1DInteractor):
         return 0
 
     def fnLoadParameters(self):
-        filename = self.spath + '/' + self.runfile
+        filename = self.spath + '/setup.cc'
         self.diParameters = {}
 
         # check wether an existing MCMC exists
-        if path.isfile(self.spath + '/run.par'):
-            print('Found ' + self.spath + '/run.par \n')
-            print('Using MCMC best-fit parameters ...')
-            File = open(self.spath + '/run.par')
+        if path.isfile(self.mcmcpath + '/run.par'):
+            print('Found ' + self.mcmcpath + '/run.par \n')
+            print('Loading MCMC best-fit parameters ...')
+            File = open(self.mcmcpath + '/run.par')
             data = File.readlines()
             File.close()
             tParValues = []
             for line in data:
                 tParValues.append(float(line.split()[-1]))
             chisq = 0  # for the moment I cannot import chisq
-        elif zipfile.is_zipfile(self.spath):  # unpack from zip-file
-            File = zipfile.ZipFile(self.spath, 'r')
-            File.extractall(path.dirname(self.spath))
-            File.close()
-            spath2 = path.dirname(self.spath)
-            if spath2 == '':
-                spath2 = '.'
-            File = open(spath2 + '/' + path.basename(self.spath)[:-4] + '/run.par')
-            data = File.readlines()
-            File.close()
-            tParValues = []
-            for line in data:
-                tParValues.append(float(line.split()[-1]))
-            chisq = 0  # for the moment I cannot import chisq
-            rmtree(spath2 + '/' + path.basename(self.spath)[:-4])
-            if path.isdir(spath2 + '/__MACOSX'):
-                rmtree(spath2 + '/__MACOSX')
         else:
             if path.isfile(self.spath + '/par.dat'):
                 file = open(self.spath + '/par.dat')
@@ -666,8 +657,12 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRestoreFitProblem(self):
         from refl1d import garefl
         # iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
-        self.fnMake()
-        problem = garefl.load(self.spath + '/model.so')
+        if path.isfile(self.spath + '/model.so'):
+            self.fnMake()
+            problem = garefl.load(self.spath + '/model.so')
+        else:
+            print('No problem to reload.')
+            problem = None
         return problem
 
     def fnRemoveBackup(self):  # deletes the backup directory
@@ -691,8 +686,8 @@ class CGaReflInteractor(CRefl1DInteractor):
             call(['cp', 'rsbackup/pop_bak.dat', '.'])
         if path.isfile('rsbackup/profile*.dat'):
             call(['cp', 'rsbackup/profile*.dat', '.'])
-        if path.isfile('rsbackup/' + self.spath+'/'+self.runfile):
-            call(['cp', 'rsbackup/' + self.spath+'/'+self.runfile, '.'])
+        if path.isfile('rsbackup/' + self.spath+'/setup.cc'):
+            call(['cp', 'rsbackup/' + self.spath+'/setup.cc', '.'])
         if path.isfile('rsbackup/setup.o'):
             call(['cp', 'rsbackup/setup.o', '.'])
 
@@ -719,6 +714,7 @@ class CGaReflInteractor(CRefl1DInteractor):
             simdata = pandas.read_csv('fit' + str(i) + '.dat', sep=' ', header=None,
                                       names=['Q', 'dQ', 'R', 'dR', 'fit'],
                                       skip_blank_lines=True, comment='#')
+            print(simdata)
             del simdata['dQ']
             del simdata['R']
             simdata = simdata.rename(columns={'fit': 'R'})
@@ -729,7 +725,7 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnWriteConstraint2Runfile(self, liExpression):
         # Writes a list of expressions at the beginning of
         # the constraint section in setup.c
-        File = open(self.spath+'/'+self.runfile, "r")  # open setup.c
+        File = open(self.spath+'/setup.cc', "r")  # open setup.c
         data = File.readlines()
         File.close()
         newdata = []
@@ -740,7 +736,7 @@ class CGaReflInteractor(CRefl1DInteractor):
                 # after the initial '{' of the function
 
                 break  # break loop, only one insertion
-        File = open(self.spath+'/'+self.runfile, "w")  # write changed setup.c
+        File = open(self.spath+'/setup.cc', "w")  # write changed setup.cc
         File.writelines(newdata)
         File.close()
 
@@ -1380,48 +1376,6 @@ class CMolStat:
             reported = 0.5 * (onesigmam + onesigmap)
             return [twosigmam, onesigmam, reported, onesigmap, twosigmap]
 
-    # -------------------------------------------------------------------------------
-
-    def fnCheckFit(self):  # checks fit directory for certain conditions
-
-        if path.isfile('isErr.dat'):  # check which type of MC output present
-            self.sStatFileName = 'isErr.dat'
-        elif path.isfile('isErr.dat'):
-            self.sStatFileName = 'sErr.dat'
-        else:
-            self.sStatFileName = ''
-
-        try:
-            self.fnLoadStatData()  # Load data from file into list
-            self.fnLoadParameters()  # Load Parameters for limits
-
-            if sorted(list(self.diParameters.keys())) != sorted(list(self.diStatResults['Parameters'].keys())):
-                print('----------------------------------------------------')
-                print('----------------------------------------------------')
-                print('setup.c and Stat File do not agree -----------------')
-                print('backing up Stat File -------------------------------')
-                print('----------------------------------------------------')
-                print('----------------------------------------------------')
-
-                i = 2
-                while True:
-                    if path.isfile(self.sStatFileName[:-4] + str(i)[1:] + ".bak"):
-                        pass
-                    else:
-                        pr = Popen(["mv ", self.sStatFileName, self.sStatFileName[:-4] + str(i)[1:] + ".bak"])
-                        pr.wait()
-                        self.sStatFileName = ''
-                        self.liStatResult = []
-                        self.sStatResultHeader = ''
-                        break
-
-                    i += 1
-
-        except IOError:
-            pass
-
-        # -------------------------------------------------------------------------------
-
     def fnContourData(self, sname, dZGrid, dRhoGrid, dAreaGrid=0.1):
 
         def fnMap2Array(liArray, liDimensions, dx1, dy1, dx2, dy2):  # map nSLD profile onto array
@@ -1633,7 +1587,7 @@ class CMolStat:
 
                 i = i + 1
 
-            # -------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
     def fnGetChiSq(self):  # export chi squared
         return self.chisq
@@ -2740,24 +2694,20 @@ class CMolStat:
         file.writelines(newdata)
         file.close()
 
-    # -------------------------------------------------------------------------------
-
     def fnSaveObject(self, object, sFileName):
-
         import pickle
 
         File = open(sFileName, "wb")
         pickle.dump(object, File)
         File.close()
 
-    # -------------------------------------------------------------------------------
     def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
                                tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
                                cbmatmax=1.25e-6, mode='water', pre=1, qrange=0):
         # simulates reflectivity based on a parameter file called simpar.dat
         # requires a compiled and ready to go fit whose fit parameters are modified and fixed
 
-        self.Interactor.fnLoadParameters()                                      # Load Parameters and modify setup.cc
+        self.diParameters, _ = self.Interactor.fnLoadParameters()                  # Load Parameters and modify setup.cc
         self.Interactor.fnBackup()                                              # Backup setup files
 
         try:
@@ -2766,8 +2716,8 @@ class CMolStat:
 
             # simpar contains the parameter values to be simulated
             # this could be done fileless
-            simpar = pandas.read_csv('simpar.dat', sep=' ', header=None, names=['par', 'value'], skip_blank_lines=True,
-                                     comment='#')
+            simpar = pandas.read_csv(self.spath+'/simpar.dat', sep=' ', header=None, names=['par', 'value'],
+                                     skip_blank_lines=True, comment='#')
 
             liAddition = []
             for parameter in liParameters:
@@ -2796,7 +2746,7 @@ class CMolStat:
             # extend simulated data to q-range as defined
             i = 0
             while path.isfile('sim' + str(i) + '.dat') and qrange != 0:
-                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', header=None, names=['Q', 'dQ', 'R', 'dR'],
+                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', names=['Q', 'dQ', 'R', 'dR'],
                                           skip_blank_lines=True, comment='#')
                 # first cut data at qrange
                 simdata = simdata[(simdata.Q <= qrange)]
@@ -2815,8 +2765,7 @@ class CMolStat:
             i = 0
             last_defined_rho_solv = 0
             while path.isfile('sim' + str(i) + '.dat'):
-                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', header=None, names=['Q', 'dQ', 'R', 'dR'],
-                                          skip_blank_lines=True, comment='#')
+                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True, comment='#')
 
                 # add error bars
                 c1 = s1max / qmax
@@ -2856,7 +2805,8 @@ class CMolStat:
                 simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
                 i += 1
         finally:
-            self.Interactor.fnRemoveBackup()
+            pass
+            # self.Interactor.fnRemoveBackup()
 
     # -------------------------------------------------------------------------------
 
@@ -3314,7 +3264,6 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
     iChange = 0
     fTimeAverage = 0.
     iExitFlag = 0
-    # ReflPar.fnCheckFit()
 
     try:
 
