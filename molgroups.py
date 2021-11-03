@@ -279,8 +279,8 @@ from periodictable.fasta import Molecule
 # in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
 # to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
 
-class Headgroup(Molecule):
-    # Subclasses Molecule to automatically store a headgroup length for use later
+class Component(Molecule):
+    # Subclasses Molecule to automatically store a component length for use later
     # and calculate total scattering lengths
     def __init__(self, length=9.575, **kwargs):
         super().__init__(**kwargs)
@@ -288,28 +288,39 @@ class Headgroup(Molecule):
         self.nSL = self.sld * self.cell_volume * 1e-6 # units of Ang
         self.DnSL = self.Dsld * self.cell_volume * 1e-6 # units of Ang
 
-def Headgroup2Box(name=None, molecule=None):
-    # Creates a new Box2Err from Headgroup data
+def Component2Box(name=None, molecule=None):
+    # Creates a new Box2Err from Component data
 
     box = Box2Err(name=name, dvolume=molecule.cell_volume, dlength=molecule.length)
     box.fnSetnSL(molecule.sld * molecule.cell_volume * 1e-6, molecule.Dsld * molecule.cell_volume * 1e-6)
 
     return box
 
+def AddMolecules(component_list, length=None):
+    # Adds together components and molecules. Note that length information is lost
+    # if length is not specified
+    total_formula = ' '.join([str(c.formula) for c in component_list])
+    total_cell_volume = sum([c.cell_volume for c in component_list])
+    total_name = ' + '.join([c.name for c in component_list])
+    if length is None:
+        return Molecule(name=total_name, formula=total_formula, cell_volume=total_cell_volume)
+    else:
+        return Component(name=total_name, formula=total_formula, cell_volume=total_cell_volume, length=length)
+
 # PC headgroup pieces
-choline = Headgroup(name='choline', formula='C5 H13 N', cell_volume=120., length=6.34)
-phosphate = Headgroup(name='phosphate', formula='PO4', cell_volume=54., length=3.86)
-carbonyl_glycerol = Headgroup(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
+choline = Component(name='choline', formula='C5 H13 N', cell_volume=120., length=6.34)
+phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3.86)
+carbonyl_glycerol = Component(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
 
 # standard headgroups
-pc = Headgroup(name='pc', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
-pe = Headgroup(name='pe', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
-pg = Headgroup(name='pg', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
-ps = Headgroup(name='ps', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
-pa = Headgroup(name='pa', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
-pi = Headgroup(name='pi', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
-pip2 = Headgroup(name='pi(4,5)p2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
-cardiolipin = Headgroup(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
+pc = Component(name='pc', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
+pe = Component(name='pe', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
+pg = Component(name='pg', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
+ps = Component(name='ps', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
+pa = Component(name='pa', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
+pi = Component(name='pi', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
+pip2 = Component(name='pi(4,5)p2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
+cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
 
 # standard acyl chains
 oleoyl = Molecule(name='oleoyl', formula='C17 H33', cell_volume=972./2.0)
@@ -327,10 +338,12 @@ SAc = Molecule(name='thiol acetate', formula = 'C2H3OS', cell_volume=117.0)
 EO6 = Molecule(name='6x ethylene oxide', formula='(C2H4O)6', cell_volume=360.0)
 tetherg_ether = Molecule(name='tether glycerol ether', formula='C5H9O2', cell_volume=125.40)
 tetherg_ester = carbonyl_glycerol
-bmeSAc = Molecule(name='beta-mercaptoethanol thiol acetate', formula='C2H5O' + str(SAc.formula), cell_volume=97.0 + SAc.cell_volume)
-bme = Molecule(name='beta-mercaptoethanol', formula='C2H5OS', cell_volume=117.0)
-SEO6 = Molecule(name='EO6 S', formula=str(EO6.formula) + 'S', cell_volume=25.75 + EO6.cell_volume)
-SAcEO6 = Molecule(name='EO6 SAc', formula=str(SAc.formula) + str(EO6.formula), cell_volume=SAc.cell_volume + EO6.cell_volume)
+ethanoyl = Molecule(name='ethanoyl', formula='C2H5O', cell_volume=(117 - 25.75))
+thiol = Molecule(name='sulfur', formula='S', cell_volume=25.75)
+bmeSAc = AddMolecules([SAc, ethanoyl])
+bme = AddMolecules([thiol, ethanoyl])
+SEO6 = AddMolecules([thiol, EO6])
+SAcEO6 = AddMolecules([SAc, EO6])
 
 # TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
 # is in the inner or outer leaflet. The profiles so obtained should be flipped. This should perhaps
@@ -342,9 +355,9 @@ class PC(CompositenSLDObj):
         # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
         # and choline groups. If False, it's the outer leaflet
         super().__init__(**kwargs)
-        self.cg = Headgroup2Box(name='cg', molecule=carbonyl_glycerol)
-        self.phosphate = Headgroup2Box(name='phosphate', molecule=phosphate)
-        self.choline = Headgroup2Box(name='choline', molecule=choline)
+        self.cg = Component2Box(name='cg', molecule=carbonyl_glycerol)
+        self.phosphate = Component2Box(name='phosphate', molecule=phosphate)
+        self.choline = Component2Box(name='choline', molecule=choline)
         
         self.innerleaflet = innerleaflet
 
@@ -486,7 +499,7 @@ class Lipid(object):
             raise TypeError('Lipid.tails must be Molecule or list of Molecules')
         
         # headgroup
-        self.hg = hg if hg is not None else Headgroup(name='', formula = '', cell_volume=0.0, length=9.575)
+        self.hg = hg if hg is not None else Component(name='', formula = '', cell_volume=0.0, length=9.575)
 
         # Create methyl groups
         if isinstance(methyls, list):
@@ -551,10 +564,10 @@ def _unpack_lipids(self, lipids):
         ihg_name = 'headgroup1_%i' % (i+1)
         ohg_name = 'headgroup2_%i' % (i+1)
 
-        if isinstance(lipid.hg, Headgroup):
+        if isinstance(lipid.hg, Component):
             # populates nSL, nSL2, vol, and l
-            ihg_obj = Headgroup2Box(name=ihg_name, molecule=lipid.hg)
-            ohg_obj = Headgroup2Box(name=ohg_name, molecule=lipid.hg)
+            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.hg)
+            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.hg)
 
         elif issubclass(lipid.hg, CompositenSLDObj):
             ihg_obj = lipid.hg(name=ihg_name, innerleaflet=True)
@@ -2056,9 +2069,9 @@ class tBLM_arbitrary(BLM_arbitrary):
         self.mult_tether = 5.0
 
         # change these to Headgroup2Box
-        self.bME = Headgroup2Box(name='bME', molecule=Headgroup(name='bME', formula=filler.formula, cell_volume=filler.cell_volume, length=5.2))
-        self.tether = Headgroup2Box(name='tether', molecule=Headgroup(name='tether', formula=tether.tether.formula, cell_volume=tether.tether.cell_volume, length=self.l_tether))
-        self.tetherg = Headgroup2Box(name='tetherg', molecule=Headgroup(name='tetherg', formula=tether.hg.formula, cell_volume=tether.hg.cell_volume, length=10.0))
+        self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula, cell_volume=filler.cell_volume, length=5.2))
+        self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula, cell_volume=tether.tether.cell_volume, length=self.l_tether))
+        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.hg.formula, cell_volume=tether.hg.cell_volume, length=10.0))
 
         self.substrate.l = 40
         self.substrate.z = 0
