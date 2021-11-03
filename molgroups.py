@@ -281,18 +281,21 @@ from periodictable.fasta import Molecule, xray_sld
 
 class Component(Molecule):
     # Subclasses Molecule to automatically store a component length for use later
-    # and calculate total scattering lengths
+    # and calculate total neutron scattering lengths
     def __init__(self, length=9.575, **kwargs):
         super().__init__(**kwargs)
         self.length = length
         self.nSL = self.sld * self.cell_volume * 1e-6 # units of Ang
         self.DnSL = self.Dsld * self.cell_volume * 1e-6 # units of Ang
 
-def Component2Box(name=None, molecule=None):
+def Component2Box(name=None, molecule=None, xray_wavelength=None):
     # Creates a new Box2Err from Component data
 
     box = Box2Err(name=name, dvolume=molecule.cell_volume, dlength=molecule.length)
-    box.fnSetnSL(molecule.sld * molecule.cell_volume * 1e-6, molecule.Dsld * molecule.cell_volume * 1e-6)
+    if xray_wavelength is None:
+        box.fnSetnSL(molecule.sld * molecule.cell_volume * 1e-6, molecule.Dsld * molecule.cell_volume * 1e-6)
+    else:
+        box.fnSetnSL(xray_sld(molecule.formula, wavelength=xray_wavelength)[0] * molecule.cell_volume * 1e-6)
 
     return box
 
@@ -351,13 +354,13 @@ SAcEO6 = AddMolecules([SAc, EO6])
 # finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
 
 class PC(CompositenSLDObj):
-    def __init__(self, name='PC', innerleaflet=False, **kwargs):
+    def __init__(self, name='PC', innerleaflet=False, xray_wavelength=None, **kwargs):
         # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
         # and choline groups. If False, it's the outer leaflet
         super().__init__(name=name, **kwargs)
-        self.cg = Component2Box(name='cg', molecule=carbonyl_glycerol)
-        self.phosphate = Component2Box(name='phosphate', molecule=phosphate)
-        self.choline = Component2Box(name='choline', molecule=choline)
+        self.cg = Component2Box(name='cg', molecule=carbonyl_glycerol, xray_wavelength=xray_wavelength)
+        self.phosphate = Component2Box(name='phosphate', molecule=phosphate, xray_wavelength=xray_wavelength)
+        self.choline = Component2Box(name='choline', molecule=choline, xray_wavelength=xray_wavelength)
         
         self.innerleaflet = innerleaflet
 
@@ -473,10 +476,6 @@ class PCm(PC):
 
         super().fnWritePar2File(fp, cName, z)
 
-# TODO: make a Tether class that can be passed to tethered bilayers. Perhaps make Tether class None for supported bilayers?
-# TODO: think about making a generic bilayer class with "substrate=", "tether=", and "filler=" inputs. If substrate is None, bilayer floats.
-#       If tether is None but substrate exists, it's a ssBLM. "filler" is some material that the substrate is decorated with like bME.
-
 class Lipid(object):
     def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
         # hg = Molecule object with headgroup information or PC molgroups object
@@ -547,7 +546,7 @@ HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[ol
 # Lipid Bilayer
 # ------------------------------------------------------------------------------------------------------
 
-def _unpack_lipids(self, lipids):
+def _unpack_lipids(self, lipids, xray_wavelength=None):
     """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
         and lists of acyl chain and methyl volumes and nSLs. Creates the following attributes:
         o headgroups1: a list of inner leaflet headgroup objects
@@ -578,12 +577,12 @@ def _unpack_lipids(self, lipids):
 
         if isinstance(lipid.headgroup, Component):
             # populates nSL, nSL2, vol, and l
-            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup)
-            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup)
+            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
+            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
 
         elif issubclass(lipid.headgroup, CompositenSLDObj):
-            ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True)
-            ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False)
+            ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True, xray_wavelength=xray_wavelength)
+            ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False, xray_wavelength=xray_wavelength)
 
         else:
             raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
@@ -599,13 +598,16 @@ def _unpack_lipids(self, lipids):
         self.null_hg2 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups2], dtype=bool)
 
         self.vol_acyl_lipids[i] = lipid.tails.cell_volume
-        self.nsl_acyl_lipids[i] = lipid.tails.sld * lipid.tails.cell_volume * 1e-6
-
-        self.vol_methyl_lipids[i] = lipid.methyls.cell_volume
-        self.nsl_methyl_lipids[i] = lipid.methyls.sld * lipid.methyls.cell_volume * 1e-6
+        self.vol_methyl_lipids[i] = lipid.methyls.cell_volume        
+        if xray_wavelength is None:
+            self.nsl_acyl_lipids[i] = lipid.tails.sld * lipid.tails.cell_volume * 1e-6
+            self.nsl_methyl_lipids[i] = lipid.methyls.sld * lipid.methyls.cell_volume * 1e-6            
+        else:
+            self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[0] * lipid.tails.cell_volume * 1e-6
+            self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[0] * lipid.methyls.cell_volume * 1e-6
 
 class BLM_arbitrary(CompositenSLDObj):
-    def __init__(self, lipids=[DOPC], lipid_nf=[1.0], **kwargs):
+    def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
         super().__init__(**kwargs)
         assert len(lipids)==len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
         assert len(lipids)>0, 'Must specify at least one lipid'
@@ -613,7 +615,7 @@ class BLM_arbitrary(CompositenSLDObj):
         # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
         self.lipid_nf = numpy.array(lipid_nf) / numpy.sum(lipid_nf)
 
-        _unpack_lipids(self, lipids)
+        _unpack_lipids(self, lipids, xray_wavelength=xray_wavelength)
 
         self.lipid1 = Box2Err(name='lipid1')
         self.methyl1 = Box2Err(name='methyl1')
@@ -1596,7 +1598,7 @@ class ssBLM_arbitrary(BLM_arbitrary):
         self.substrate.nf = 1
         self.rho_substrate = 2.07e-6
         self.l_siox = 1
-        self.rho_siox = 1
+        self.rho_siox = 3.55e-6
 
         self.siox.l = 20
         self.siox.z = self.substrate.z + self.substrate.l / 2.0 + self.siox.l / 2.0
@@ -2073,7 +2075,7 @@ class tBLM_quaternary(CompositenSLDObj):
 
 
 class tBLM_arbitrary(BLM_arbitrary):
-    def __init__(self, tether=HC18, filler=bme, **kwargs):
+    def __init__(self, tether=HC18, filler=bme, xray_wavelength=None, **kwargs):
 
         # add ssBLM-specific subgroups
         self.substrate = Box2Err(name='substrate')
@@ -2082,9 +2084,12 @@ class tBLM_arbitrary(BLM_arbitrary):
         self.mult_tether = 5.0
 
         # change these to Headgroup2Box
-        self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula, cell_volume=filler.cell_volume, length=5.2))
-        self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula, cell_volume=tether.tether.cell_volume, length=self.l_tether))
-        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula, cell_volume=tether.tetherg.cell_volume, length=10.0))
+        self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula,
+                                 cell_volume=filler.cell_volume, length=5.2), xray_wavelength=xray_wavelength)
+        self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula,
+                                 cell_volume=tether.tether.cell_volume, length=self.l_tether), xray_wavelength=xray_wavelength)
+        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula,
+                                 cell_volume=tether.tetherg.cell_volume, length=10.0), xray_wavelength=xray_wavelength)
 
         self.substrate.l = 40
         self.substrate.z = 0
@@ -2094,11 +2099,15 @@ class tBLM_arbitrary(BLM_arbitrary):
         self.global_rough = 2.0
 
         self.vol_acyl_tether = tether.tails.cell_volume
-        self.nSL_acyl_tether = tether.tails.sld * tether.tails.cell_volume * 1e-6
         self.vol_methyl_tether = tether.methyls.cell_volume
-        self.nSL_methyl_tether = tether.methyls.sld * tether.methyls.cell_volume * 1e-6
+        if xray_wavelength is None:
+            self.nSL_acyl_tether = tether.tails.sld * tether.tails.cell_volume * 1e-6
+            self.nSL_methyl_tether = tether.methyls.sld * tether.methyls.cell_volume * 1e-6
+        else:
+            self.nSL_acyl_tether = xray_sld(tether.tails.formula, wavelength=xray_wavelength)[0] * tether.tails.cell_volume * 1e-6
+            self.nSL_methyl_tether = xray_sld(tether.methyls.formula, wavelength=xray_wavelength)[0] * tether.methyls.cell_volume * 1e-6
 
-        super().__init__(**kwargs)
+        super().__init__(xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
         
