@@ -325,7 +325,8 @@ Dmethyl = Molecule(name='Dmethyl', formula='CD3', cell_volume=98.8/2.0)
 # Tether components
 SAc = Molecule(name='thiol acetate', formula = 'C2H3OS', cell_volume=117.0)
 EO6 = Molecule(name='6x ethylene oxide', formula='(C2H4O)6', cell_volume=360.0)
-tetherg = Molecule(name='tether glycerol', formula='C5H9O2', cell_volume=125.40)
+tetherg_ether = Molecule(name='tether glycerol ether', formula='C5H9O2', cell_volume=125.40)
+tetherg_ester = carbonyl_glycerol
 bmeSAc = Molecule(name='beta-mercaptoethanol thiol acetate', formula='C2H5O' + str(SAc.formula), cell_volume=97.0 + SAc.cell_volume)
 bme = Molecule(name='beta-mercaptoethanol', formula='C2H5OS', cell_volume=117.0)
 SEO6 = Molecule(name='EO6 S', formula=str(EO6.formula) + 'S', cell_volume=25.75 + EO6.cell_volume)
@@ -503,8 +504,8 @@ class Tether(Lipid):
     """Subclass of Lipid for use with tether molecules.
         Use hg field for tether glycerol.
         Tether includes both volume from """
-    def __init__(self, tether=SEO6, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, tether=SEO6, hg=tetherg_ether, **kwargs):
+        super().__init__(hg=hg, **kwargs)
         self.tether = tether
 
 
@@ -513,9 +514,9 @@ POPC = Lipid(name='POPC', hg=PC, tails=[palmitoyl, oleoyl])
 DOPS = Lipid(name='DOPS', hg=ps, tails=2*[oleoyl])
 chol = Lipid(name='chol', hg=None, tails=[cholesterol], methyls=None)
 
-HC18 = Tether(name='HC18', tether=SEO6, hg=tetherg, tails=[oleoyl, oleoyl])
-
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, hg=tetherg, tails=[oleoyl, oleoyl])
+WC14 = Tether(name='WC14', tether=SEO6, hg=tetherg_ether, tails=[myristoyl, myristoyl])
+HC18 = Tether(name='HC18', tether=SEO6, hg=tetherg_ether, tails=[oleoyl, oleoyl])
+HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, hg=tetherg_ether, tails=[oleoyl, oleoyl])
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
