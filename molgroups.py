@@ -478,7 +478,7 @@ class PCm(PC):
 #       If tether is None but substrate exists, it's a ssBLM. "filler" is some material that the substrate is decorated with like bME.
 
 class Lipid(object):
-    def __init__(self, name=None, hg=PC, tails=[oleoyl, oleoyl], methyls=methyl):
+    def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
         # hg = Molecule object with headgroup information or PC molgroups object
         # tails = List of molecule objects containing lipid tail information
         # methyls = List of methyl groups, one for each lipid tail; OR, a single group
@@ -487,6 +487,7 @@ class Lipid(object):
         # default is DOPC using the PC class.
         
         n_tails = len(tails)
+        self.name = name
 
         # tails section
         if isinstance(tails, list):
@@ -499,7 +500,7 @@ class Lipid(object):
             raise TypeError('Lipid.tails must be Molecule or list of Molecules')
         
         # headgroup
-        self.hg = hg if hg is not None else Component(name='', formula = '', cell_volume=0.0, length=9.575)
+        self.headgroup = headgroup if headgroup is not None else Component(name='', formula = '', cell_volume=0.0, length=9.575)
 
         # Create methyl groups
         if isinstance(methyls, list):
@@ -515,21 +516,22 @@ class Lipid(object):
 
 class Tether(Lipid):
     """Subclass of Lipid for use with tether molecules.
-        Use hg field for tether glycerol.
+        Uses hg field for tether glycerol.
         Tether includes both volume from """
-    def __init__(self, tether=SEO6, hg=tetherg_ether, **kwargs):
-        super().__init__(hg=hg, **kwargs)
+    def __init__(self, tether=SEO6, tetherg=tetherg_ether, **kwargs):
+        super().__init__(headgroup=tetherg, **kwargs)
         self.tether = tether
+        self.tetherg = self.headgroup
 
 
-DOPC = Lipid(name='DOPC', hg=PC, tails=2*[oleoyl])
-POPC = Lipid(name='POPC', hg=PC, tails=[palmitoyl, oleoyl])
-DOPS = Lipid(name='DOPS', hg=ps, tails=2*[oleoyl])
-chol = Lipid(name='chol', hg=None, tails=[cholesterol], methyls=None)
+DOPC = Lipid(name='DOPC', headgroup=PC, tails=2*[oleoyl])
+POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl])
+DOPS = Lipid(name='DOPS', headgroup=ps, tails=2*[oleoyl])
+chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
 
-WC14 = Tether(name='WC14', tether=SEO6, hg=tetherg_ether, tails=[myristoyl, myristoyl])
-HC18 = Tether(name='HC18', tether=SEO6, hg=tetherg_ether, tails=[oleoyl, oleoyl])
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, hg=tetherg_ether, tails=[oleoyl, oleoyl])
+WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
+HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
+HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
@@ -564,14 +566,14 @@ def _unpack_lipids(self, lipids):
         ihg_name = 'headgroup1_%i' % (i+1)
         ohg_name = 'headgroup2_%i' % (i+1)
 
-        if isinstance(lipid.hg, Component):
+        if isinstance(lipid.headgroup, Component):
             # populates nSL, nSL2, vol, and l
             ihg_obj = Component2Box(name=ihg_name, molecule=lipid.hg)
             ohg_obj = Component2Box(name=ohg_name, molecule=lipid.hg)
 
-        elif issubclass(lipid.hg, CompositenSLDObj):
-            ihg_obj = lipid.hg(name=ihg_name, innerleaflet=True)
-            ohg_obj = lipid.hg(name=ohg_name, innerleaflet=False)
+        elif issubclass(lipid.headgroup, CompositenSLDObj):
+            ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True)
+            ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False)
 
         else:
             raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
@@ -2071,7 +2073,7 @@ class tBLM_arbitrary(BLM_arbitrary):
         # change these to Headgroup2Box
         self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula, cell_volume=filler.cell_volume, length=5.2))
         self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula, cell_volume=tether.tether.cell_volume, length=self.l_tether))
-        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.hg.formula, cell_volume=tether.hg.cell_volume, length=10.0))
+        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula, cell_volume=tether.tetherg.cell_volume, length=10.0))
 
         self.substrate.l = 40
         self.substrate.z = 0
