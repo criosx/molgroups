@@ -351,10 +351,10 @@ SAcEO6 = AddMolecules([SAc, EO6])
 # finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
 
 class PC(CompositenSLDObj):
-    def __init__(self, innerleaflet=False, **kwargs):
+    def __init__(self, name='PC', innerleaflet=False, **kwargs):
         # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
         # and choline groups. If False, it's the outer leaflet
-        super().__init__(**kwargs)
+        super().__init__(name=name, **kwargs)
         self.cg = Component2Box(name='cg', molecule=carbonyl_glycerol)
         self.phosphate = Component2Box(name='phosphate', molecule=phosphate)
         self.choline = Component2Box(name='choline', molecule=choline)
@@ -487,7 +487,6 @@ class Lipid(object):
         # default is DOPC using the PC class.
         
         n_tails = len(tails)
-        self.name = name
 
         # tails section
         if isinstance(tails, list):
@@ -500,7 +499,7 @@ class Lipid(object):
             raise TypeError('Lipid.tails must be Molecule or list of Molecules')
         
         # headgroup
-        self.headgroup = headgroup if headgroup is not None else Component(name='', formula = '', cell_volume=0.0, length=9.575)
+        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula = '', cell_volume=0.0, length=9.575)
 
         # Create methyl groups
         if isinstance(methyls, list):
@@ -514,14 +513,25 @@ class Lipid(object):
         methylformula = ' '.join([str(m.formula) for m in methyls])
         self.methyls = Molecule(name='methyls', formula = methylformula, cell_volume=methylvolsum)
 
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
+
 class Tether(Lipid):
     """Subclass of Lipid for use with tether molecules.
         Uses hg field for tether glycerol.
         Tether includes both volume from """
-    def __init__(self, tether=SEO6, tetherg=tetherg_ether, **kwargs):
-        super().__init__(headgroup=tetherg, **kwargs)
+    def __init__(self, name=None, tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=methyl):
+        super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
         self.tether = tether
         self.tetherg = self.headgroup
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
+
 
 
 DOPC = Lipid(name='DOPC', headgroup=PC, tails=2*[oleoyl])
@@ -598,6 +608,7 @@ class BLM_arbitrary(CompositenSLDObj):
     def __init__(self, lipids=[DOPC], lipid_nf=[1.0], **kwargs):
         super().__init__(**kwargs)
         assert len(lipids)==len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
+        assert len(lipids)>0, 'Must specify at least one lipid'
 
         # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
         self.lipid_nf = numpy.array(lipid_nf) / numpy.sum(lipid_nf)
