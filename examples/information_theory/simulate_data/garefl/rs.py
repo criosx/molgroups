@@ -482,6 +482,53 @@ class CRefl1DInteractor(CBumpsInteractor):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
+    @staticmethod
+    def fnSimulateErrorBars(simpar, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
+                            tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
+                            cbmatmax=1.25e-6, mode='water', pre=1):
+        i = 0
+        last_defined_rho_solv = 0
+        while path.isfile('sim' + str(i) + '.dat'):
+            simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True, comment='#')
+
+            # add error bars
+            c1 = s1max / qmax
+            c2 = s2max / qmax
+            c4 = (tmax - tmin) / (qmax ** 2 - qmin ** 2)
+            c3 = tmax - c4 * qmax ** 2
+            I = nmin / s1min / s2min / tmin * pow(2, pre)
+
+            if mode == 'air':
+                # currently hardwire background for air
+                cbmat = 1e-7
+            else:
+                # dataframe can be empty in case that rho_solv_i is not specified
+                # for example in magnetic fits, in this case, use last defined rho_solv
+                if simpar[simpar.par == ('rho_solv_' + str(i))].empty:
+                    rhosolv = simpar[simpar.par == ('rho_solv_' + str(last_defined_rho_solv))].iloc[0][1]
+                else:
+                    rhosolv = simpar[simpar.par == ('rho_solv_' + str(i))].iloc[0][1]
+                    last_defined_rho_solv = i
+                if fabs(rhosolv) > 1E-4:
+                    rhosolv = rhosolv * 1E-6
+
+                cbmat = (rhosolv - rhomin) / (rhomax - rhomin) * (cbmatmax - cbmatmin) + cbmatmin
+
+            simdata['dR'] = 0.0
+
+            for index in simdata.index:
+                ns = I * simdata.iloc[index, 1] * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (
+                            c3 + c4 * (simdata.iloc[index, 0]) ** 2)
+                nb = I * cbmat * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (c3 + c4 * (simdata.iloc[index, 0]) ** 2)
+                dRoR = sqrt(ns + 2 * nb) / ns
+                dR = simdata.iloc[index, 1] * dRoR  # see manuscript for details on calculation
+                simdata.iat[index, 2] = dR
+                # modify reflectivity within error bars
+                simdata.iat[index, 1] = simdata.iloc[index, 1] + normalvariate(0, 1) * dR
+
+            simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+            i += 1
+
 
 class CGaReflInteractor(CRefl1DInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
@@ -686,8 +733,8 @@ class CGaReflInteractor(CRefl1DInteractor):
             call(['cp', 'rsbackup/pop_bak.dat', '.'])
         if path.isfile('rsbackup/profile*.dat'):
             call(['cp', 'rsbackup/profile*.dat', '.'])
-        if path.isfile('rsbackup/' + self.spath+'/setup.cc'):
-            call(['cp', 'rsbackup/' + self.spath+'/setup.cc', '.'])
+        if path.isfile('rsbackup/setup.cc'):
+            call(['cp', 'rsbackup/setup.cc', '.'])
         if path.isfile('rsbackup/setup.o'):
             call(['cp', 'rsbackup/setup.o', '.'])
 
@@ -714,7 +761,6 @@ class CGaReflInteractor(CRefl1DInteractor):
             simdata = pandas.read_csv('fit' + str(i) + '.dat', sep=' ', header=None,
                                       names=['Q', 'dQ', 'R', 'dR', 'fit'],
                                       skip_blank_lines=True, comment='#')
-            print(simdata)
             del simdata['dQ']
             del simdata['R']
             simdata = simdata.rename(columns={'fit': 'R'})
@@ -1587,7 +1633,7 @@ class CMolStat:
 
                 i = i + 1
 
-            # -------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
     def fnGetChiSq(self):  # export chi squared
         return self.chisq
@@ -2694,22 +2740,20 @@ class CMolStat:
         file.writelines(newdata)
         file.close()
 
-    # -------------------------------------------------------------------------------
-
     def fnSaveObject(self, object, sFileName):
-
         import pickle
 
         File = open(sFileName, "wb")
         pickle.dump(object, File)
         File.close()
 
-    # -------------------------------------------------------------------------------
     def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
                                tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
                                cbmatmax=1.25e-6, mode='water', pre=1, qrange=0):
+
         # simulates reflectivity based on a parameter file called simpar.dat
         # requires a compiled and ready to go fit whose fit parameters are modified and fixed
+        # The method is designed to be useable with reflectivity and SANS.
 
         self.diParameters, _ = self.Interactor.fnLoadParameters()                  # Load Parameters and modify setup.cc
         self.Interactor.fnBackup()                                              # Backup setup files
@@ -2723,7 +2767,6 @@ class CMolStat:
             simpar = pandas.read_csv(self.spath+'/simpar.dat', sep=' ', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
 
-            print(liParameters)
             liAddition = []
             for parameter in liParameters:
                 parvalue = simpar[simpar.par == parameter].iloc[0][1]
@@ -2743,77 +2786,36 @@ class CMolStat:
                 print(str(parameter) + ' ' + str(parvalue) + strchange)
                 liAddition.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], parvaluefinal)))
 
-            print(liAddition)
 
-            # if q-range is changing, back up original sim dat or reload this to preserve any
-            # changing q-steps in the original
+            # if q-range is changing, back up original sim dat or reload previously backed up data
+            # to always work with the same set of original data
             if qrange != 0:
                 self.Interactor.fnBackupSimdat()
 
             # extend simulated data to q-range as defined
             i = 0
-            while path.isfile('sim' + str(i) + '.dat') and qrange != 0:
-                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', names=['Q', 'dQ', 'R', 'dR'],
-                                          skip_blank_lines=True, comment='#')
+            while path.isfile(self.spath + 'sim' + str(i) + '.dat') and qrange != 0:
+                simdata = pandas.read_csv(self.spath + 'sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True,
+                                          comment='#')
                 # first cut data at qrange
                 simdata = simdata[(simdata.Q <= qrange)]
                 # now add data points in case the q-range is too short
                 while simdata['Q'].iloc[-1] < qrange:
-                    # TODO: Check for dQ addition
-                    newframe = pandas.DataFrame([[2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2],
-                                                  simdata['dQ'].iloc[-1], 1, 1]], columns=['Q', 'dQ', 'R', 'dR'])
+                    newframe = pandas.DataFrame(simdata[-1:], columns=simdata.columns)
+                    newframe['Q'].iloc[-1] = 2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2]
                     simdata = simdata.append(newframe)
-                simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+                simdata.to_csv(self.spath + 'sim' + str(i) + '.dat', sep=' ', index=None)
                 i += 1
 
-            # simulate data
+            # simulate data, works on sim.dat files
             self.Interactor.fnSimulateData(liAddition)
-
-            i = 0
-            last_defined_rho_solv = 0
-            while path.isfile('sim' + str(i) + '.dat'):
-                simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True, comment='#')
-
-                # add error bars
-                c1 = s1max / qmax
-                c2 = s2max / qmax
-                c4 = (tmax - tmin) / (qmax ** 2 - qmin ** 2)
-                c3 = tmax - c4 * qmax ** 2
-                I = nmin / s1min / s2min / tmin * pow(2, pre)
-
-                if mode == 'air':
-                    # currently hardwire background for air
-                    cbmat = 1e-7
-                else:
-                    # dataframe can be empty in case that rho_solv_i is not specified
-                    # for example in magnetic fits, in this case, use last defined rho_solv
-                    if simpar[simpar.par == ('rho_solv_' + str(i))].empty:
-                        rhosolv = simpar[simpar.par == ('rho_solv_' + str(last_defined_rho_solv))].iloc[0][1]
-                    else:
-                        rhosolv = simpar[simpar.par == ('rho_solv_' + str(i))].iloc[0][1]
-                        last_defined_rho_solv = i
-                    if fabs(rhosolv) > 1E-4:
-                        rhosolv = rhosolv * 1E-6
-
-                    cbmat = (rhosolv - rhomin) / (rhomax - rhomin) * (cbmatmax - cbmatmin) + cbmatmin
-
-                simdata['dR'] = 0.0
-
-                for index in simdata.index:
-                    ns = I * simdata.iloc[index, 1] * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (
-                                c3 + c4 * (simdata.iloc[index, 0]) ** 2)
-                    nb = I * cbmat * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (c3 + c4 * (simdata.iloc[index, 0]) ** 2)
-                    dRoR = sqrt(ns + 2 * nb) / ns
-                    dR = simdata.iloc[index, 1] * dRoR  # see manuscript for details on calculation
-                    simdata.iat[index, 2] = dR
-                    # modify reflectivity within error bars
-                    simdata.iat[index, 1] = simdata.iloc[index, 1] + normalvariate(0, 1) * dR
-
-                simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
-                i += 1
+            # simulate error bars, works on sim.dat files
+            self.Interactor.fnSimulateErrorBars(simpar, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max, s2min=s2min,
+                                                s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin, rhomin=rhomin,
+                                                rhomax=rhomax, cbmatmin=cbmatmin, cbmatmax=cbmatmax, mode=mode,
+                                                pre=pre)
         finally:
-            pass
-            # self.Interactor.fnRemoveBackup()
+            self.Interactor.fnRemoveBackup()
 
     # -------------------------------------------------------------------------------
 
