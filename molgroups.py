@@ -606,7 +606,7 @@ def _unpack_lipids(self, lipids, xray_wavelength=None):
             self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[0] * lipid.tails.cell_volume * 1e-6
             self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[0] * lipid.methyls.cell_volume * 1e-6
 
-class BLM_arbitrary(CompositenSLDObj):
+class BLM(CompositenSLDObj):
     def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
         super().__init__(**kwargs)
         assert len(lipids)==len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
@@ -778,7 +778,8 @@ class BLM_arbitrary(CompositenSLDObj):
         #self.defect_headgroup.vol = defectratio * (self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
         self.defect_headgroup.vol = defectratio * numpy.sum([hg.nf * hg.vol for hg in self.headgroups2])
         self.defect_headgroup.l = hclength + hglength
-        self.defect_headgroup.z = self.headgroups1[0].fnGetZ() - 0.5 * self.headgroups1[0].l + 0.5 * (hclength + hglength)
+        #self.defect_headgroup.z = self.headgroups1[0].fnGetZ() - 0.5 * self.headgroups1[0].l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.z = self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.av_hg1_l + 0.5 * (hclength + hglength)
         self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld) for hg in self.headgroups2])
         #self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetnSL()*self.headgroup2.nf * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
         self.defect_headgroup.fnSetSigma(self.sigma)
@@ -1586,7 +1587,7 @@ class ssBLM_quaternary(CompositenSLDObj):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
-class ssBLM_arbitrary(BLM_arbitrary):
+class ssBLM(BLM):
     def __init__(self, **kwargs):
 
         # add ssBLM-specific subgroups
@@ -2074,7 +2075,7 @@ class tBLM_quaternary(CompositenSLDObj):
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
 
-class tBLM_arbitrary(BLM_arbitrary):
+class tBLM(BLM):
     def __init__(self, tether=HC18, filler=bme, xray_wavelength=None, **kwargs):
 
         # add ssBLM-specific subgroups
