@@ -313,13 +313,13 @@ phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3
 carbonyl_glycerol = Component(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
 
 # standard headgroups
-pc = Component(name='pc', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
-pe = Component(name='pe', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
-pg = Component(name='pg', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
-ps = Component(name='ps', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
-pa = Component(name='pa', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
-pi = Component(name='pi', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
-pip2 = Component(name='pi(4,5)p2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
+pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
+pe = Component(name='PE', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
+pg = Component(name='PG', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
+ps = Component(name='PS', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
+pa = Component(name='PA', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
+pi = Component(name='PI', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
+pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
 cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
 
 # standard acyl chains
