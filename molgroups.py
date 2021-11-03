@@ -275,7 +275,7 @@ class Box2Err(nSLDObj):
 # Lipids and headgroups
 # ------------------------------------------------------------------------------------------------------
 
-from periodictable.fasta import Molecule
+from periodictable.fasta import Molecule, xray_sld
 # in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
 # to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
 
@@ -578,8 +578,8 @@ def _unpack_lipids(self, lipids):
 
         if isinstance(lipid.headgroup, Component):
             # populates nSL, nSL2, vol, and l
-            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.hg)
-            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.hg)
+            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup)
+            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup)
 
         elif issubclass(lipid.headgroup, CompositenSLDObj):
             ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True)
@@ -2584,50 +2584,21 @@ class ContinuousEuler(nSLDObj):
                  +str(self.alpha)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
-def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0]), deuterated_residues=None):
+aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP':'D', 'CYS':'C', 'GLU':'E', 'GLN':'Q', 'GLY':'G', 'HIS':'H',
+               'ILE': 'I', 'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE': 'F', 'PRO': 'P', 'SER':'S', 'THR':'T', 'TYR':'Y',
+                'VAL': 'V', 'TRP': 'W'})
+
+def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0]), deuterated_residues=None, xray_wavelength=1.5418):
     """ Creates an 8-column data file for use with ContinuousEuler from a pdb file\
         with optional selection. "center_of_mass" is the position in space at which to position the
         molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values"""
-    
-    # not currently used but useful
-    rshort = dict({'A': 'ALA', 'R': 'ARG', 'N': 'ASN', 'D':'ASP', 'C':'CYS', 'E':'GLU', 'Q':'GLN', 'G':'GLY', 'H':'HIS',
-               'I': 'ILE', 'L':'LEU', 'K':'LYS', 'M':'MET', 'F': 'PHE', 'P': 'PRO', 'S':'SER', 'T':'THR', 'Y':'TYR',
-                'V': 'VAL', 'W': 'TRP'})
-
-    # residue name : [vol Ang^3, eSL, SLprot Ang, SLdeut Ang, #exchngH]     
-    # volumes from Chothia, C. (1975) Nature 254, 304-308.
-    residprop = {
-            'ALA' : [91.5, 38, 20.1466,  61.7942, 1],
-            'ARG' : [202.1, 85, 56.9491, 129.8324, 6],
-            'ASP' : [124.5, 59, 42.149,  73.3816, 1],
-            'ASN' : [135.2, 60, 45.7009, 76.9366, 3],
-            'CYS' : [105.6, 54, 26.7345, 57.9702, 2],
-            'GLU' : [155.1, 67, 41.371,  93.372, 1],
-            'GLN' : [161.1, 68, 44.8675, 96.927, 3],
-            'GLY' : [66.4,  30, 20.98,   41.8038, 1],
-            'HSD' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HIS' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HSE' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HSP' : [167.3, 72, 55.0709, 107.1304, 3],
-            'ILE' : [168.8, 62, 17.6464, 121.7654, 1],
-            'LEU' : [167.9, 62, 17.6464, 121.7654, 1],
-            'LYS' : [171.3, 71, 30.7473, 124.4544, 4],
-            'MET' : [170.8, 70, 21.3268, 104.622, 1],
-            'PHE' : [203.4, 78, 45.0734, 128.3686, 1],
-            'PRO' : [129.3, 52, 22.2207, 95.104, 0],
-            'MLY' : [224.58, 96, 16.2, 16.2, 0],
-            'MSE' : [253.56, 98, 21.0, 21.0, 0]
-            } #deuteration not correct for MLY and MSE
-    residprop['SER'] = [99.1,  46, 29.6925, 60.9282, 2]
-    residprop['DAV'] = [99.1,  46, 290000.6925, 600000.9282, 2] # huge scattering lengths for testing!
-    residprop['THR'] = [122.1, 54, 25.1182, 87.5896, 2]
-    residprop['TRP'] = [237.6, 98, 67.7302, 151.0254, 2]
-    residprop['TYR'] = [203.6, 86, 54.6193, 127.5026, 2]
-    residprop['VAL'] = [141.7, 54, 18.4798, 101.775, 1]
-    #volume of Zn2+ from Obst et al. J.Mol.Model 1997,3,224-232 (Zn-O g(r))
-    residprop['ZN2'] = [100.5, 28, 5.68, 5.68, 0] 
 
     import MDAnalysis
+    from MDAnalysis.lib.util import convert_aa_code
+    from periodictable.fasta import default_table, AMINO_ACID_CODES as aa
+
+    elements = default_table()
+
     molec = MDAnalysis.Universe(pdbfilename)
     sel = molec.select_atoms(selection)
     Nres = sel.n_residues
@@ -2636,36 +2607,39 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
         print('Warning: no atoms selected')
 
     sel.translate(-sel.center_of_mass() + center_of_mass)
-    
+   
     resnums = []
     rescoords = []
     resscatter = []
+    resvol = numpy.zeros(Nres)
+    resesl = numpy.zeros(Nres)
+    resnslH = numpy.zeros(Nres)
+    resnslD = numpy.zeros(Nres)
     deut_header = ''
-    HSL = -3.7409
-    DSL = 6.671
-    for i in range(Nres):
-        resnums.append(molec.residues[i].resid)
-        rescoords.append(molec.residues[i].atoms.center_of_mass())
-        resscatter.append(residprop[molec.residues[i].resname])
 
+    for i in range(Nres):
+        resnum = molec.residues[i].resid
+        resnums.append(resnum)
+        rescoords.append(molec.residues[i].atoms.center_of_mass())
+        key = convert_aa_code(molec.residues[i].resname)
+        if resnum in deuterated_residues:
+            resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D), cell_volume=aa[key].cell_volume)
+        else:
+            resmol = aa[key]
+        resvol[i] = resmol.cell_volume
+        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)
+        resnslH[i] = resmol.sld
+        resnslD[i] = resmol.Dsld
+            
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
-    resscatter = numpy.array(resscatter)
 
     # replace base value in nsl calculation with proper deuterated scattering length\
     resnsl = resscatter[:,2]
     if deuterated_residues is not None:
-        deuterated_indices = numpy.searchsorted(resnums, deuterated_residues)
-        resnsl = resscatter[:,2]
-        resnsl[deuterated_indices] = resscatter[deuterated_indices, 3]
         deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
 
-
-    resesl = resscatter[:,1] * 2.8e-5
-    resnslH = (resnsl + HSL * resscatter[:,4]) * 1e-5
-    resnslD = (resnsl + DSL * resscatter[:,4]) * 1e-5
-
-    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resscatter[:,0][:,None], resesl[:,None], resnslH[:, None], resnslD[:,None])), delimiter='\t',
+    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resvol[:,None], resesl[:,None], resnslH[:, None], resnslD[:,None])), delimiter='\t',
             header=pdbfilename + '\n' + deut_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
     return datfilename      # allows this to be fed into ContinuousEuler directly
