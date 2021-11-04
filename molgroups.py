@@ -606,6 +606,8 @@ def _unpack_lipids(self, lipids, xray_wavelength=None):
             self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[0] * lipid.tails.cell_volume * 1e-6
             self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[0] * lipid.methyls.cell_volume * 1e-6
 
+    self.initial_hg1_lengths = numpy.array([hg1.l for hg1 in self.headgroups1])
+
 class BLM(CompositenSLDObj):
     def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
         super().__init__(**kwargs)
@@ -2108,6 +2110,8 @@ class tBLM(BLM):
             self.nSL_acyl_tether = xray_sld(tether.tails.formula, wavelength=xray_wavelength)[0] * tether.tails.cell_volume * 1e-6
             self.nSL_methyl_tether = xray_sld(tether.methyls.formula, wavelength=xray_wavelength)[0] * tether.methyls.cell_volume * 1e-6
 
+        self.initial_bME_l = self.bME.l
+
         super().__init__(xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
@@ -2144,11 +2148,7 @@ class tBLM(BLM):
 
         self.vf_bilayer = max(self.vf_bilayer, 1E-5)
         self.vf_bilayer = min(self.vf_bilayer, 1)
-
-        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
-        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
-        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
-        
+    
         # outer hydrocarbons
         l_ohc = self.l_lipid2
         nf_ohc_lipid = self.lipid_nf
@@ -2229,12 +2229,13 @@ class tBLM(BLM):
             if hasattr(hg2, 'fnAdjustParameters'):
                 hg2.fnAdjustParameters()
 
-        # tether glycerol part -- transliteration here
+        # tether glycerol part
         V_tg = self.tetherg.vol
 
         c_s_tg = c_s_ihc
         c_A_tg = c_A_ihc
         c_V_tg = nf_ihc_tether * (1 - self.hc_substitution_2)
+        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
 
         self.tetherg.l = self.tetherg.vol / ((self.vol_acyl_tether - self.vol_methyl_tether) / self.lipid1.l) / 0.9
         self.tetherg.nf = c_s_tg * c_A_tg * c_V_tg
@@ -2246,23 +2247,43 @@ class tBLM(BLM):
         c_s_EO = c_s_ihc
         c_A_EO = c_A_ihc
         c_V_EO = nf_ihc_tether * (1 - self.hc_substitution_2)
+        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
         self.tether.nf = c_s_EO * c_A_EO * c_V_EO
         self.tether.l = l_EO
 
         if (self.tether.nf * self.tether.vol / self.tether.l) > self.normarea:
             self.tether.l = (self.tether.nf * self.tether.vol) / self.normarea
+            #print('new tether length', self.tether.l)
         self.l_tether = self.tether.l
 
         # bME
-        self.bME.l = 5.2
-        l_bME = self.bME.l
+        self.bME.l = self.initial_bME_l
+        #l_bME = self.bME.l
         #self.headgroup1.l = 9.575
-        V_bME = self.bME.vol
+        #V_bME = self.bME.vol
 
-        d1 = self.av_hg1_l + self.bME.l - self.tether.l - self.tetherg.l
-        if (d1 > 0):
-            self.bME.l = self.bME.l - d1 / 2
-            self.av_hg1_l = self.av_hg1_l - d1 / 2
+        # TODO: Figure out how to do this for headgroups of different size.
+        # Perhaps sort by length and apply deformations from the longest to the shortest?
+        # Requires checks to make sure bME doesn't get too small. What should the minimum be? Probably enough that it doesn't go above 1.
+        #min_bME_length = numpy.max([0, self.mult_tether * self.tether.nf * self.bME.vol / (self.normarea - self.tether.nf * self.tether.vol / self.tether.l)])
+        # this doesn't work because mult_tether can change below.
+        # problem is actually headgroups + tether filling up the space.
+        if 1:
+            d1s = self.initial_hg1_lengths + self.bME.l - self.tether.l - self.tetherg.l
+            for hg1, initial_length, d1 in zip(self.headgroups1, self.initial_hg1_lengths, d1s):
+                if d1 > 0:
+                    hg1.l = initial_length - d1 / 2.0
+                    if self.initial_bME_l - d1 / 2.0 < self.bME.l:
+                        self.bME.l = self.initial_bME_l - d1 / 2.0
+                    #print('initial length', initial_length, 'd1', d1, 'new headgroup length', hg1.l)
+
+                #dbme = numpy.min([0.5*d1s, (self.bME.l - min_bME_length)*numpy.ones_like(d1s)], axis=0)
+#                print(self.bME.l, self.tether.l, self.tetherg.l, dbme, d1s, min_bME_length, d1s-dbme)            
+#                self.bME.l = self.initial_bME_l - numpy.max(dbme)
+
+        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
 
         if ((
                 self.tether.nf * self.tether.vol / self.tether.l + self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l) > self.normarea):
@@ -2270,7 +2291,9 @@ class tBLM(BLM):
             self.mult_tether = ((self.normarea - self.tether.nf * self.tether.vol / self.tether.l) / (
                         self.bME.vol / self.bME.l)) / self.tether.nf
             if (self.mult_tether < 0):
+                # this isn't great because it actually removes bme material. Better to have a minimum distance that doesn't violate volume filling.
                 self.mult_tether = 0
+            #print('new mult_tether', self.mult_tether)
 
         self.bME.nf = self.tether.nf * self.mult_tether  # 2.333
 
