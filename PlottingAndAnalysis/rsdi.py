@@ -10,7 +10,7 @@ import numpy
 import pandas
 
 
-class CDataInteractor():
+class CDataInteractor:
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
         # script path, MCMC path, runfile (script file)
         self.spath = spath
@@ -460,7 +460,6 @@ class CBumpsInteractor(CDataInteractor):
         stdout.flush()
 
 
-
 # Refl1D methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
 # error analysis are found.
 # The MCMC directory is called 'MCMC'
@@ -572,10 +571,8 @@ class CGaReflInteractor(CRefl1DInteractor):
         File.close()
         newdata = []
         filelist = []
-        smatch1 = compile(r'fit_data.+?\"(.+?)\"',
-                          IGNORECASE | VERBOSE)
-        smatch2 = compile(r'(fit_data.+?\").+?(\")',
-                          IGNORECASE | VERBOSE)
+        smatch1 = compile(r'fit_data.+?\"(.+?)\"', IGNORECASE | VERBOSE)
+        smatch2 = compile(r'(fit_data.+?\").+?(\")', IGNORECASE | VERBOSE)
         smatch3 = compile(r'\s*//', IGNORECASE | VERBOSE)
         for line in data:
             if ('fit_data' in line) and (not smatch3.match(line)):  # scan for file loading but not comment lines
@@ -870,3 +867,8 @@ class CGaReflInteractor(CRefl1DInteractor):
         File = open(self.spath+'/setup.cc', "w")  # write changed setup.cc
         File.writelines(newdata)
         File.close()
+
+
+class CSASViewInteractor(CBumpsInteractor):
+    def __init__(self, spath='.', mcmcpath='.', runfile=''):
+        super().__init__(spath, mcmcpath, runfile)

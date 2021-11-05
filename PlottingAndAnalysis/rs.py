@@ -73,6 +73,8 @@ class CMolStat:
             self.Interactor = rsdi.CRefl1DInteractor(spath, mcmcpath, runfile)
         elif self.fitsource == 'garefl':
             self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile)
+        elif self.fitsource == 'SASView':
+            self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile)
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
