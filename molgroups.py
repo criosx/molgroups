@@ -202,11 +202,12 @@ class Box2Err(nSLDObj):
         self.sigma1 = dsigma1
         self.sigma2 = dsigma2
         self.l = dlength
+        self.init_l = dlength
         self.vol = dvolume
         self.nSL = dnSL
         self.nf = dnumberfraction
         self.nsldbulk_store = 0.
-        self.nSL2 = 0.
+        self.nSL2 = None
 
     def fnGetProfiles(self, z, bulknsld=0):
 
@@ -386,10 +387,15 @@ class PC(CompositenSLDObj):
         self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
         self.ph_relative_pos = .58
         self.nf = 1.
+        self.fnFindSubgroups()        
         self.fnAdjustParameters()
-        self.fnFindSubgroups()
 
     def fnAdjustParameters(self):
+        
+        # make sure no group is larger than the entire length of the headgroup
+        for g in self.subgroups:
+            g.l = min(g.init_l, self.l)
+
         if self.innerleaflet:
             self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
             self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
@@ -642,9 +648,17 @@ class BLM(CompositenSLDObj):
         self.hc_substitution_1 = 0
         self.hc_substitution_2 = 0
 
+        self._calc_av_hg()
+        self.initial_hg1_l = self.av_hg1_l
+
         self.fnAdjustParameters()
         self.fnFindSubgroups()
-        
+
+    def _calc_av_hg(self):
+        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+
     def fnAdjustParameters(self):
 
         self._adjust_lipids()
@@ -2082,13 +2096,23 @@ class tBLM(BLM):
 
         # add ssBLM-specific subgroups
         self.substrate = Box2Err(name='substrate')
-        self.nf_tether = 0.6
-        self.l_tether=3.0
-        self.mult_tether = 5.0
+        self.nf_tether = 0.3
+        self.l_tether=8.0
+        self.mult_tether = 7.0/3.0
+        self.xray_wavelength = xray_wavelength
 
         # change these to Headgroup2Box
         self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula,
                                  cell_volume=filler.cell_volume, length=5.2), xray_wavelength=xray_wavelength)
+        self.tether_bme = Box2Err(name='tether_bme')
+        self.tether_free = Box2Err(name='tether_free')
+        self.tether_hg = Box2Err(name='tether_hg')
+        self.bme_component = Component(name='bME', formula=filler.formula,
+                                 cell_volume=filler.cell_volume, length=5.2)
+        self.tether_component = Component(name='tether', formula=tether.tether.formula,
+                                 cell_volume=tether.tether.cell_volume, length=self.l_tether)
+        self.tetherg_component = Component(name='tetherg', formula=tether.tetherg.formula,
+                                 cell_volume=tether.tetherg.cell_volume, length=10.0)
         self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula,
                                  cell_volume=tether.tether.cell_volume, length=self.l_tether), xray_wavelength=xray_wavelength)
         self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula,
@@ -2126,8 +2150,14 @@ class tBLM(BLM):
         self.bME.z = 0.5 * self.bME.l + self.substrate.z + self.substrate.l * 0.5
         self.tether.z = 0.5 * self.tether.l + self.substrate.z + self.substrate.l * 0.5
         self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
+        self.tether_bme.z = self.bME.z
+        self.tether_free.z = self.tether_bme.z + 0.5 * self.tether_bme.l + 0.5 * self.tether_free.l
+        #self.tether_hg.z = self.substrate.z + 0.5 * self.substrate.l + self.l_tether - 0.5 * self.tether_hg.l
+        self.tether_hg.z = self.tether_free.z + 0.5 * self.tether_free.l + 0.5 * self.tether_hg.l
         
-        self._adjust_z(self.tetherg.z + 0.5 * self.tetherg.l)
+        #self._adjust_z(self.tetherg.z + 0.5 * self.tetherg.l)
+        #self._adjust_z(self.substrate.z + 0.5 * self.substrate.l + self.l_tether)
+        self._adjust_z(self.tether_hg.z + 0.5 * self.tether_hg.l)
         
         self._adjust_defects()
 
@@ -2229,12 +2259,14 @@ class tBLM(BLM):
             if hasattr(hg2, 'fnAdjustParameters'):
                 hg2.fnAdjustParameters()
 
+        self._calc_av_hg()
+
         # tether glycerol part
         V_tg = self.tetherg.vol
 
         c_s_tg = c_s_ihc
         c_A_tg = c_A_ihc
-        c_V_tg = nf_ihc_tether * (1 - self.hc_substitution_2)
+        c_V_tg = nf_ihc_tether
         # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
 
         self.tetherg.l = self.tetherg.vol / ((self.vol_acyl_tether - self.vol_methyl_tether) / self.lipid1.l) / 0.9
@@ -2242,60 +2274,225 @@ class tBLM(BLM):
 
         # tether EO part
         l_EO = self.l_tether
-        V_EO = self.tether.vol
 
         c_s_EO = c_s_ihc
         c_A_EO = c_A_ihc
-        c_V_EO = nf_ihc_tether * (1 - self.hc_substitution_2)
+        c_V_EO = nf_ihc_tether
         # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
         self.tether.nf = c_s_EO * c_A_EO * c_V_EO
-        self.tether.l = l_EO
+        #self.init_mult_tether = self.mult_tether
 
-        if (self.tether.nf * self.tether.vol / self.tether.l) > self.normarea:
-            self.tether.l = (self.tether.nf * self.tether.vol) / self.normarea
-            #print('new tether length', self.tether.l)
-        self.l_tether = self.tether.l
+        # Adjust the submembrane space.
+        self._adjust_submembrane()
+        # check to make sure there isn't too much volume in the submembrane space. If there is, increase l_tether to accommodate it
+        total_submembrane_V = self.tether.vol * self.tether.nf + self.tetherg.vol * self.tetherg.nf + \
+                        self.mult_tether * self.tether.nf * self.bME.vol + numpy.sum([hg.nf * hg.vol for hg in self.headgroups1])
+        if total_submembrane_V > self.l_tether * self.normarea:
+            #print('Warning too much volume')
+            #print('total_submembrane_V', 'allowed_submembrane_V', 'new l_tether: ', total_submembrane_V, self.normarea * self.l_tether, total_submembrane_V / self.normarea)
+            self.l_tether = total_submembrane_V / self.normarea
+            # After changing submembrane space size, recalculate everything
+            self._adjust_submembrane()
 
-        # bME
+        # Turn off unwanted boxes.
+        # TODO: Turn these parameters into something else so the object is not contaminated.
+        self.tetherg.nf = 0.0
+        self.tether.nf = 0.0
+
+    def _adjust_submembrane(self):
+
+        """new approach to submembrane space:
+        1. divide into three regions, tether_bme, tether_free, and tether_hg
+        2. attempt to evenly distribute density of everything in these three regions.
+        3. Algorithm:
+            Case 1: sparse (l_tether > BME.l + av_hg1_l)
+                a. Calculate A_bme
+                b. Calculate A_hg
+                c. Calculate A_tether_bme, A_tether_free, A_tether_hg such that A_tether_bme + A_bme = A_tether_free = A_tether_hg + A_hg + A_tetherg
+            Case 2: compact (l_tether < BME.l + av_hg1_l)
+                a. Proportionately compress BME.l and av_hg1_l, so typically 1/3 BME compression, 2/3 hg compression, such that l_tether=BME.l + av_hg1_l
+                b. Calculate A_bme
+                c. Calculate A_hg
+                d. Calculate A_tether_bme, A_tether_free, A_tether_hg such that A_tether_bme + A_bme = A_tether_free = A_tether_hg + A_hg
+        4. Also changed: bME now includes some of the tether molecule as necessary. 
+        """
+
+        # Reset bME length and headgroup length
+        # TODO: find a robust way to keep track of these initial values. If a user changes them between init and this point, the user value will be overwritten
+        #       unless they specifically change initial_bME_l as well. This is already done for headgroups (fnSetHeadgroupLength)
         self.bME.l = self.initial_bME_l
-        #l_bME = self.bME.l
-        #self.headgroup1.l = 9.575
-        #V_bME = self.bME.vol
+        for hg1, initial_length in zip(self.headgroups1, self.initial_hg1_lengths):
+            hg1.l = initial_length
+        
+        self._calc_av_hg()
 
-        # TODO: Figure out how to do this for headgroups of different size.
-        # Perhaps sort by length and apply deformations from the longest to the shortest?
-        # Requires checks to make sure bME doesn't get too small. What should the minimum be? Probably enough that it doesn't go above 1.
-        #min_bME_length = numpy.max([0, self.mult_tether * self.tether.nf * self.bME.vol / (self.normarea - self.tether.nf * self.tether.vol / self.tether.l)])
-        # this doesn't work because mult_tether can change below.
-        # problem is actually headgroups + tether filling up the space.
-        if 1:
-            d1s = self.initial_hg1_lengths + self.bME.l - self.tether.l - self.tetherg.l
-            for hg1, initial_length, d1 in zip(self.headgroups1, self.initial_hg1_lengths, d1s):
-                if d1 > 0:
-                    hg1.l = initial_length - d1 / 2.0
-                    if self.initial_bME_l - d1 / 2.0 < self.bME.l:
-                        self.bME.l = self.initial_bME_l - d1 / 2.0
-                    #print('initial length', initial_length, 'd1', d1, 'new headgroup length', hg1.l)
+        # If too much tether is present, adjust the value
+        A_bme, min_A_tether_bme = self._adjust_mult_tether()
 
-                #dbme = numpy.min([0.5*d1s, (self.bME.l - min_bME_length)*numpy.ones_like(d1s)], axis=0)
-#                print(self.bME.l, self.tether.l, self.tetherg.l, dbme, d1s, min_bME_length, d1s-dbme)            
-#                self.bME.l = self.initial_bME_l - numpy.max(dbme)
+        # Find separation between bme and headgroups
+        dsub = self.l_tether - (self.initial_bME_l + self.av_hg1_l)
+        #print('dsub', dsub)
 
-        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
-        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
-        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+        # Total volume of tether molecules, including the glycerol
+        V_tether = self.tether.vol * self.tether.nf + self.tetherg.vol * self.tetherg.nf
 
-        if ((
-                self.tether.nf * self.tether.vol / self.tether.l + self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l) > self.normarea):
-            # print(self.tether.nf, self.tether.vol, self.tether.l, self.mult_tether, self.bME.vol, self.bME.l)
-            self.mult_tether = ((self.normarea - self.tether.nf * self.tether.vol / self.tether.l) / (
-                        self.bME.vol / self.bME.l)) / self.tether.nf
-            if (self.mult_tether < 0):
-                # this isn't great because it actually removes bme material. Better to have a minimum distance that doesn't violate volume filling.
-                self.mult_tether = 0
-            #print('new mult_tether', self.mult_tether)
+        # Set initial values
+        V_tether_free = 0.0
+        V_tether_bme = 0.0
+        V_tether_hg = 0.0
+        
+        # Check whether there's enough submembrane space for a "free tether"
+        if dsub > 0:
 
-        self.bME.nf = self.tether.nf * self.mult_tether  # 2.333
+            # Calculate minimum area that has to reside in the headgroup region
+            # NOTE: right now this is just the tetherg volume. It should probably be larger (at least 2 EO groups). This
+            #       can be adjusted in the Tether molecule so tetherg has more volume.
+            min_A_tether_hg = self.tetherg.vol * self.tetherg.nf / self.av_hg1_l
+
+            # Calculate base area for both headgroups and tether
+            A_hg = numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) + min_A_tether_hg
+            V_tether_bme = min_A_tether_bme * self.bME.l
+            V_tether_hg = min_A_tether_hg * self.av_hg1_l
+            V_tether -= V_tether_bme
+            V_tether -= V_tether_hg
+            # this is now the remaining tether volume after minimum amounts have been apportioned to bme and hg regions
+
+            # Which region gets tether first depends on the total existing area in each region
+            if A_hg > A_bme:
+                V_tether_free += A_bme * dsub # maximum area before start filling A_bme
+                if V_tether_free >= V_tether: # all remaining tether volume goes into free region
+                    V_tether_free += V_tether
+                    V_tether = 0.0
+                else:
+                    V_tether -= V_tether_free # fill V_tether_free up to level of A_bme
+                    # Fill up bme area with tether until V_tether is exhausted or A_bme reaches A_hg
+                    if (A_hg - A_bme) * (self.bME.l + dsub) >= V_tether:    
+                        V_tether_bme += V_tether * self.bME.l / (self.bME.l + dsub)
+                        V_tether_free += V_tether * dsub / (self.bME.l + dsub)
+                        V_tether = 0.0
+                    else:
+                        V_tether -= (A_hg - A_bme) * (self.bME.l + dsub)
+                        V_tether_bme += (A_hg - A_bme) * self.bME.l / (self.bME.l + dsub)
+                        V_tether_free += (A_hg - A_bme) * dsub / (self.bME.l + dsub)
+            else: # A_bme < A_hg
+                V_tether_free += A_hg * dsub # maximum area before start filling A_hg
+                if V_tether_free >= V_tether: # all remaining tether volume goes into free region
+                    V_tether_free += V_tether
+                    V_tether = 0.0
+                else:
+                    V_tether -= V_tether_free # fill V_tether_free up to level of A_hg
+                    if (A_bme - A_hg) * (self.av_hg1_l + dsub) >= V_tether:
+                        V_tether_hg += V_tether * self.av_hg1_l / (self.av_hg1_l + dsub)
+                        V_tether_free += V_tether * dsub / (self.av_hg1_l + dsub)
+                        V_tether = 0.0
+                    # Fill up bme area with tether until V_tether is exhausted or A_hg reaches A_bme
+                    else:
+                        V_tether -= (A_bme - A_hg) * (self.av_hg1_l + dsub)
+                        V_tether_hg += (A_bme - A_hg) * self.av_hg1_l
+                        V_tether_free += (A_bme - A_hg) * dsub
+            # Apportion remaining tether proportionately among the three regions (sometimes V_tether is zero and this does nothing)
+            V_tether_bme += V_tether * self.bME.l / (self.bME.l + dsub + self.av_hg1_l)
+            V_tether_free += V_tether * dsub / (self.bME.l + dsub + self.av_hg1_l)
+            V_tether_hg += V_tether * self.av_hg1_l / (self.bME.l + dsub + self.av_hg1_l)
+
+        else: # dsub <=0. In this case there's no tether_free region.
+            # squish headgroups and bME proportionately to their existing size.
+            d1s = self.l_tether - (self.initial_bME_l + self.initial_hg1_lengths)
+            #print(d1s, dsub * self.initial_bME_l / (self.initial_bME_l + self.initial_hg1_l))
+            self.bME.l += dsub * self.initial_bME_l / (self.initial_bME_l + self.initial_hg1_l)
+            for hg1, d1, initial_length in zip(self.headgroups1, d1s, self.initial_hg1_lengths):
+                d1 = self.l_tether - (self.bME.l + initial_length)
+                #print(d1)
+                hg1.l = initial_length + min(d1, 0.0)   # only squish headgroups if individual length is too big.
+
+            # Recalculate average headgroup size
+            self._calc_av_hg()
+
+            # apportion volume. Logic is the same as previously, just without the tether_free region.
+            A_bme, min_A_tether_bme = self._adjust_mult_tether() # do it again because bME thickness has changed
+
+            # Calculate base area for both headgroups and tether
+            min_A_tether_hg = self.tetherg.vol * self.tetherg.nf / self.av_hg1_l
+            A_hg = numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) + min_A_tether_hg
+            V_tether_bme = min_A_tether_bme * self.bME.l
+            V_tether_hg = min_A_tether_hg * self.av_hg1_l
+            V_tether -= V_tether_bme
+            V_tether -= V_tether_hg
+            #print('A_bme, A_hg, normarea, V_tether', A_bme, A_hg, self.normarea, V_tether)
+            if A_hg > A_bme:
+                #print('(A_hg - A_bme) * self.bME.l)', (A_hg - A_bme) * self.bME.l, 'V_tether', V_tether)
+                if ((A_hg - A_bme) * self.bME.l) >= V_tether:
+                    V_tether_bme += V_tether
+                    V_tether = 0.0
+                else:
+                    V_tether -= (A_hg - A_bme) * self.bME.l
+                    V_tether_bme += (A_hg - A_bme) * self.bME.l
+            else:
+                #print('(A_bme - A_hg) * self.av_hg1_l)', (A_bme - A_hg) * self.av_hg1_l, 'V_tether', V_tether)
+                if (A_bme - A_hg) * self.av_hg1_l >= V_tether:
+                    V_tether_hg += V_tether
+                    V_tether = 0.0
+                else:
+                    V_tether -= (A_bme - A_hg) * self.av_hg1_l
+                    V_tether_hg += (A_bme - A_hg) * self.av_hg1_l
+            # Apportion remaining volume
+            V_tether_bme += V_tether * self.bME.l / (self.bME.l + self.av_hg1_l)
+            V_tether_hg += V_tether * self.av_hg1_l / (self.bME.l + self.av_hg1_l)
+
+            # Shouldn't need this
+            V_excess_bme = V_tether_bme + self.mult_tether * self.tether.nf * self.bME.vol - self.normarea * self.bME.l
+            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.av_hg1_l            
+            if V_excess_bme > 0:
+                print('V_excess_bme', V_excess_bme)
+                V_tether_hg += V_excess_bme
+                V_tether_bme -= V_excess_bme
+            if V_excess_hg > 0:
+                print('V_excess_hg', V_excess_hg)
+                V_tether_hg -= V_excess_hg
+                V_tether_bme += V_excess_hg
+
+        #print('A_bme', 'A_tether_bme', 'min_A_tether_bme', '*mult_tether', 'mult_tether', self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l, V_tether_bme / self.bME.l, min_A_tether_bme, min_A_tether_bme * (1+self.mult_tether), self.mult_tether)
+        #Set volumes of tether objects
+        self.tether_bme.vol = V_tether_bme
+        self.tether_free.vol = V_tether_free
+        self.tether_hg.vol = V_tether_hg
+
+        # Set lengths of tether objects
+        self.tether_bme.l = self.bME.l
+        self.tether_free.l = max(0.0, dsub)
+        self.tether_hg.l = self.l_tether - self.tether_bme.l - self.tether_free.l
+        
+        # Set scattering lengths based on volume-averaged nSLDs of the components.
+        self.tether_bme.fnSetnSL(self.tether.nSL / self.tether.vol * self.tether_bme.vol, self.tether.nSL2 / self.tether.vol * self.tether_bme.vol)
+        self.tether_free.fnSetnSL(self.tether.nSL / self.tether.vol * self.tether_free.vol, self.tether.nSL2 / self.tether.vol * self.tether_free.vol)
+        frac_tether_g = self.tetherg.vol / V_tether_hg
+        self.tether_hg.fnSetnSL((self.tetherg.nSL / self.tetherg.vol * frac_tether_g + self.tether.nSL / self.tether.vol * (1 - frac_tether_g)) * self.tether_hg.vol,
+                                (self.tetherg.nSL2 / self.tetherg.vol * frac_tether_g + self.tether.nSL2 / self.tether.vol * (1 - frac_tether_g)) * self.tether_hg.vol)
+        #print('tether_hg sld', (self.tetherg.nSL / self.tetherg.vol * frac_tether_g + self.tether.nSL / self.tether.vol * (1 - frac_tether_g)))
+
+        self.bME.nf = self.mult_tether * self.tether.nf
+
+    def _adjust_mult_tether(self):
+        """ bME + tether in the bME region can't be bigger than normarea. If it is, reduce mult_tether until it isn't."""
+        min_A_tether_bme = self.tether.nf * self.bME.vol / self.bME.l # minimum amount of volume in tether region.
+        A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
+        if A_bme > self.normarea:
+            self.mult_tether = max(0, (self.normarea - min_A_tether_bme) / (self.tether.nf * self.bME.vol / self.bME.l))
+            print('big A_bme', 'normarea', 'new mult_tether', A_bme, self.normarea, self.mult_tether)
+            A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
+
+        return A_bme, min_A_tether_bme
+
+    def fnSetHeadgroupLength(self, idx, value):
+        """ Sets headgroup with index 'idx' (base 1 like the label) to length 'value'. Required
+            because initial headgroup lengths are tracked. Ignored if headgroup doesn't exist.
+            
+            Does not recalculate values using fnAdjustParameters."""
+        
+        if idx < len(self.lipid_nf):
+            self.headgroup1[idx].l = value
+            self.headgroup2[idx].l = value
+            self.initial_hg1_lengths[idx] = value
 
     def fnSetSigma(self, sigma):
         super().fnSetSigma(sigma)
@@ -2303,6 +2500,13 @@ class tBLM(BLM):
         self.bME.fnSetSigma(self.global_rough)
         self.tether.fnSetSigma(self.global_rough, sigma)
         self.tetherg.fnSetSigma(sigma)
+        if self.tether_free.vol > 0:
+            self.tether_bme.fnSetSigma(self.global_rough)
+            self.tether_free.fnSetSigma(self.global_rough, sigma)
+            self.tether_hg.fnSetSigma(sigma)
+        else:
+            self.tether_bme.fnSetSigma(self.global_rough, sigma)
+            self.tether_hg.fnSetSigma(sigma)
 
     def fnGetLowerLimit(self):
         return self.substrate.fnGetLowerLimit()
