@@ -1281,13 +1281,13 @@ class tBLM(BLM):
 
             # Shouldn't need this
             V_excess_bme = V_tether_bme + self.mult_tether * self.tether.nf * self.bME.vol - self.normarea * self.bME.l
-            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.av_hg1_l            
             if V_excess_bme > 0:
-                print('V_excess_bme', V_excess_bme)
+                #print('V_excess_bme', V_excess_bme)
                 V_tether_hg += V_excess_bme
                 V_tether_bme -= V_excess_bme
+            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.av_hg1_l
             if V_excess_hg > 0:
-                print('V_excess_hg', V_excess_hg)
+                #print('V_excess_hg', V_excess_hg)
                 V_tether_hg -= V_excess_hg
                 V_tether_bme += V_excess_hg
 
@@ -1318,7 +1318,7 @@ class tBLM(BLM):
         A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
         if A_bme > self.normarea:
             self.mult_tether = max(0, (self.normarea - min_A_tether_bme) / (self.tether.nf * self.bME.vol / self.bME.l))
-            print('big A_bme', 'normarea', 'new mult_tether', A_bme, self.normarea, self.mult_tether)
+            #print('big A_bme', 'normarea', 'new mult_tether', A_bme, self.normarea, self.mult_tether)
             A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
 
         return A_bme, min_A_tether_bme
