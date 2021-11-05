@@ -272,33 +272,110 @@ class Box2Err(nSLDObj):
         self.fnWriteData2File(fp, cName, z)
 
 # ------------------------------------------------------------------------------------------------------
-# Headgroups
+# Lipids and headgroups
 # ------------------------------------------------------------------------------------------------------
 
+from periodictable.fasta import Molecule, xray_sld
+# in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
+# to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
+
+class Component(Molecule):
+    # Subclasses Molecule to automatically store a component length for use later
+    # and calculate total neutron scattering lengths
+    def __init__(self, length=9.575, **kwargs):
+        super().__init__(**kwargs)
+        self.length = length
+        self.nSL = self.sld * self.cell_volume * 1e-6 # units of Ang
+        self.DnSL = self.Dsld * self.cell_volume * 1e-6 # units of Ang
+
+def Component2Box(name=None, molecule=None, xray_wavelength=None):
+    # Creates a new Box2Err from Component data
+
+    box = Box2Err(name=name, dvolume=molecule.cell_volume, dlength=molecule.length)
+    if xray_wavelength is None:
+        box.fnSetnSL(molecule.sld * molecule.cell_volume * 1e-6, molecule.Dsld * molecule.cell_volume * 1e-6)
+    else:
+        box.fnSetnSL(xray_sld(molecule.formula, wavelength=xray_wavelength)[0] * molecule.cell_volume * 1e-6)
+
+    return box
+
+def AddMolecules(component_list, length=None):
+    # Adds together components and molecules. Note that length information is lost
+    # if length is not specified
+    total_formula = ' '.join([str(c.formula) for c in component_list])
+    total_cell_volume = sum([c.cell_volume for c in component_list])
+    total_name = ' + '.join([c.name for c in component_list])
+    if length is None:
+        return Molecule(name=total_name, formula=total_formula, cell_volume=total_cell_volume)
+    else:
+        return Component(name=total_name, formula=total_formula, cell_volume=total_cell_volume, length=length)
+
+# PC headgroup pieces
+choline = Component(name='choline', formula='C5 H13 N', cell_volume=120., length=6.34)
+phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3.86)
+carbonyl_glycerol = Component(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
+
+# standard headgroups
+pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
+pe = Component(name='PE', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
+pg = Component(name='PG', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
+ps = Component(name='PS', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
+pa = Component(name='PA', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
+pi = Component(name='PI', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
+pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
+cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
+
+# standard acyl chains
+oleoyl = Molecule(name='oleoyl', formula='C17 H33', cell_volume=972./2.0)
+palmitoyl = Molecule(name='palmitoyl', formula='C15 H31', cell_volume=770./2.0)
+myristoyl = Molecule(name='myristoyl', formula='C13 H27', cell_volume=770./2.0)
+phytanoyl = Molecule(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0)
+cholesterol = Molecule(name='cholesterol', formula='C27 H45 H[1] O', cell_volume=630.)
+
+# methyl
+methyl = Molecule(name='methyl', formula='CH3', cell_volume=98.8/2.0)
+Dmethyl = Molecule(name='Dmethyl', formula='CD3', cell_volume=98.8/2.0)
+
+# Tether components
+SAc = Molecule(name='thiol acetate', formula = 'C2H3OS', cell_volume=117.0)
+EO6 = Molecule(name='6x ethylene oxide', formula='(C2H4O)6', cell_volume=360.0)
+tetherg_ether = Molecule(name='tether glycerol ether', formula='C5H9O2', cell_volume=125.40)
+tetherg_ester = carbonyl_glycerol
+ethanoyl = Molecule(name='ethanoyl', formula='C2H5O', cell_volume=(117 - 25.75))
+thiol = Molecule(name='sulfur', formula='S', cell_volume=25.75)
+bmeSAc = AddMolecules([SAc, ethanoyl])
+bme = AddMolecules([thiol, ethanoyl])
+SEO6 = AddMolecules([thiol, EO6])
+SAcEO6 = AddMolecules([SAc, EO6])
+
+# TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
+# is in the inner or outer leaflet. The profiles so obtained should be flipped. This should perhaps
+# be standardized, (1) by creating a CompositeHeadgroup class that has this flag already, and (2) by
+# finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
 
 class PC(CompositenSLDObj):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.cg = Box2Err(name='cg')
-        self.phosphate = Box2Err(name='phosphate')
-        self.choline = Box2Err(name='choline')
+    def __init__(self, name='PC', innerleaflet=False, xray_wavelength=None, **kwargs):
+        # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
+        # and choline groups. If False, it's the outer leaflet
+        super().__init__(name=name, **kwargs)
+        self.cg = Component2Box(name='cg', molecule=carbonyl_glycerol, xray_wavelength=xray_wavelength)
+        self.phosphate = Component2Box(name='phosphate', molecule=phosphate, xray_wavelength=xray_wavelength)
+        self.choline = Component2Box(name='choline', molecule=choline, xray_wavelength=xray_wavelength)
+        
+        self.innerleaflet = innerleaflet
 
         self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
 
-        self.cg.l = 4.21 
-        self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
-        self.cg.vol=147 
-        self.cg.nSL=3.7755e-4
+        if innerleaflet:
 
-        self.phosphate.l = 3.86
-        self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
-        self.phosphate.vol=54 
-        self.phosphate.nSL=2.8350e-4 
+            self.cg.sigma2, self.cg.sigma1 = 2.53, 2.29
+            self.phosphate.sigma2, self.phosphate.sigma1 = 2.29, 2.02
+            self.choline.sigma2, self.choline.sigma1 = 2.02, 2.26
 
-        self.choline.l = 6.34
-        self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
-        self.choline.vol=120
-        self.choline.nSL=-6.0930e-5
+        else:
+            self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
+            self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
+            self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
 
         self.cg.nf=1 
         self.phosphate.nf=1 
@@ -313,13 +390,21 @@ class PC(CompositenSLDObj):
         self.fnFindSubgroups()
 
     def fnAdjustParameters(self):
-        self.cg.z = self.z - 0.5 * self.l + 0.5*self.cg.l
-        self.choline.z = self.z + 0.5 * self.l - 0.5*self.choline.l
-        z0 = self.z - 0.5*self.l + 0.5 * self.phosphate.l
-        z1 = self.z + 0.5 * self.l - 0.5*self.phosphate.l
-        self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
+        if self.innerleaflet:
+            self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
+            self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
+            z0 = self.z - 0.5 * self.l + 0.5 * self.phosphate.l
+            z1 = self.z + 0.5 * self.l - 0.5 * self.phosphate.l
+            self.phosphate.z = z0 + (z1 - z0) * (1 - self.ph_relative_pos)
+        else:
+            self.cg.z = self.z - 0.5 * self.l + 0.5*self.cg.l
+            self.choline.z = self.z + 0.5 * self.l - 0.5*self.choline.l
+            z0 = self.z - 0.5*self.l + 0.5 * self.phosphate.l
+            z1 = self.z + 0.5 * self.l - 0.5*self.phosphate.l
+            self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
     
     def fnSet(self, l=9.575, ph_relative_pos=.5, cg_nSL=1.885e-3, ch_nSL=1.407e-3, ph_nSL=1.323e-3):
+        # TODO: these overwrite the known nSL parameters. Do we really want to do that here?
         self.cg.nSL = cg_nSL
         self.choline.nSL = ch_nSL
         self.phosphate.nSL = ph_nSL
@@ -328,12 +413,12 @@ class PC(CompositenSLDObj):
         self.fnAdjustParameters()
     
     def fnGetLowerLimit(self):
-        return self.cg.fnGetLowerLimit()
+        return self.choline.fnGetLowerLimit() if self.innerleaflet else self.cg.fnGetLowerLimit()
     
     def fnGetUpperLimit(self):
-        return self.choline.fnGetUpperLimit()
+        return self.cg.fnGetUpperLimit() if self.innerleaflet else self.choline.fnGetUpperLimit()
     
-    def fnGetnSL(self):
+    def fnGetnSL(self, bulknsld=None):
         return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
     
     def fnGetZ(self): 
@@ -352,13 +437,15 @@ class PC(CompositenSLDObj):
         self.fnAdjustParameters()
     
     def fnWritePar2File (self, fp, cName, z):
-        fp.write("PC "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
+        prefix = "PCm" if self.innerleaflet else "PC"
+        fp.write(prefix + " "+cName+" z "+str(self.z)+" l "+str(self.l)+" vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol)+" nf " + str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
         super().fnWritePar2File(fp, cName, z)
 
 class PCm(PC):
+    # deprecated. Use PC(innerleaflet=True)
     def __init__ (self, **kwargs):
         super().__init__(**kwargs)
         self.cg.sigma2 = 2.53
@@ -389,11 +476,371 @@ class PCm(PC):
 
         super().fnWritePar2File(fp, cName, z)
 
+class Lipid(object):
+    def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
+        # hg = Molecule object with headgroup information or PC molgroups object
+        # tails = List of molecule objects containing lipid tail information
+        # methyls = List of methyl groups, one for each lipid tail; OR, a single group
+        #           that is copied to each tail; OR, None, which uses a null group with
+        #           no volume (use with cholesterol). Use methyl=Dmethyl for CD3.
+        # default is DOPC using the PC class.
+        
+        n_tails = len(tails)
 
+        # tails section
+        if isinstance(tails, list):
+            tail_volume = sum([t.cell_volume for t in tails])
+            tail_formula = ' '.join([str(t.formula) for t in tails])
+            self.tails = Molecule(name='tails',formula=tail_formula, cell_volume=tail_volume)
+        elif isinstance(tails, Molecule):
+            self.tails = tails
+        else:
+            raise TypeError('Lipid.tails must be Molecule or list of Molecules')
+        
+        # headgroup
+        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula = '', cell_volume=0.0, length=9.575)
+
+        # Create methyl groups
+        if isinstance(methyls, list):
+            assert n_tails==len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' % (len(tails), len(methyls))
+        elif isinstance(methyls, Molecule) | (methyls is None):
+            methyls = n_tails * [methyls]
+        else:
+            raise TypeError('Lipid.methyls must be Molecule or list of Molecules')
+        methyls = [m if m is not None else Molecule(name='', formula='', cell_volume=0.0) for m in methyls]  # Replace None with null molecule
+        methylvolsum = sum([m.cell_volume for m in methyls])
+        methylformula = ' '.join([str(m.formula) for m in methyls])
+        self.methyls = Molecule(name='methyls', formula = methylformula, cell_volume=methylvolsum)
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
+
+class Tether(Lipid):
+    """Subclass of Lipid for use with tether molecules.
+        Uses hg field for tether glycerol.
+        Tether includes both volume from """
+    def __init__(self, name=None, tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=methyl):
+        super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
+        self.tether = tether
+        self.tetherg = self.headgroup
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
+
+
+
+DOPC = Lipid(name='DOPC', headgroup=PC, tails=2*[oleoyl])
+POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl])
+DOPS = Lipid(name='DOPS', headgroup=ps, tails=2*[oleoyl])
+chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
+
+WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
+HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
+HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
 
 # ------------------------------------------------------------------------------------------------------
 # Lipid Bilayer
 # ------------------------------------------------------------------------------------------------------
+
+def _unpack_lipids(self, lipids, xray_wavelength=None):
+    """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
+        and lists of acyl chain and methyl volumes and nSLs. Creates the following attributes:
+        o headgroups1: a list of inner leaflet headgroup objects
+        o headgroups2: a list of outer leaflet headgroup objects
+        NB: each object in headgroups1 and headgroups2 is created as a standalone attribute in "self"
+            so that searching for all nSLDObj in self will return each headgroup individually as 
+            headgroup1_1, headgroup1_2, ... headgroup1_n for n lipids. Similarly for headgroup2.
+        o vol_acyl_lipids: a numpy array of acyl chain volumes
+        o vol_methyl_lipids: a numpy array of methyl volumes
+        o nsl_acyl_lipids: a numpy array of acyl chain nSL
+        o nsl_methyl_lipids: a numpy array of methyl nSL
+        """
+    n_lipids = len(lipids)
+    self.lipids = lipids # store this information
+
+    self.headgroups1 = []   # list of inner headgroups
+    self.headgroups2 = []   # list of outer headgroups
+    self.vol_acyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain volumes
+    self.nsl_acyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain nsls
+    self.vol_methyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain methyl volumes
+    self.nsl_methyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain methyl nsls
+
+    # create objects for each lipid headgroup and a composite tail object
+    # TODO: create separate lipid objects so methyl sigmas can be different for different species
+    for i, lipid in enumerate(lipids):
+        ihg_name = 'headgroup1_%i' % (i+1)
+        ohg_name = 'headgroup2_%i' % (i+1)
+
+        if isinstance(lipid.headgroup, Component):
+            # populates nSL, nSL2, vol, and l
+            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
+            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
+
+        elif issubclass(lipid.headgroup, CompositenSLDObj):
+            ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True, xray_wavelength=xray_wavelength)
+            ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False, xray_wavelength=xray_wavelength)
+
+        else:
+            raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
+
+        # Note that because there's always one lipid, the objects self.headgroups1[0] and self.headgroups2[0] always exist
+        self.__setattr__(ihg_name, ihg_obj)
+        self.headgroups1.append(self.__getattribute__(ihg_name))
+        self.__setattr__(ohg_name, ohg_obj)
+        self.headgroups2.append(self.__getattribute__(ohg_name))
+
+        # find null headgroups to exclude from averaging over headgroup properties
+        self.null_hg1 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups1], dtype=bool)
+        self.null_hg2 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups2], dtype=bool)
+
+        self.vol_acyl_lipids[i] = lipid.tails.cell_volume
+        self.vol_methyl_lipids[i] = lipid.methyls.cell_volume        
+        if xray_wavelength is None:
+            self.nsl_acyl_lipids[i] = lipid.tails.sld * lipid.tails.cell_volume * 1e-6
+            self.nsl_methyl_lipids[i] = lipid.methyls.sld * lipid.methyls.cell_volume * 1e-6            
+        else:
+            self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[0] * lipid.tails.cell_volume * 1e-6
+            self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[0] * lipid.methyls.cell_volume * 1e-6
+
+    self.initial_hg1_lengths = numpy.array([hg1.l for hg1 in self.headgroups1])
+
+class BLM(CompositenSLDObj):
+    def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
+        super().__init__(**kwargs)
+        assert len(lipids)==len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
+        assert len(lipids)>0, 'Must specify at least one lipid'
+
+        # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
+        self.lipid_nf = numpy.array(lipid_nf) / numpy.sum(lipid_nf)
+
+        _unpack_lipids(self, lipids, xray_wavelength=xray_wavelength)
+
+        self.lipid1 = Box2Err(name='lipid1')
+        self.methyl1 = Box2Err(name='methyl1')
+        self.methyl2 = Box2Err(name='methyl2')
+        self.lipid2 = Box2Err(name='lipid2')
+
+        self.defect_hydrocarbon = Box2Err(name='defect_hc')
+        self.defect_headgroup = Box2Err(name='defect_hg')
+        
+        self.nf = 1.
+
+        self.vf_bilayer = 1.0
+        self.absorb = 0.
+        self.l_lipid1 = 11.
+        self.l_lipid2 = 11.
+        self.bulknsld = -0.56e-6
+        self.normarea = 60.
+        self.startz = 50.
+        self.sigma = 2.
+        self.methyl_sigma = 2.
+        self.radius_defect = 100.
+        self.hc_substitution_1 = 0
+        self.hc_substitution_2 = 0
+
+        self.fnAdjustParameters()
+        self.fnFindSubgroups()
+        
+    def fnAdjustParameters(self):
+
+        self._adjust_lipids()
+        self._adjust_z(self.startz + self.av_hg1_l)
+        self._adjust_defects()
+        self.fnSetSigma(self.sigma)
+
+    def _adjust_lipids(self):
+
+        self.l_lipid1 = max(self.l_lipid1, 0.01)
+        self.l_lipid2 = max(self.l_lipid2, 0.01)
+        for nf in self.lipid_nf:
+            nf = max(nf, 0)
+
+        # this is changed normalization behavior, but it's a bit more intuitive
+        self.lipid_nf /= numpy.sum(self.lipid_nf)
+
+        self.vf_bilayer = max(self.vf_bilayer, 1E-5)
+        self.vf_bilayer = min(self.vf_bilayer, 1)
+
+        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+        
+        # outer hydrocarbons
+        l_ohc = self.l_lipid2
+        nf_ohc_lipid = self.lipid_nf
+        V_ohc = numpy.sum(nf_ohc_lipid * (self.vol_acyl_lipids - self.vol_methyl_lipids))
+        nSL_ohc = numpy.sum(nf_ohc_lipid * (self.nsl_acyl_lipids - self.nsl_methyl_lipids))
+        #V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
+        #nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
+        
+        self.normarea = V_ohc / l_ohc
+        c_s_ohc = self.vf_bilayer
+        c_A_ohc = 1
+        c_V_ohc = 1
+        
+        self.lipid2.l = l_ohc
+        self.lipid2.vol = V_ohc
+        self.lipid2.nSL = nSL_ohc
+        self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
+        
+        # outer methyl
+        #nf_om_lipid = nf_ohc_lipid
+        #nf_om_lipid_2 = nf_ohc_lipid_2
+        #nf_om_lipid_3 = nf_ohc_lipid_3
+        nf_om_lipid = nf_ohc_lipid
+        #V_om = nf_om_lipid * self.volmethyllipid + nf_om_lipid_2 * self.volmethyllipid_2 + nf_om_lipid_3 * self.volmethyllipid_3
+        V_om = numpy.sum(nf_om_lipid * self.vol_methyl_lipids)   # cholesterol has a methyl volume of zero and does not contribute
+        l_om = l_ohc * V_om / V_ohc
+        #nSL_om = nf_om_lipid * self.nslmethyllipid + nf_om_lipid_2 * self.nslmethyllipid_2 + nf_om_lipid_3 * self.nslmethyllipid_3
+        nSL_om = numpy.sum(nf_om_lipid * self.nsl_methyl_lipids)
+        
+        c_s_om = c_s_ohc
+        c_A_om = 1
+        c_V_om = 1
+        
+        self.methyl2.l = l_om
+        self.methyl2.vol = V_om
+        self.methyl2.nSL = nSL_om
+        self.methyl2.nf = c_s_om * c_A_om * c_V_om
+        
+        # inner hydrocarbons
+        l_ihc = self.l_lipid1
+        
+        #nf_ihc_lipid = nf_ohc_lipid
+        #nf_ihc_lipid_2 = nf_ohc_lipid_2
+        #nf_ihc_lipid_3 = nf_ohc_lipid_3
+        #nf_ihc_chol = nf_ohc_chol
+        nf_ihc_lipid = nf_ohc_lipid
+        V_ihc = numpy.sum(nf_ihc_lipid * (self.vol_acyl_lipids - self.vol_methyl_lipids))
+        #V_ihc = nf_ihc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ihc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ihc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ihc_chol * self.volchol
+        #nSL_ihc = nf_ihc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ihc_lipid_2 * (self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ihc_lipid_3 * (self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ihc_chol * self.nslchol
+        nSL_ihc = numpy.sum(nf_ihc_lipid * (self.nsl_acyl_lipids - self.nsl_methyl_lipids))
+        
+        c_s_ihc = self.vf_bilayer
+        c_A_ihc = self.normarea * l_ihc / V_ihc
+        c_V_ihc = 1
+        
+        self.lipid1.l = l_ihc
+        self.lipid1.vol = V_ihc
+        self.lipid1.nSL = nSL_ihc
+        self.lipid1.nf = c_s_ihc * c_A_ihc * c_V_ihc
+        
+        # inner methyl
+        #nf_im_lipid = nf_ihc_lipid
+        #nf_im_lipid_2 = nf_ihc_lipid_2
+        #nf_im_lipid_3 = nf_ihc_lipid_3
+        nf_im_lipid = nf_ihc_lipid
+        V_im = numpy.sum(nf_im_lipid * self.vol_methyl_lipids)   # cholesterol has a methyl volume of zero and does not contribute
+        #V_im = nf_im_lipid * self.volmethyllipid + nf_im_lipid_2 * self.volmethyllipid_2 + nf_im_lipid_3 * self.volmethyllipid_3
+        l_im = l_ihc * V_im / V_ihc
+        nSL_im = numpy.sum(nf_im_lipid * self.nsl_methyl_lipids)
+        #nSL_im = nf_im_lipid * self.nslmethyllipid + nf_im_lipid_2 * self.nslmethyllipid_2 + nf_im_lipid_3 * self.nslmethyllipid_3
+        
+        c_s_im = c_s_ihc
+        c_A_im = c_A_ihc
+        c_V_im = 1
+        
+        self.methyl1.l = l_im
+        self.methyl1.vol = V_im
+        self.methyl1.nSL = nSL_im
+        self.methyl1.nf = c_s_im * c_A_im * c_V_im
+
+        # headgroup size and position
+        for hg1, nf_ihc, hg2, nf_ohc in zip(self.headgroups1, nf_ihc_lipid, self.headgroups2, nf_ohc_lipid):
+            hg2.nf = c_s_ohc * c_A_ohc * nf_ohc * (1 - self.hc_substitution_2)
+            hg1.nf = c_s_ihc * c_A_ihc * nf_ihc * (1 - self.hc_substitution_1)
+            if hasattr(hg1, 'fnAdjustParameters'):
+                hg1.fnAdjustParameters()
+            if hasattr(hg2, 'fnAdjustParameters'):
+                hg2.fnAdjustParameters()
+
+    def _adjust_defects(self):# defects
+        hclength = self.lipid1.l + self.methyl1.l + self.methyl2.l + self.lipid2.l
+        hglength = self.av_hg1_l + self.av_hg2_l
+
+        if self.radius_defect<(0.5*(hclength+hglength)):
+            self.radius_defect = 0.5 * (hclength+hglength)
+        
+        volhalftorus = numpy.pi**2 * (self.radius_defect - (2. * hclength / 3. / numpy.pi)) * hclength * hclength / 4
+        volcylinder = numpy.pi * self.radius_defect * self.radius_defect * hclength
+        defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
+        
+        self.defect_hydrocarbon.vol = defectarea * hclength
+        self.defect_hydrocarbon.l = hclength
+        self.defect_hydrocarbon.z = self.lipid1.z - 0.5 * self.lipid1.l + 0.5 * hclength
+        self.defect_hydrocarbon.nSL = self.lipid2.nSL / self.lipid2.vol * self.defect_hydrocarbon.vol
+        self.defect_hydrocarbon.fnSetSigma(self.sigma)
+        self.defect_hydrocarbon.nf = 1
+        
+        defectratio = self.defect_hydrocarbon.vol / self.lipid2.vol
+        #self.defect_headgroup.vol = defectratio * (self.headgroup2.vol * self.headgroup2.nf + self.headgroup2_2.vol * self.headgroup2_2.nf + self.headgroup2_3.vol * self.headgroup2_3.nf)
+        self.defect_headgroup.vol = defectratio * numpy.sum([hg.nf * hg.vol for hg in self.headgroups2])
+        self.defect_headgroup.l = hclength + hglength
+        #self.defect_headgroup.z = self.headgroups1[0].fnGetZ() - 0.5 * self.headgroups1[0].l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.z = self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.av_hg1_l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld) for hg in self.headgroups2])
+        #self.defect_headgroup.nSL = defectratio * (self.headgroup2.fnGetnSL()*self.headgroup2.nf * self.headgroup2.nf + self.headgroup2_2.fnGetnSL(self.bulknsld) * self.headgroup2_2.nf + self.headgroup2_3.fnGetnSL(self.bulknsld) * self.headgroup2_3.nf)
+        self.defect_headgroup.fnSetSigma(self.sigma)
+        self.defect_headgroup.nf = 1
+
+    def _adjust_z(self, startz):
+        # startz is the position of the hg1/lipid1 interface.
+        self.lipid1.z= startz + 0.5 * self.lipid1.l # change here: use average headgroup length instead of a specific headgroup
+        self.methyl1.z = self.lipid1.z + 0.5 * (self.lipid1.l + self.methyl1.l)
+        self.methyl2.z = self.methyl1.z + 0.5 * (self.methyl1.l + self.methyl2.l)
+        self.lipid2.z = self.methyl2.z + 0.5 * (self.methyl2.l + self.lipid2.l)
+
+        for hg1, hg2 in zip(self.headgroups1, self.headgroups2):
+            hg1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * hg1.l)
+            hg2.fnSetZ(self.lipid2.z + 0.5 * self.lipid2.l + 0.5 * hg2.l)
+
+    # return value of center of the membrane
+    def fnGetCenter(self):
+        return self.methyl1.z + 0.5 * self.methyl1.l
+
+    # Use limits of molecular subgroups
+    def fnGetLowerLimit(self):
+        return min([hg.fnGetLowerLimit() for hg in self.headgroups1])
+        
+    def fnGetUpperLimit(self):
+        return max([hg.fnGetUpperLimit() for hg in self.headgroups2])
+
+    def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer,
+              nf_lipids=None, hc_substitution_1=0.,
+              hc_substitution_2=0., radius_defect=100.):
+        self.sigma = sigma
+        self.bulknsld = bulknsld
+        self.startz = startz
+        self.l_lipid1 = l_lipid1
+        self.l_lipid2 = l_lipid2
+        self.vf_bilayer = vf_bilayer
+        if nf_lipids is not None:   # pass None to keep lipid_nf unchanged
+            assert len(nf_lipids)==len(self.lipids), 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(nf_lipids), len(self.lipids))
+            self.lipid_nf = numpy.array(nf_lipids)
+        self.hc_substitution_1 = hc_substitution_1
+        self.hc_substitution_2 = hc_substitution_2
+        self.radius_defect = radius_defect
+        
+        self.fnAdjustParameters()
+
+    def fnSetSigma(self, sigma):
+        for hg1, hg2 in zip(self.headgroups1, self.headgroups2):
+            hg1.fnSetSigma(sigma)
+            hg2.fnSetSigma(sigma)
+        self.lipid1.fnSetSigma(sigma,numpy.sqrt(sigma**2+self.methyl_sigma**2))
+        self.methyl1.fnSetSigma(numpy.sqrt(sigma**2+self.methyl_sigma**2), numpy.sqrt(sigma**2+self.methyl_sigma**2))
+        self.methyl2.fnSetSigma(numpy.sqrt(sigma**2+self.methyl_sigma**2), numpy.sqrt(sigma**2+self.methyl_sigma**2))
+        self.lipid2.fnSetSigma(numpy.sqrt(sigma**2+self.methyl_sigma**2),sigma)
+        self.defect_hydrocarbon.fnSetSigma(sigma)
+        self.defect_headgroup.fnSetSigma(sigma)
+
+    def fnWritePar2File(self, fp, cName, z):
+        super().fnWritePar2File(fp, cName, z)
+        self.fnWriteConstant(fp, cName+"_normarea", self.normarea, 0, z)
 
 class BLM_quaternary(CompositenSLDObj):
     def __init__(self, **kwargs):
@@ -419,15 +866,15 @@ class BLM_quaternary(CompositenSLDObj):
                         "headgroup2_2": self.headgroup2_2, "headgroup2_3": self.headgroup2_3,
                         "defect_hc": self.defect_hydrocarbon, "defect_hg": self.defect_headgroup}
 
-        self.volacyllipid = 925
+        self.volacyllipid = 972
         self.nslacyllipid = -2.67e-4
         self.volmethyllipid = 98.8
         self.nslmethyllipid = -9.15e-5
-        self.volacyllipid_2 = 925
+        self.volacyllipid_2 = 972
         self.nslacyllipid_2 = -2.67e-4
         self.volmethyllipid_2 = 98.8
         self.nslmethyllipid_2 = -9.15e-5
-        self.volacyllipid_3 = 925
+        self.volacyllipid_3 = 972
         self.nslacyllipid_3 = -2.67e-4
         self.volmethyllipid_3 = 98.8
         self.nslmethyllipid_3 = -9.15e-5
@@ -758,7 +1205,6 @@ class child_ssBLM_quaternary(BLM_quaternary):
     
     def fnWriteProfile(self, aArea, anSLD, dimension, stepsize, dMaxArea):
         pass
-
 
 class ssBLM_quaternary(CompositenSLDObj):
     def __init__(self, **kwargs):
@@ -1143,6 +1589,77 @@ class ssBLM_quaternary(CompositenSLDObj):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
 
+class ssBLM(BLM):
+    def __init__(self, **kwargs):
+
+        # add ssBLM-specific subgroups
+        self.substrate = Box2Err(name='substrate')
+        self.siox = Box2Err(name='siox')
+
+        self.substrate.l = 40
+        self.substrate.z = 0
+        self.substrate.nf = 1
+        self.rho_substrate = 2.07e-6
+        self.l_siox = 1
+        self.rho_siox = 3.55e-6
+
+        self.siox.l = 20
+        self.siox.z = self.substrate.z + self.substrate.l / 2.0 + self.siox.l / 2.0
+        self.siox.nf = 1
+
+        self.l_submembrane = 10.
+        self.global_rough = 2.0
+
+        super().__init__(**kwargs)
+
+    def fnAdjustParameters(self):
+        
+        self._adjust_lipids()
+
+        # substrate
+        self.substrate.vol = self.normarea * self.substrate.l
+        self.substrate.nSL = self.rho_substrate * self.substrate.vol
+        self.siox.l = self.l_siox
+        self.siox.vol = self.normarea * self.siox.l
+        self.siox.nSL = self.rho_siox * self.siox.vol
+        self.siox.z=self.substrate.z + self.substrate.l / 2 + 0.5 * self.siox.l
+
+        self._adjust_z(self.substrate.z + self.substrate.l / 2 + self.siox.l + self.l_submembrane + self.av_hg1_l)
+        self._adjust_defects()
+
+        self.fnSetSigma(self.sigma)
+
+    def fnSetSigma(self, sigma):
+        super().fnSetSigma(sigma)
+        self.substrate.fnSetSigma(self.global_rough)
+        self.siox.fnSetSigma(self.global_rough)
+
+    def fnGetLowerLimit(self):
+        return self.substrate.fnGetLowerLimit()
+        # does this make sense since this goes to negative z and isn't intended to be used?
+
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _rho_siox, _l_siox, _l_submembrane, _l_lipid1,
+              _l_lipid2, _vf_bilayer, _nf_lipids=None, _hc_substitution_1=0.,
+              _hc_substitution_2=0., _radius_defect=100.):
+        self.sigma = _sigma
+        self.bulknsld = _bulknsld
+        self.global_rough = _global_rough
+        self.rho_substrate = _rho_substrate
+        self.rho_siox = _rho_siox
+        self.l_siox = _l_siox 
+        self.l_submembrane = _l_submembrane 
+        self.l_lipid1 = _l_lipid1
+        self.l_lipid2 = _l_lipid2
+        self.vf_bilayer = _vf_bilayer
+        if _nf_lipids is not None:   # pass None to keep lipid_nf unchanged
+            assert len(_nf_lipids)==len(self.lipids), 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_lipids), len(self.lipids))
+            self.lipid_nf = numpy.array(_nf_lipids)
+        self.hc_substitution_1 = _hc_substitution_1
+        self.hc_substitution_2 = _hc_substitution_2
+        self.radius_defect = _radius_defect
+
+        self.fnAdjustParameters()
+
 
 # ------------------------------------------------------------------------------------------------------
 # Tethered Lipid bilayer - binary system
@@ -1154,7 +1671,7 @@ class tBLM_quaternary(CompositenSLDObj):
         self.bME = Box2Err(name='bME')
         self.tether = Box2Err(name='tether')
         self.tetherg = Box2Err(name='tetherg')
-        self.headgroup1 = PCm(name='headgroup1')  # mirrored PC head group
+        self.headgroup1 = PC(name='headgroup1', innerleaflet=True)  # mirrored PC head group
         self.lipid1 = Box2Err(name='lipid1')
         self.methyl1 = Box2Err(name='methyl1')
         self.methyl2 = Box2Err(name='methyl2')
@@ -1458,8 +1975,8 @@ class tBLM_quaternary(CompositenSLDObj):
         self.substrate.nSL = self.rho_substrate * self.substrate.vol
 
         # set all lengths
-        self.bME.z = 0.5 * self.bME.l + self.substrate.l * 0.5
-        self.tether.z = 0.5 * self.tether.l + self.substrate.l * 0.5
+        self.bME.z = 0.5 * self.bME.l + self.substrate.z + self.substrate.l * 0.5
+        self.tether.z = 0.5 * self.tether.l + self.substrate.z + self.substrate.l * 0.5
         self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
         self.lipid1.z = self.tetherg.z + 0.5 * (self.tetherg.l + self.lipid1.l)
         self.headgroup1.fnSetZ(self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.headgroup1.l)
@@ -1558,6 +2075,260 @@ class tBLM_quaternary(CompositenSLDObj):
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
         self.fnWriteConstant(fp, "normarea", self.normarea, 0, z)
+
+
+class tBLM(BLM):
+    def __init__(self, tether=HC18, filler=bme, xray_wavelength=None, **kwargs):
+
+        # add ssBLM-specific subgroups
+        self.substrate = Box2Err(name='substrate')
+        self.nf_tether = 0.6
+        self.l_tether=3.0
+        self.mult_tether = 5.0
+
+        # change these to Headgroup2Box
+        self.bME = Component2Box(name='bME', molecule=Component(name='bME', formula=filler.formula,
+                                 cell_volume=filler.cell_volume, length=5.2), xray_wavelength=xray_wavelength)
+        self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula,
+                                 cell_volume=tether.tether.cell_volume, length=self.l_tether), xray_wavelength=xray_wavelength)
+        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula,
+                                 cell_volume=tether.tetherg.cell_volume, length=10.0), xray_wavelength=xray_wavelength)
+
+        self.substrate.l = 40
+        self.substrate.z = 0
+        self.substrate.nf = 1
+        self.rho_substrate = 2.07e-6
+
+        self.global_rough = 2.0
+
+        self.vol_acyl_tether = tether.tails.cell_volume
+        self.vol_methyl_tether = tether.methyls.cell_volume
+        if xray_wavelength is None:
+            self.nSL_acyl_tether = tether.tails.sld * tether.tails.cell_volume * 1e-6
+            self.nSL_methyl_tether = tether.methyls.sld * tether.methyls.cell_volume * 1e-6
+        else:
+            self.nSL_acyl_tether = xray_sld(tether.tails.formula, wavelength=xray_wavelength)[0] * tether.tails.cell_volume * 1e-6
+            self.nSL_methyl_tether = xray_sld(tether.methyls.formula, wavelength=xray_wavelength)[0] * tether.methyls.cell_volume * 1e-6
+
+        self.initial_bME_l = self.bME.l
+
+        super().__init__(xray_wavelength=xray_wavelength, **kwargs)
+
+    def fnAdjustParameters(self):
+        
+        self._adjust_lipids()
+
+        # substrate
+        self.substrate.vol = self.normarea * self.substrate.l
+        self.substrate.nSL = self.rho_substrate * self.substrate.vol
+
+        # set all lengths
+        self.bME.z = 0.5 * self.bME.l + self.substrate.z + self.substrate.l * 0.5
+        self.tether.z = 0.5 * self.tether.l + self.substrate.z + self.substrate.l * 0.5
+        self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
+        
+        self._adjust_z(self.tetherg.z + 0.5 * self.tetherg.l)
+        
+        self._adjust_defects()
+
+        self.fnSetSigma(self.sigma)
+
+    def _adjust_lipids(self):
+
+        # sufficiently different from parent class that code is repeated here with small adjustments
+        # TODO: split into inner and outer leaflets so this can be made more efficient
+        
+        self.l_lipid1 = max(self.l_lipid1, 0.01)
+        self.l_lipid2 = max(self.l_lipid2, 0.01)
+        for nf in self.lipid_nf:
+            nf = max(nf, 0)
+
+        # this is changed normalization behavior, but it's a bit more intuitive
+        self.lipid_nf /= numpy.sum(self.lipid_nf)
+
+        self.vf_bilayer = max(self.vf_bilayer, 1E-5)
+        self.vf_bilayer = min(self.vf_bilayer, 1)
+    
+        # outer hydrocarbons
+        l_ohc = self.l_lipid2
+        nf_ohc_lipid = self.lipid_nf
+        V_ohc = numpy.sum(nf_ohc_lipid * (self.vol_acyl_lipids - self.vol_methyl_lipids))
+        nSL_ohc = numpy.sum(nf_ohc_lipid * (self.nsl_acyl_lipids - self.nsl_methyl_lipids))
+        #V_ohc = nf_ohc_lipid * (self.volacyllipid - self.volmethyllipid) + nf_ohc_lipid_2 * (self.volacyllipid_2 - self.volmethyllipid_2) + nf_ohc_lipid_3 * (self.volacyllipid_3 - self.volmethyllipid_3) + nf_ohc_chol * self.volchol
+        #nSL_ohc = nf_ohc_lipid * (self.nslacyllipid - self.nslmethyllipid) + nf_ohc_lipid_2 * (self.nslacyllipid_2 - self.nslmethyllipid_2) + nf_ohc_lipid_3 * (self.nslacyllipid_3 - self.nslmethyllipid_3) + nf_ohc_chol * self.nslchol
+        
+        self.normarea = V_ohc / l_ohc
+        c_s_ohc = self.vf_bilayer
+        c_A_ohc = 1
+        c_V_ohc = 1
+        
+        self.lipid2.l = l_ohc
+        self.lipid2.vol = V_ohc
+        self.lipid2.nSL = nSL_ohc
+        self.lipid2.nf = c_s_ohc * c_A_ohc * c_V_ohc
+        
+        # outer methyl
+        #nf_om_lipid = nf_ohc_lipid
+        #nf_om_lipid_2 = nf_ohc_lipid_2
+        #nf_om_lipid_3 = nf_ohc_lipid_3
+        nf_om_lipid = nf_ohc_lipid
+        #V_om = nf_om_lipid * self.volmethyllipid + nf_om_lipid_2 * self.volmethyllipid_2 + nf_om_lipid_3 * self.volmethyllipid_3
+        V_om = numpy.sum(nf_om_lipid * self.vol_methyl_lipids)   # cholesterol has a methyl volume of zero and does not contribute
+        l_om = l_ohc * V_om / V_ohc
+        #nSL_om = nf_om_lipid * self.nslmethyllipid + nf_om_lipid_2 * self.nslmethyllipid_2 + nf_om_lipid_3 * self.nslmethyllipid_3
+        nSL_om = numpy.sum(nf_om_lipid * self.nsl_methyl_lipids)
+        
+        c_s_om = c_s_ohc
+        c_A_om = 1
+        c_V_om = 1
+        
+        self.methyl2.l = l_om
+        self.methyl2.vol = V_om
+        self.methyl2.nSL = nSL_om
+        self.methyl2.nf = c_s_om * c_A_om * c_V_om
+        
+        # inner hydrocarbons
+        l_ihc = self.l_lipid1
+        
+        nf_ihc_lipid = nf_ohc_lipid * (1 - self.nf_tether)
+        nf_ihc_tether = self.nf_tether
+        V_ihc = numpy.sum(nf_ihc_lipid * (self.vol_acyl_lipids - self.vol_methyl_lipids)) + nf_ihc_tether * (self.vol_acyl_tether - self.vol_methyl_tether)
+        nSL_ihc = numpy.sum(nf_ihc_lipid * (self.nsl_acyl_lipids - self.nsl_methyl_lipids)) + nf_ihc_tether * (self.nSL_acyl_tether - self.nSL_methyl_tether)
+        
+        c_s_ihc = self.vf_bilayer
+        c_A_ihc = self.normarea * l_ihc / V_ihc
+        c_V_ihc = 1
+        
+        self.lipid1.l = l_ihc
+        self.lipid1.vol = V_ihc
+        self.lipid1.nSL = nSL_ihc
+        self.lipid1.nf = c_s_ihc * c_A_ihc * c_V_ihc
+        
+        # inner methyl
+        nf_im_lipid = nf_ihc_lipid
+        nf_im_tether = nf_ihc_tether
+        V_im = numpy.sum(nf_im_lipid * self.vol_methyl_lipids) + nf_im_tether * self.vol_methyl_tether
+        l_im = l_ihc * V_im / V_ihc
+        nSL_im = numpy.sum(nf_im_lipid * self.nsl_methyl_lipids) + nf_im_tether * self.nSL_methyl_tether
+        
+        c_s_im = c_s_ihc
+        c_A_im = c_A_ihc
+        c_V_im = 1
+        
+        self.methyl1.l = l_im
+        self.methyl1.vol = V_im
+        self.methyl1.nSL = nSL_im
+        self.methyl1.nf = c_s_im * c_A_im * c_V_im
+
+        # headgroup size and position
+        for hg1, nf_ihc, hg2, nf_ohc in zip(self.headgroups1, nf_ihc_lipid, self.headgroups2, nf_ohc_lipid):
+            hg2.nf = c_s_ohc * c_A_ohc * nf_ohc * (1 - self.hc_substitution_2)
+            hg1.nf = c_s_ihc * c_A_ihc * nf_ihc * (1 - self.hc_substitution_1)
+            if hasattr(hg1, 'fnAdjustParameters'):
+                hg1.fnAdjustParameters()
+            if hasattr(hg2, 'fnAdjustParameters'):
+                hg2.fnAdjustParameters()
+
+        # tether glycerol part
+        V_tg = self.tetherg.vol
+
+        c_s_tg = c_s_ihc
+        c_A_tg = c_A_ihc
+        c_V_tg = nf_ihc_tether * (1 - self.hc_substitution_2)
+        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
+
+        self.tetherg.l = self.tetherg.vol / ((self.vol_acyl_tether - self.vol_methyl_tether) / self.lipid1.l) / 0.9
+        self.tetherg.nf = c_s_tg * c_A_tg * c_V_tg
+
+        # tether EO part
+        l_EO = self.l_tether
+        V_EO = self.tether.vol
+
+        c_s_EO = c_s_ihc
+        c_A_EO = c_A_ihc
+        c_V_EO = nf_ihc_tether * (1 - self.hc_substitution_2)
+        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
+        self.tether.nf = c_s_EO * c_A_EO * c_V_EO
+        self.tether.l = l_EO
+
+        if (self.tether.nf * self.tether.vol / self.tether.l) > self.normarea:
+            self.tether.l = (self.tether.nf * self.tether.vol) / self.normarea
+            #print('new tether length', self.tether.l)
+        self.l_tether = self.tether.l
+
+        # bME
+        self.bME.l = self.initial_bME_l
+        #l_bME = self.bME.l
+        #self.headgroup1.l = 9.575
+        #V_bME = self.bME.vol
+
+        # TODO: Figure out how to do this for headgroups of different size.
+        # Perhaps sort by length and apply deformations from the longest to the shortest?
+        # Requires checks to make sure bME doesn't get too small. What should the minimum be? Probably enough that it doesn't go above 1.
+        #min_bME_length = numpy.max([0, self.mult_tether * self.tether.nf * self.bME.vol / (self.normarea - self.tether.nf * self.tether.vol / self.tether.l)])
+        # this doesn't work because mult_tether can change below.
+        # problem is actually headgroups + tether filling up the space.
+        if 1:
+            d1s = self.initial_hg1_lengths + self.bME.l - self.tether.l - self.tetherg.l
+            for hg1, initial_length, d1 in zip(self.headgroups1, self.initial_hg1_lengths, d1s):
+                if d1 > 0:
+                    hg1.l = initial_length - d1 / 2.0
+                    if self.initial_bME_l - d1 / 2.0 < self.bME.l:
+                        self.bME.l = self.initial_bME_l - d1 / 2.0
+                    #print('initial length', initial_length, 'd1', d1, 'new headgroup length', hg1.l)
+
+                #dbme = numpy.min([0.5*d1s, (self.bME.l - min_bME_length)*numpy.ones_like(d1s)], axis=0)
+#                print(self.bME.l, self.tether.l, self.tetherg.l, dbme, d1s, min_bME_length, d1s-dbme)            
+#                self.bME.l = self.initial_bME_l - numpy.max(dbme)
+
+        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+
+        if ((
+                self.tether.nf * self.tether.vol / self.tether.l + self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l) > self.normarea):
+            # print(self.tether.nf, self.tether.vol, self.tether.l, self.mult_tether, self.bME.vol, self.bME.l)
+            self.mult_tether = ((self.normarea - self.tether.nf * self.tether.vol / self.tether.l) / (
+                        self.bME.vol / self.bME.l)) / self.tether.nf
+            if (self.mult_tether < 0):
+                # this isn't great because it actually removes bme material. Better to have a minimum distance that doesn't violate volume filling.
+                self.mult_tether = 0
+            #print('new mult_tether', self.mult_tether)
+
+        self.bME.nf = self.tether.nf * self.mult_tether  # 2.333
+
+    def fnSetSigma(self, sigma):
+        super().fnSetSigma(sigma)
+        self.substrate.fnSetSigma(self.global_rough)
+        self.bME.fnSetSigma(self.global_rough)
+        self.tether.fnSetSigma(self.global_rough, sigma)
+        self.tetherg.fnSetSigma(sigma)
+
+    def fnGetLowerLimit(self):
+        return self.substrate.fnGetLowerLimit()
+        # does this make sense since this goes to negative z and isn't intended to be used?
+
+    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_tether, _l_lipid1,
+              _l_lipid2, _vf_bilayer, _nf_lipids=None, _hc_substitution_1=0.,
+              _hc_substitution_2=0., _radius_defect=100.):
+        self.sigma = _sigma
+        self.bulknsld = _bulknsld
+        self.global_rough = _global_rough
+        self.rho_substrate = _rho_substrate
+        self.nf_tether = _nf_tether
+        self.mult_tether = _mult_tether
+        self.l_tether = _l_tether
+        self.l_lipid1 = _l_lipid1
+        self.l_lipid2 = _l_lipid2
+        self.vf_bilayer = _vf_bilayer
+        if _nf_lipids is not None:   # pass None to keep lipid_nf unchanged
+            assert len(_nf_lipids)==len(self.lipids), 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_lipids), len(self.lipids))
+            self.lipid_nf = numpy.array(_nf_lipids)
+        self.hc_substitution_1 = _hc_substitution_1
+        self.hc_substitution_2 = _hc_substitution_2
+        self.radius_defect = _radius_defect
+
+        self.fnAdjustParameters()
 
 # ------------------------------------------------------------------------------------------------------
 # Hermite Spline
@@ -1846,50 +2617,21 @@ class ContinuousEuler(nSLDObj):
                  +str(self.alpha)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
-def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0]), deuterated_residues=None):
+aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP':'D', 'CYS':'C', 'GLU':'E', 'GLN':'Q', 'GLY':'G', 'HIS':'H',
+               'ILE': 'I', 'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE': 'F', 'PRO': 'P', 'SER':'S', 'THR':'T', 'TYR':'Y',
+                'VAL': 'V', 'TRP': 'W'})
+
+def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0,0,0]), deuterated_residues=None, xray_wavelength=1.5418):
     """ Creates an 8-column data file for use with ContinuousEuler from a pdb file\
         with optional selection. "center_of_mass" is the position in space at which to position the
         molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values"""
-    
-    # not currently used but useful
-    rshort = dict({'A': 'ALA', 'R': 'ARG', 'N': 'ASN', 'D':'ASP', 'C':'CYS', 'E':'GLU', 'Q':'GLN', 'G':'GLY', 'H':'HIS',
-               'I': 'ILE', 'L':'LEU', 'K':'LYS', 'M':'MET', 'F': 'PHE', 'P': 'PRO', 'S':'SER', 'T':'THR', 'Y':'TYR',
-                'V': 'VAL', 'W': 'TRP'})
-
-    # residue name : [vol Ang^3, eSL, SLprot Ang, SLdeut Ang, #exchngH]     
-    # volumes from Chothia, C. (1975) Nature 254, 304-308.
-    residprop = {
-            'ALA' : [91.5, 38, 20.1466,  61.7942, 1],
-            'ARG' : [202.1, 85, 56.9491, 129.8324, 6],
-            'ASP' : [124.5, 59, 42.149,  73.3816, 1],
-            'ASN' : [135.2, 60, 45.7009, 76.9366, 3],
-            'CYS' : [105.6, 54, 26.7345, 57.9702, 2],
-            'GLU' : [155.1, 67, 41.371,  93.372, 1],
-            'GLN' : [161.1, 68, 44.8675, 96.927, 3],
-            'GLY' : [66.4,  30, 20.98,   41.8038, 1],
-            'HSD' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HIS' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HSE' : [167.3, 72, 55.0709, 107.1304, 2],
-            'HSP' : [167.3, 72, 55.0709, 107.1304, 3],
-            'ILE' : [168.8, 62, 17.6464, 121.7654, 1],
-            'LEU' : [167.9, 62, 17.6464, 121.7654, 1],
-            'LYS' : [171.3, 71, 30.7473, 124.4544, 4],
-            'MET' : [170.8, 70, 21.3268, 104.622, 1],
-            'PHE' : [203.4, 78, 45.0734, 128.3686, 1],
-            'PRO' : [129.3, 52, 22.2207, 95.104, 0],
-            'MLY' : [224.58, 96, 16.2, 16.2, 0],
-            'MSE' : [253.56, 98, 21.0, 21.0, 0]
-            } #deuteration not correct for MLY and MSE
-    residprop['SER'] = [99.1,  46, 29.6925, 60.9282, 2]
-    residprop['DAV'] = [99.1,  46, 290000.6925, 600000.9282, 2] # huge scattering lengths for testing!
-    residprop['THR'] = [122.1, 54, 25.1182, 87.5896, 2]
-    residprop['TRP'] = [237.6, 98, 67.7302, 151.0254, 2]
-    residprop['TYR'] = [203.6, 86, 54.6193, 127.5026, 2]
-    residprop['VAL'] = [141.7, 54, 18.4798, 101.775, 1]
-    #volume of Zn2+ from Obst et al. J.Mol.Model 1997,3,224-232 (Zn-O g(r))
-    residprop['ZN2'] = [100.5, 28, 5.68, 5.68, 0] 
 
     import MDAnalysis
+    from MDAnalysis.lib.util import convert_aa_code
+    from periodictable.fasta import default_table, AMINO_ACID_CODES as aa
+
+    elements = default_table()
+
     molec = MDAnalysis.Universe(pdbfilename)
     sel = molec.select_atoms(selection)
     Nres = sel.n_residues
@@ -1898,36 +2640,39 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
         print('Warning: no atoms selected')
 
     sel.translate(-sel.center_of_mass() + center_of_mass)
-    
+   
     resnums = []
     rescoords = []
     resscatter = []
+    resvol = numpy.zeros(Nres)
+    resesl = numpy.zeros(Nres)
+    resnslH = numpy.zeros(Nres)
+    resnslD = numpy.zeros(Nres)
     deut_header = ''
-    HSL = -3.7409
-    DSL = 6.671
-    for i in range(Nres):
-        resnums.append(molec.residues[i].resid)
-        rescoords.append(molec.residues[i].atoms.center_of_mass())
-        resscatter.append(residprop[molec.residues[i].resname])
 
+    for i in range(Nres):
+        resnum = molec.residues[i].resid
+        resnums.append(resnum)
+        rescoords.append(molec.residues[i].atoms.center_of_mass())
+        key = convert_aa_code(molec.residues[i].resname)
+        if resnum in deuterated_residues:
+            resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D), cell_volume=aa[key].cell_volume)
+        else:
+            resmol = aa[key]
+        resvol[i] = resmol.cell_volume
+        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)
+        resnslH[i] = resmol.sld
+        resnslD[i] = resmol.Dsld
+            
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
-    resscatter = numpy.array(resscatter)
 
     # replace base value in nsl calculation with proper deuterated scattering length\
     resnsl = resscatter[:,2]
     if deuterated_residues is not None:
-        deuterated_indices = numpy.searchsorted(resnums, deuterated_residues)
-        resnsl = resscatter[:,2]
-        resnsl[deuterated_indices] = resscatter[deuterated_indices, 3]
         deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
 
-
-    resesl = resscatter[:,1] * 2.8e-5
-    resnslH = (resnsl + HSL * resscatter[:,4]) * 1e-5
-    resnslD = (resnsl + DSL * resscatter[:,4]) * 1e-5
-
-    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resscatter[:,0][:,None], resesl[:,None], resnslH[:, None], resnslD[:,None])), delimiter='\t',
+    numpy.savetxt(datfilename, numpy.hstack((resnums[:,None], rescoords, resvol[:,None], resesl[:,None], resnslH[:, None], resnslD[:,None])), delimiter='\t',
             header=pdbfilename + '\n' + deut_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
     return datfilename      # allows this to be fed into ContinuousEuler directly
