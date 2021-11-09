@@ -1337,14 +1337,15 @@ class tBLM(BLM):
     def fnSetSigma(self, sigma):
         super().fnSetSigma(sigma)
         self.substrate.fnSetSigma(self.global_rough)
-        self.bME.fnSetSigma(self.global_rough)
         self.tether.fnSetSigma(self.global_rough, sigma)
         self.tetherg.fnSetSigma(sigma)
         if self.tether_free.vol > 0:
+            self.bME.fnSetSigma(self.global_rough)
             self.tether_bme.fnSetSigma(self.global_rough)
             self.tether_free.fnSetSigma(self.global_rough, sigma)
             self.tether_hg.fnSetSigma(sigma)
         else:
+            self.bME.fnSetSigma(self.global_rough, sigma)
             self.tether_bme.fnSetSigma(self.global_rough, sigma)
             self.tether_hg.fnSetSigma(sigma)
 
