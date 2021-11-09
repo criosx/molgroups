@@ -1,0 +1,317 @@
+# steps: 2000, # draws: 360000
+step 1 cost 1.127(84)
+                        background ch061 |......... 3.35859e-07 in (-1e-07,1e-05)
+                         intensity ch061 .....|....   0.986689 in (0.9,1.05)
+                 sample_broadening ch061 ..|....... 0.00131451 in (-0.005,0.02)
+                      theta_offset ch061 ...|...... -0.00855235 in (-0.015,0.005)
+                          siox interface .|........    3.35961 in (2,9)
+                                siox rho |.........     3.2822 in (3.1,5.1)
+                          siox thickness .|........    10.2996 in (5,40)
+                                tiox rho .....|....     2.2715 in (1.163,3.163)
+                                 d2o rho ....|.....     5.8936 in (5.3,6.5)
+                          tiox roughness .|........     3.2668 in (2,9)
+              inner acyl chain thickness .......|..    14.3964 in (8,16)
+              outer acyl chain thickness ....|.....    11.6092 in (8,16)
+                   submembrane thickness ..|.......    13.9491 in (0,50)
+                       bilayer roughness ....|.....    5.26655 in (2,9)
+                 volume fraction bilayer .........|   0.937413 in (0,1)
+                        background ch060 ....|..... 4.11676e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......  -0.269949 in (-0.6,0.6)
+                    total tiox thickness ........|.    135.645 in (50,150)
+step 17 cost 1.125(84)
+step 33 cost 1.124(84)
+step 45 cost 1.124(84)
+step 61 cost 1.124(84)
+step 77 cost 1.124(84)
+step 93 cost 1.124(84)
+step 109 cost 1.124(84)
+step 123 cost 1.124(84)
+step 138 cost 1.124(84)
+step 154 cost 1.124(84)
+step 170 cost 1.124(84)
+step 186 cost 1.124(84)
+step 202 cost 1.124(84)
+step 214 cost 1.124(84)
+step 230 cost 1.124(84)
+step 246 cost 1.124(84)
+step 260 cost 1.124(84)
+step 276 cost 1.124(84)
+step 292 cost 1.124(84)
+step 306 cost 1.124(84)
+step 322 cost 1.124(84)
+step 336 cost 1.124(84)
+step 351 cost 1.124(84)
+step 367 cost 1.124(84)
+step 382 cost 1.124(84)
+step 398 cost 1.124(84)
+step 414 cost 1.124(84)
+step 428 cost 1.124(84)
+step 444 cost 1.124(84)
+                        background ch061 |......... 3.41218e-07 in (-1e-07,1e-05)
+                         intensity ch061 .....|....   0.987985 in (0.9,1.05)
+                 sample_broadening ch061 ..|....... 0.00131849 in (-0.005,0.02)
+                      theta_offset ch061 ...|...... -0.00856307 in (-0.015,0.005)
+                          siox interface .|........    3.35862 in (2,9)
+                                siox rho |.........    3.28037 in (3.1,5.1)
+                          siox thickness .|........    10.3309 in (5,40)
+                                tiox rho .....|....    2.26992 in (1.163,3.163)
+                                 d2o rho ....|.....    5.89268 in (5.3,6.5)
+                          tiox roughness .|........    3.26578 in (2,9)
+              inner acyl chain thickness .......|..    14.3932 in (8,16)
+              outer acyl chain thickness ....|.....    11.6126 in (8,16)
+                   submembrane thickness ..|.......    13.9417 in (0,50)
+                       bilayer roughness ....|.....    5.26948 in (2,9)
+                 volume fraction bilayer .........|   0.936254 in (0,1)
+                        background ch060 ....|..... 4.12016e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......  -0.271058 in (-0.6,0.6)
+                    total tiox thickness ........|.    135.419 in (50,150)
+step 459 cost 1.124(84)
+step 474 cost 1.124(84)
+step 490 cost 1.124(84)
+step 505 cost 1.124(84)
+step 520 cost 1.124(84)
+step 536 cost 1.124(84)
+step 551 cost 1.124(84)
+step 566 cost 1.124(84)
+step 582 cost 1.124(84)
+step 597 cost 1.124(84)
+step 612 cost 1.124(84)
+step 627 cost 1.124(84)
+step 642 cost 1.124(84)
+step 657 cost 1.124(84)
+step 673 cost 1.124(84)
+step 689 cost 1.124(84)
+step 705 cost 1.124(84)
+step 720 cost 1.124(84)
+step 736 cost 1.124(84)
+step 752 cost 1.124(84)
+step 768 cost 1.124(84)
+step 784 cost 1.124(84)
+step 799 cost 1.124(84)
+step 815 cost 1.124(84)
+step 831 cost 1.124(84)
+step 847 cost 1.124(84)
+step 863 cost 1.124(84)
+step 878 cost 1.124(84)
+step 893 cost 1.124(84)
+                        background ch061 |......... 3.41218e-07 in (-1e-07,1e-05)
+                         intensity ch061 .....|....   0.987985 in (0.9,1.05)
+                 sample_broadening ch061 ..|....... 0.00131849 in (-0.005,0.02)
+                      theta_offset ch061 ...|...... -0.00856307 in (-0.015,0.005)
+                          siox interface .|........    3.35862 in (2,9)
+                                siox rho |.........    3.28037 in (3.1,5.1)
+                          siox thickness .|........    10.3309 in (5,40)
+                                tiox rho .....|....    2.26992 in (1.163,3.163)
+                                 d2o rho ....|.....    5.89268 in (5.3,6.5)
+                          tiox roughness .|........    3.26578 in (2,9)
+              inner acyl chain thickness .......|..    14.3932 in (8,16)
+              outer acyl chain thickness ....|.....    11.6126 in (8,16)
+                   submembrane thickness ..|.......    13.9417 in (0,50)
+                       bilayer roughness ....|.....    5.26948 in (2,9)
+                 volume fraction bilayer .........|   0.936254 in (0,1)
+                        background ch060 ....|..... 4.12016e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......  -0.271058 in (-0.6,0.6)
+                    total tiox thickness ........|.    135.419 in (50,150)
+step 908 cost 1.124(84)
+step 923 cost 1.124(84)
+step 939 cost 1.124(84)
+step 954 cost 1.124(84)
+step 969 cost 1.124(84)
+step 984 cost 1.124(84)
+step 999 cost 1.124(84)
+step 1014 cost 1.124(84)
+step 1030 cost 1.124(84)
+step 1045 cost 1.124(84)
+step 1060 cost 1.124(84)
+step 1075 cost 1.124(84)
+step 1090 cost 1.124(84)
+step 1105 cost 1.124(84)
+step 1121 cost 1.124(84)
+step 1135 cost 1.124(84)
+step 1150 cost 1.124(84)
+step 1165 cost 1.124(84)
+step 1180 cost 1.124(84)
+step 1195 cost 1.124(84)
+step 1210 cost 1.124(84)
+step 1226 cost 1.124(84)
+step 1242 cost 1.124(84)
+step 1258 cost 1.124(84)
+step 1274 cost 1.124(84)
+step 1290 cost 1.124(84)
+step 1306 cost 1.124(84)
+step 1322 cost 1.124(84)
+step 1337 cost 1.124(84)
+                        background ch061 |......... 3.41218e-07 in (-1e-07,1e-05)
+                         intensity ch061 .....|....   0.987985 in (0.9,1.05)
+                 sample_broadening ch061 ..|....... 0.00131849 in (-0.005,0.02)
+                      theta_offset ch061 ...|...... -0.00856307 in (-0.015,0.005)
+                          siox interface .|........    3.35862 in (2,9)
+                                siox rho |.........    3.28037 in (3.1,5.1)
+                          siox thickness .|........    10.3309 in (5,40)
+                                tiox rho .....|....    2.26992 in (1.163,3.163)
+                                 d2o rho ....|.....    5.89268 in (5.3,6.5)
+                          tiox roughness .|........    3.26578 in (2,9)
+              inner acyl chain thickness .......|..    14.3932 in (8,16)
+              outer acyl chain thickness ....|.....    11.6126 in (8,16)
+                   submembrane thickness ..|.......    13.9417 in (0,50)
+                       bilayer roughness ....|.....    5.26948 in (2,9)
+                 volume fraction bilayer .........|   0.936254 in (0,1)
+                        background ch060 ....|..... 4.12016e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......  -0.271058 in (-0.6,0.6)
+                    total tiox thickness ........|.    135.419 in (50,150)
+step 1353 cost 1.124(84)
+step 1368 cost 1.124(84)
+step 1383 cost 1.124(84)
+step 1399 cost 1.124(84)
+step 1415 cost 1.124(84)
+step 1430 cost 1.124(84)
+step 1445 cost 1.124(84)
+step 1461 cost 1.124(84)
+step 1476 cost 1.124(84)
+step 1491 cost 1.124(84)
+step 1507 cost 1.124(84)
+step 1523 cost 1.124(84)
+step 1539 cost 1.124(84)
+step 1555 cost 1.124(84)
+step 1570 cost 1.124(84)
+step 1585 cost 1.124(84)
+step 1601 cost 1.124(84)
+step 1617 cost 1.124(84)
+step 1632 cost 1.124(84)
+step 1648 cost 1.124(84)
+step 1664 cost 1.124(84)
+step 1679 cost 1.124(84)
+step 1695 cost 1.124(84)
+step 1711 cost 1.124(84)
+step 1727 cost 1.124(84)
+step 1743 cost 1.124(84)
+step 1759 cost 1.124(84)
+step 1775 cost 1.124(84)
+step 1791 cost 1.124(84)
+                        background ch061 |......... 3.41218e-07 in (-1e-07,1e-05)
+                         intensity ch061 .....|....   0.987985 in (0.9,1.05)
+                 sample_broadening ch061 ..|....... 0.00131849 in (-0.005,0.02)
+                      theta_offset ch061 ...|...... -0.00856307 in (-0.015,0.005)
+                          siox interface .|........    3.35862 in (2,9)
+                                siox rho |.........    3.28037 in (3.1,5.1)
+                          siox thickness .|........    10.3309 in (5,40)
+                                tiox rho .....|....    2.26992 in (1.163,3.163)
+                                 d2o rho ....|.....    5.89268 in (5.3,6.5)
+                          tiox roughness .|........    3.26578 in (2,9)
+              inner acyl chain thickness .......|..    14.3932 in (8,16)
+              outer acyl chain thickness ....|.....    11.6126 in (8,16)
+                   submembrane thickness ..|.......    13.9417 in (0,50)
+                       bilayer roughness ....|.....    5.26948 in (2,9)
+                 volume fraction bilayer .........|   0.936254 in (0,1)
+                        background ch060 ....|..... 4.12016e-06 in (-1e-07,1e-05)
+                                 h2o rho ..|.......  -0.271058 in (-0.6,0.6)
+                    total tiox thickness ........|.    135.419 in (50,150)
+step 1806 cost 1.124(84)
+step 1821 cost 1.124(84)
+step 1836 cost 1.124(84)
+step 1852 cost 1.124(84)
+step 1867 cost 1.124(84)
+step 1882 cost 1.124(84)
+step 1898 cost 1.124(84)
+step 1914 cost 1.124(84)
+step 1930 cost 1.124(84)
+step 1946 cost 1.124(84)
+step 1962 cost 1.124(84)
+step 1977 cost 1.124(84)
+step 1993 cost 1.124(84)
+step 2009 cost 1.124(84)
+-- Model 0 ch061
+.probe
+  .back_absorption = back_absorption ch061 = 1
+  .background = background ch061 = 3.41218e-07 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 0.987985 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.00131849 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = -0.00856307 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox interface = 3.35862 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox interface = 3.35862 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.28037 in [3.1,5.1]
+      .thickness = siox thickness = 10.3309 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = tiox rho = 2.26992 in [1.163,3.163]
+      .thickness = (total tiox thickness - 20.0) = 115.419
+    [3]
+      .bulknsld = d2o rho = 5.89268 in [5.3,6.5]
+      .global_rough = tiox roughness = 3.26578 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner acyl chain thickness = 14.3932 in [8,16]
+      .l_lipid2 = outer acyl chain thickness = 11.6126 in [8,16]
+      .l_submembrane = submembrane thickness = 13.9417 in [0,50]
+      .rho_substrate = tiox rho = 2.26992 in [1.163,3.163]
+      .sigma = bilayer roughness = 5.26948 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume fraction bilayer = 0.936254 in [0,1]
+    [4]
+      .interface = d2o interface = 5
+      .material
+        .irho = d2o irho = 0
+        .rho = d2o rho = 5.89268 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+  .thickness = stack thickness = 275.75
+
+[chisq=0.83(14), nllf=53.5412]
+-- Model 1 ch060
+.probe
+  .back_absorption = back_absorption ch060 = 1
+  .background = background ch060 = 4.12016e-06 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 0.987985 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.00131849 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = -0.00856307 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox interface = 3.35862 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox interface = 3.35862 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.28037 in [3.1,5.1]
+      .thickness = siox thickness = 10.3309 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = tiox rho = 2.26992 in [1.163,3.163]
+      .thickness = (total tiox thickness - 20.0) = 115.419
+    [3]
+      .bulknsld = h2o rho = -0.271058 in [-0.6,0.6]
+      .global_rough = tiox roughness = 3.26578 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner acyl chain thickness = 14.3932 in [8,16]
+      .l_lipid2 = outer acyl chain thickness = 11.6126 in [8,16]
+      .l_submembrane = submembrane thickness = 13.9417 in [0,50]
+      .rho_substrate = tiox rho = 2.26992 in [1.163,3.163]
+      .sigma = bilayer roughness = 5.26948 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume fraction bilayer = 0.936254 in [0,1]
+    [4]
+      .interface = h2o interface = 5
+      .material
+        .irho = h2o irho = 0
+        .rho = h2o rho = -0.271058 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+  .thickness = stack thickness = 275.75
+
+[chisq=1.26(14), nllf=81.357]
+[overall chisq=1.124(84), nllf=134.898]
