@@ -1127,10 +1127,10 @@ class tBLM(BLM):
         # check to make sure there isn't too much volume in the submembrane space. If there is, increase l_tether to accommodate it
         total_submembrane_V = self.tether.vol * self.tether.nf + self.tetherg.vol * self.tetherg.nf + \
                         self.mult_tether * self.tether.nf * self.bME.vol + numpy.sum([hg.nf * hg.vol for hg in self.headgroups1])
-        if total_submembrane_V > self.l_tether * self.normarea:
+        if total_submembrane_V > self.l_tether * self.normarea * self.vf_bilayer:
             #print('Warning too much volume')
             #print('total_submembrane_V', 'allowed_submembrane_V', 'new l_tether: ', total_submembrane_V, self.normarea * self.l_tether, total_submembrane_V / self.normarea)
-            self.l_tether = total_submembrane_V / self.normarea
+            self.l_tether = total_submembrane_V / (self.normarea * self.vf_bilayer)
             # After changing submembrane space size, recalculate everything
             self._adjust_submembrane()
 
@@ -1280,12 +1280,12 @@ class tBLM(BLM):
             V_tether_hg += V_tether * self.av_hg1_l / (self.bME.l + self.av_hg1_l)
 
             # Shouldn't need this
-            V_excess_bme = V_tether_bme + self.mult_tether * self.tether.nf * self.bME.vol - self.normarea * self.bME.l
+            V_excess_bme = V_tether_bme + self.mult_tether * self.tether.nf * self.bME.vol - self.normarea * self.vf_bilayer * self.bME.l
             if V_excess_bme > 0:
                 #print('V_excess_bme', V_excess_bme)
                 V_tether_hg += V_excess_bme
                 V_tether_bme -= V_excess_bme
-            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.av_hg1_l
+            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.vf_bilayer * self.av_hg1_l
             if V_excess_hg > 0:
                 #print('V_excess_hg', V_excess_hg)
                 V_tether_hg -= V_excess_hg
@@ -1316,8 +1316,8 @@ class tBLM(BLM):
         """ bME + tether in the bME region can't be bigger than normarea. If it is, reduce mult_tether until it isn't."""
         min_A_tether_bme = self.tether.nf * self.bME.vol / self.bME.l # minimum amount of volume in tether region.
         A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
-        if A_bme > self.normarea:
-            self.mult_tether = max(0, (self.normarea - min_A_tether_bme) / (self.tether.nf * self.bME.vol / self.bME.l))
+        if A_bme > self.normarea * self.vf_bilayer:
+            self.mult_tether = max(0, (self.normarea * self.vf_bilayer - min_A_tether_bme) / (self.tether.nf * self.bME.vol / self.bME.l))
             #print('big A_bme', 'normarea', 'new mult_tether', A_bme, self.normarea, self.mult_tether)
             A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
 
