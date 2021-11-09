@@ -52,7 +52,7 @@ stepsize=0.5        # Length of steps
 
 ## === Stack ===
 ##
-## First, we create a 'material' for each layer, which has an real and imaginary
+## First, we create a 'material' for each bulk layer, which has an real and imaginary
 ## scattering length density, stored in a Refl1d object called 'SLD'
 d2o = SLD(name='d2o', rho=6.3000, irho=0.0000)
 h2o = SLD(name='h2o', rho=-0.56, irho=0.0000)
@@ -60,7 +60,7 @@ tiox = SLD(name='tiox', rho=2.1630, irho=0.0000)
 siox = SLD(name='siox', rho=4.1000, irho=0.0000)
 silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
 
-## Then layers are created, each with its own 'material'.  If you want to force
+## Then bulk layers are created, each with its own 'material'.  If you want to force
 ## two layers to always match SLD you can use the same material in multiple layers.
 ## The roughnesses of each layer are set to zero to begin with:
 
@@ -142,8 +142,9 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=stepsize, step_interfaces =
 
 problem = FitProblem([model, modelh])
 
+## === Export objects for post analysis ===
 problem.name = "DOPC bilayer on TiOx substrate"
-problem.molobjects = [blm]
+problem.bilayers = [blm]
 problem.dimension = dimension
 problem.stepsize = stepsize
 
