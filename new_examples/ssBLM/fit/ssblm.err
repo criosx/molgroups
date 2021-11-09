@@ -1,116 +1,116 @@
 -- Model 0 ch061
 .probe
   .back_absorption = back_absorption ch061 = 1
-  .background = background ch061 = 3.41218e-07 in [-1e-07,1e-05]
-  .intensity = intensity ch061 = 0.987985 in [0.9,1.05]
-  .sample_broadening = sample_broadening ch061 = 0.00131849 in [-0.005,0.02]
-  .theta_offset = theta_offset ch061 = -0.00856307 in [-0.015,0.005]
+  .background = background ch061 = 3.50982e-07 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 0.988272 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.00131699 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = -0.008543 in [-0.015,0.005]
 .sample
   .layers
     [0]
-      .interface = siox interface = 3.35862 in [2,9]
+      .interface = siox interface = 3.35781 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = siox interface = 3.35862 in [2,9]
+      .interface = siox interface = 3.35781 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 3.28037 in [3.1,5.1]
-      .thickness = siox thickness = 10.3309 in [5,40]
+        .rho = siox rho = 3.27886 in [3.1,5.1]
+      .thickness = siox thickness = 10.3409 in [5,40]
     [2]
       .interface = tiox interface = 0
       .material
         .irho = tiox irho = 0
-        .rho = tiox rho = 2.26992 in [1.163,3.163]
-      .thickness = (total tiox thickness - 20.0) = 115.419
+        .rho = tiox rho = 2.27007 in [1.163,3.163]
+      .thickness = (total tiox thickness - 20.0) = 115.438
     [3]
-      .bulknsld = d2o rho = 5.89268 in [5.3,6.5]
-      .global_rough = tiox roughness = 3.26578 in [2,9]
+      .bulknsld = d2o rho = 5.89215 in [5.3,6.5]
+      .global_rough = tiox roughness = 3.26665 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 14.3932 in [8,16]
-      .l_lipid2 = outer acyl chain thickness = 11.6126 in [8,16]
-      .l_submembrane = submembrane thickness = 13.9417 in [0,50]
-      .rho_substrate = tiox rho = 2.26992 in [1.163,3.163]
-      .sigma = bilayer roughness = 5.26948 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 14.3868 in [8,16]
+      .l_lipid2 = outer acyl chain thickness = 11.612 in [8,16]
+      .l_submembrane = submembrane thickness = 13.9453 in [0,50]
+      .rho_substrate = tiox rho = 2.27007 in [1.163,3.163]
+      .sigma = bilayer roughness = 5.26918 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.936254 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.936717 in [0,1]
     [4]
       .interface = d2o interface = 5
       .material
         .irho = d2o irho = 0
-        .rho = d2o rho = 5.89268 in [5.3,6.5]
+        .rho = d2o rho = 5.89215 in [5.3,6.5]
       .thickness = d2o thickness = 0
-  .thickness = stack thickness = 275.75
+  .thickness = stack thickness = 275.779
 
-[chisq=0.83(14), nllf=53.5412]
+[chisq=0.83(14), nllf=53.6292]
 -- Model 1 ch060
 .probe
   .back_absorption = back_absorption ch060 = 1
-  .background = background ch060 = 4.12016e-06 in [-1e-07,1e-05]
-  .intensity = intensity ch061 = 0.987985 in [0.9,1.05]
-  .sample_broadening = sample_broadening ch061 = 0.00131849 in [-0.005,0.02]
-  .theta_offset = theta_offset ch061 = -0.00856307 in [-0.015,0.005]
+  .background = background ch060 = 4.10872e-06 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 0.988272 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.00131699 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = -0.008543 in [-0.015,0.005]
 .sample
   .layers
     [0]
-      .interface = siox interface = 3.35862 in [2,9]
+      .interface = siox interface = 3.35781 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = siox interface = 3.35862 in [2,9]
+      .interface = siox interface = 3.35781 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 3.28037 in [3.1,5.1]
-      .thickness = siox thickness = 10.3309 in [5,40]
+        .rho = siox rho = 3.27886 in [3.1,5.1]
+      .thickness = siox thickness = 10.3409 in [5,40]
     [2]
       .interface = tiox interface = 0
       .material
         .irho = tiox irho = 0
-        .rho = tiox rho = 2.26992 in [1.163,3.163]
-      .thickness = (total tiox thickness - 20.0) = 115.419
+        .rho = tiox rho = 2.27007 in [1.163,3.163]
+      .thickness = (total tiox thickness - 20.0) = 115.438
     [3]
-      .bulknsld = h2o rho = -0.271058 in [-0.6,0.6]
-      .global_rough = tiox roughness = 3.26578 in [2,9]
+      .bulknsld = h2o rho = -0.270909 in [-0.6,0.6]
+      .global_rough = tiox roughness = 3.26665 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 14.3932 in [8,16]
-      .l_lipid2 = outer acyl chain thickness = 11.6126 in [8,16]
-      .l_submembrane = submembrane thickness = 13.9417 in [0,50]
-      .rho_substrate = tiox rho = 2.26992 in [1.163,3.163]
-      .sigma = bilayer roughness = 5.26948 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 14.3868 in [8,16]
+      .l_lipid2 = outer acyl chain thickness = 11.612 in [8,16]
+      .l_submembrane = submembrane thickness = 13.9453 in [0,50]
+      .rho_substrate = tiox rho = 2.27007 in [1.163,3.163]
+      .sigma = bilayer roughness = 5.26918 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.936254 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.936717 in [0,1]
     [4]
       .interface = h2o interface = 5
       .material
         .irho = h2o irho = 0
-        .rho = h2o rho = -0.271058 in [-0.6,0.6]
+        .rho = h2o rho = -0.270909 in [-0.6,0.6]
       .thickness = h2o thickness = 0
-  .thickness = stack thickness = 275.75
+  .thickness = stack thickness = 275.779
 
-[chisq=1.26(14), nllf=81.357]
-[overall chisq=1.124(84), nllf=134.898]
+[chisq=1.26(14), nllf=81.1603]
+[overall chisq=1.123(84), nllf=134.789]
               Parameter       mean  median    best [   68% interval] [   95% interval]
- 1     background ch061 0.37(11)e-6 0.000000369 0.000000341 [0.00000026 0.00000048] [0.00000014 0.00000059]
- 2      intensity ch061 0.9877(57)  0.9877  0.9880 [  0.982   0.993] [  0.977   0.999]
- 3 sample_broadening ch061 1.1(18)e-3 0.00124 0.00132 [-0.0007  0.0029] [-0.0029  0.0043]
- 4   theta_offset ch061 -8.1(15)e-3 -0.00813 -0.00856 [-0.0095 -0.0066] [-0.0110 -0.0048]
- 5       siox interface   3.18(63)   3.161   3.359 [   2.48    3.84] [   2.12    4.44]
- 6             siox rho   3.34(20)   3.296   3.280 [   3.15    3.54] [   3.11    3.81]
- 7       siox thickness   10.0(16)  10.077  10.331 [   8.26   11.67] [   6.90   12.51]
- 8             tiox rho 2.2684(89)  2.2686  2.2699 [  2.260   2.277] [  2.250   2.286]
- 9              d2o rho  5.903(36)   5.902   5.893 [   5.87    5.94] [   5.83    5.98]
-10       tiox roughness   3.40(56)   3.427   3.266 [   2.83    3.95] [   2.21    4.45]
-11 inner acyl chain thickness  14.41(45)  14.424  14.393 [  13.99   14.83] [  13.50   15.24]
-12 outer acyl chain thickness  11.54(54)  11.534  11.613 [  11.03   12.03] [  10.45   12.62]
-13 submembrane thickness  13.94(33)  13.927  13.942 [  13.64   14.24] [  13.28   14.62]
-14    bilayer roughness   5.27(39)   5.280   5.269 [   4.92    5.63] [   4.45    6.06]
-15 volume fraction bilayer  0.938(14)  0.9371  0.9363 [  0.925   0.952] [  0.912   0.971]
-16     background ch060 4.07(14)e-6 0.000004067 0.000004120 [0.00000392 0.00000421] [0.00000378 0.00000434]
-17              h2o rho -0.297(34)  -0.296  -0.271 [  -0.33   -0.26] [  -0.37   -0.23]
-18 total tiox thickness 135.66(86) 135.636 135.419 [ 134.75  136.60] [ 134.15  137.33]
+ 1     background ch061 0.36(11)e-6 0.000000369 0.000000351 [0.00000025 0.00000048] [0.00000013 0.00000058]
+ 2      intensity ch061 0.9877(54)  0.9876  0.9883 [  0.982   0.993] [  0.977   0.998]
+ 3 sample_broadening ch061 1.2(19)e-3 0.00133 0.00132 [-0.0006  0.0030] [-0.0029  0.0047]
+ 4   theta_offset ch061 -7.8(18)e-3 -0.00786 -0.00854 [-0.0096 -0.0059] [-0.0113 -0.0040]
+ 5       siox interface   3.17(62)   3.157   3.358 [   2.49    3.81] [   2.10    4.41]
+ 6             siox rho   3.34(21)   3.290   3.279 [   3.14    3.55] [   3.10    3.84]
+ 7       siox thickness   10.0(16)  10.148  10.341 [   8.15   11.79] [   6.66   12.48]
+ 8             tiox rho  2.269(11)  2.2687  2.2701 [  2.258   2.279] [  2.249   2.292]
+ 9              d2o rho  5.910(44)   5.906   5.892 [   5.87    5.96] [   5.83    6.00]
+10       tiox roughness   3.46(57)   3.493   3.267 [   2.88    4.06] [   2.31    4.52]
+11 inner acyl chain thickness  14.44(44)  14.457  14.387 [  13.99   14.89] [  13.52   15.25]
+12 outer acyl chain thickness  11.53(51)  11.497  11.612 [  11.04   12.07] [  10.55   12.55]
+13 submembrane thickness  13.90(32)  13.901  13.945 [  13.59   14.21] [  13.30   14.56]
+14    bilayer roughness   5.23(41)   5.227   5.269 [   4.82    5.65] [   4.38    6.00]
+15 volume fraction bilayer  0.936(15)  0.9347  0.9367 [  0.922   0.951] [  0.911   0.967]
+16     background ch060 4.06(14)e-6 0.000004064 0.000004109 [0.00000391 0.00000421] [0.00000377 0.00000433]
+17              h2o rho -0.303(36)  -0.303  -0.271 [  -0.34   -0.27] [  -0.37   -0.23]
+18 total tiox thickness 135.64(91) 135.564 135.438 [ 134.67  136.68] [ 134.18  137.47]
 
-Statistics and plots based on 325980 samples (90.0% of total samples drawn)
+Statistics and plots based on 273780 samples (75.6% of total samples drawn)
