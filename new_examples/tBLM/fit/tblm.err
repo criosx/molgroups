@@ -1,136 +1,136 @@
 -- Model 0 os046_4column
 .probe
   .back_absorption = back_absorption os046_4column = 1
-  .background = background os046_4column = 5.45612e-08 in [-1e-07,1e-05]
-  .intensity = intensity os046_4column = 0.994225 in [0.9,1.05]
-  .sample_broadening = sample_broadening os046_4column = -0.000924435 in [-0.005,0.02]
-  .theta_offset = theta_offset os046_4column = 0.00645166 in [-0.015,0.015]
+  .background = background os046_4column = 1.27382e-07 in [-1e-07,1e-05]
+  .intensity = intensity os046_4column = 0.992547 in [0.9,1.05]
+  .sample_broadening = sample_broadening os046_4column = 0.000177341 in [-0.005,0.02]
+  .theta_offset = theta_offset os046_4column = 0.00337491 in [-0.015,0.015]
 .sample
   .layers
     [0]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 4.34397 in [3.1,5.1]
-      .thickness = silicon oxide layer thickness = 5.71312 in [5,30]
+        .rho = siox rho = 4.52684 in [3.1,5.1]
+      .thickness = silicon oxide layer thickness = 5.35615 in [5,30]
     [2]
-      .interface = gold chromium roughness = 16.6099 in [2,24]
+      .interface = gold chromium roughness = 16.5924 in [2,24]
       .material
         .irho = chromium irho = 0
-        .rho = chromium rho = 3.26588 in [2.7,4]
-      .thickness = chromium layer thickness = 33.4289 in [10,150]
+        .rho = chromium rho = 3.22654 in [2.7,4]
+      .thickness = chromium layer thickness = 33.1881 in [10,150]
     [3]
       .interface = gold interface = 0
       .material
         .irho = gold irho = 0
-        .rho = gold rho = 4.58171 in [4.2,4.8]
-      .thickness = (gold layer thickness - 20.0) = 157.681
+        .rho = gold rho = 4.51728 in [4.2,4.8]
+      .thickness = (gold layer thickness - 20.0) = 158.304
     [4]
-      .bulknsld = d2o rho = 6.2633 in [5.3,6.5]
-      .global_rough = substrate roughness = 4.70774 in [2,9]
+      .bulknsld = d2o rho = 6.17366 in [5.3,6.5]
+      .global_rough = substrate roughness = 4.81814 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 9.77698 in [8,30]
-      .l_lipid2 = outer acyl chain thickness = 13.8234 in [8,16]
-      .l_tether = tether length = 6.37685 in [3,18]
-      .mult_tether = bME to tether ratio = 0.525238 in [0.1,4]
-      .nf_tether = number fraction tether = 0.700784 in [0.2,1]
-      .rho_substrate = gold rho = 4.58171 in [4.2,4.8]
-      .sigma = bilayer roughness = 2.52537 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 9.79652 in [8,30]
+      .l_lipid2 = outer acyl chain thickness = 13.4174 in [8,16]
+      .l_tether = tether length = 3.86729 in [3,18]
+      .mult_tether = bME to tether ratio = 1.38132 in [0.1,4]
+      .nf_tether = number fraction tether = 0.99746 in [0.2,1]
+      .rho_substrate = gold rho = 4.51728 in [4.2,4.8]
+      .sigma = bilayer roughness = 2.34725 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.969672 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.954052 in [0,1]
     [5]
       .interface = d2o interface = 5
       .material
         .irho = d2o irho = 0
-        .rho = d2o rho = 6.2633 in [5.3,6.5]
+        .rho = d2o rho = 6.17366 in [5.3,6.5]
       .thickness = d2o thickness = 0
-  .thickness = stack thickness = 346.823
+  .thickness = stack thickness = 346.848
 
-[chisq=0.96(18), nllf=61.3542]
+[chisq=1.04(18), nllf=66.6946]
 -- Model 1 os047_4column
 .probe
   .back_absorption = back_absorption os047_4column = 1
-  .background = background os047_4column = 3.74866e-06 in [-1e-07,1e-05]
-  .intensity = intensity os046_4column = 0.994225 in [0.9,1.05]
-  .sample_broadening = sample_broadening os046_4column = -0.000924435 in [-0.005,0.02]
-  .theta_offset = theta_offset os046_4column = 0.00645166 in [-0.015,0.015]
+  .background = background os047_4column = 3.63876e-06 in [-1e-07,1e-05]
+  .intensity = intensity os046_4column = 0.992547 in [0.9,1.05]
+  .sample_broadening = sample_broadening os046_4column = 0.000177341 in [-0.005,0.02]
+  .theta_offset = theta_offset os046_4column = 0.00337491 in [-0.015,0.015]
 .sample
   .layers
     [0]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 4.34397 in [3.1,5.1]
-      .thickness = silicon oxide layer thickness = 5.71312 in [5,30]
+        .rho = siox rho = 4.52684 in [3.1,5.1]
+      .thickness = silicon oxide layer thickness = 5.35615 in [5,30]
     [2]
-      .interface = gold chromium roughness = 16.6099 in [2,24]
+      .interface = gold chromium roughness = 16.5924 in [2,24]
       .material
         .irho = chromium irho = 0
-        .rho = chromium rho = 3.26588 in [2.7,4]
-      .thickness = chromium layer thickness = 33.4289 in [10,150]
+        .rho = chromium rho = 3.22654 in [2.7,4]
+      .thickness = chromium layer thickness = 33.1881 in [10,150]
     [3]
       .interface = gold interface = 0
       .material
         .irho = gold irho = 0
-        .rho = gold rho = 4.58171 in [4.2,4.8]
-      .thickness = (gold layer thickness - 20.0) = 157.681
+        .rho = gold rho = 4.51728 in [4.2,4.8]
+      .thickness = (gold layer thickness - 20.0) = 158.304
     [4]
-      .bulknsld = h2o rho = -0.358213 in [-0.6,0.6]
-      .global_rough = substrate roughness = 4.70774 in [2,9]
+      .bulknsld = h2o rho = -0.415126 in [-0.6,0.6]
+      .global_rough = substrate roughness = 4.81814 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 9.77698 in [8,30]
-      .l_lipid2 = outer acyl chain thickness = 13.8234 in [8,16]
-      .l_tether = tether length = 6.37685 in [3,18]
-      .mult_tether = bME to tether ratio = 0.525238 in [0.1,4]
-      .nf_tether = number fraction tether = 0.700784 in [0.2,1]
-      .rho_substrate = gold rho = 4.58171 in [4.2,4.8]
-      .sigma = bilayer roughness = 2.52537 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 9.79652 in [8,30]
+      .l_lipid2 = outer acyl chain thickness = 13.4174 in [8,16]
+      .l_tether = tether length = 3.86729 in [3,18]
+      .mult_tether = bME to tether ratio = 1.38132 in [0.1,4]
+      .nf_tether = number fraction tether = 0.99746 in [0.2,1]
+      .rho_substrate = gold rho = 4.51728 in [4.2,4.8]
+      .sigma = bilayer roughness = 2.34725 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.969672 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.954052 in [0,1]
     [5]
       .interface = h2o interface = 5
       .material
         .irho = h2o irho = 0
-        .rho = h2o rho = -0.358213 in [-0.6,0.6]
+        .rho = h2o rho = -0.415126 in [-0.6,0.6]
       .thickness = h2o thickness = 0
-  .thickness = stack thickness = 346.823
+  .thickness = stack thickness = 346.848
 
-[chisq=0.95(17), nllf=61.5404]
-[overall chisq=1.05(10), nllf=122.895]
+[chisq=0.97(17), nllf=62.5272]
+[overall chisq=1.10(10), nllf=129.222]
               Parameter       mean  median    best [   68% interval] [   95% interval]
- 1 background os046_4column 0.08(11)e-6 0.000000075 0.000000055 [-0.00000002 0.00000018] [-0.00000009 0.00000030]
- 2 intensity os046_4column 0.9927(52)  0.9926  0.9942 [  0.988   0.998] [  0.983   1.003]
- 3 sample_broadening os046_4column -0.9(13)e-3 -0.00074 -0.00092 [-0.0022  0.0004] [-0.0035  0.0016]
- 4 theta_offset os046_4column 6.6(25)e-3  0.0065  0.0065 [  0.004   0.009] [  0.002   0.012]
- 5  substrate roughness   4.73(42)   4.742   4.708 [   4.32    5.17] [   3.86    5.57]
- 6             siox rho   4.24(36)   4.192   4.344 [   3.86    4.64] [   3.64    4.98]
- 7 silicon oxide layer thickness    6.6(14)   6.127   5.713 [   5.23    8.04] [   5.03   10.14]
- 8 gold chromium roughness   16.5(18)  16.572  16.610 [  14.70   18.27] [  12.61   19.65]
- 9         chromium rho   3.24(12)   3.247   3.266 [   3.12    3.37] [   3.00    3.43]
-10 chromium layer thickness   32.5(33)   32.52   33.43 [   29.2    35.9] [   25.4    38.6]
-11             gold rho  4.581(41)   4.581   4.582 [   4.54    4.62] [   4.50    4.66]
-12              d2o rho  6.265(63)   6.262   6.263 [   6.20    6.32] [   6.15    6.39]
-13 inner acyl chain thickness   9.67(68)   9.688   9.777 [   8.95   10.35] [   8.32   11.03]
-14 outer acyl chain thickness  14.06(71)  14.040  13.823 [  13.40   14.78] [  12.57   15.53]
-15        tether length   5.83(70)   5.910   6.377 [   5.19    6.49] [   3.92    6.90]
-16  bME to tether ratio    2.3(10)   2.308   0.525 [   1.12    3.44] [   0.39    3.88]
-17 number fraction tether   0.61(15)   0.637   0.701 [   0.45    0.77] [   0.26    0.85]
-18    bilayer roughness   2.66(44)   2.582   2.525 [   2.21    3.11] [   2.03    3.62]
-19 volume fraction bilayer  0.967(11)  0.9675  0.9697 [  0.956   0.979] [  0.946   0.989]
-20 background os047_4column 3.73(21)e-6 0.000003723 0.000003749 [0.00000349 0.00000393] [0.00000334 0.00000418]
-21              h2o rho -0.387(55)  -0.383  -0.358 [  -0.44   -0.33] [  -0.52   -0.27]
-22 gold layer thickness  177.8(23) 177.795 177.681 [ 175.31  180.30] [ 173.66  182.27]
+ 1 background os046_4column 0.18(13)e-6 0.000000183 0.000000127 [0.00000004 0.00000030] [-0.00000006 0.00000044]
+ 2 intensity os046_4column 0.9905(57)  0.9905  0.9925 [  0.985   0.996] [  0.980   1.003]
+ 3 sample_broadening os046_4column -0.9(15)e-3 -0.00074 0.00018 [-0.0023  0.0005] [-0.0045  0.0015]
+ 4 theta_offset os046_4column 3.8(34)e-3  0.0040  0.0034 [  0.000   0.007] [ -0.003   0.010]
+ 5  substrate roughness   4.75(47)   4.790   4.818 [   4.29    5.25] [   3.74    5.57]
+ 6             siox rho   4.16(36)   4.167   4.527 [   3.78    4.53] [   3.52    4.85]
+ 7 silicon oxide layer thickness    6.4(13)   6.010   5.356 [   5.20    7.56] [   5.03    9.16]
+ 8 gold chromium roughness   15.9(19)  15.904  16.592 [  14.07   17.74] [  12.33   19.76]
+ 9         chromium rho   3.25(12)   3.270   3.227 [   3.15    3.36] [   2.96    3.43]
+10 chromium layer thickness   33.5(31)   33.79   33.19 [   31.0    36.3] [   25.0    38.8]
+11             gold rho  4.534(53)   4.538   4.517 [   4.48    4.59] [   4.43    4.62]
+12              d2o rho  6.193(84)   6.199   6.174 [   6.10    6.28] [   6.03    6.33]
+13 inner acyl chain thickness   9.62(83)   9.540   9.797 [   8.83   10.39] [   8.13   11.49]
+14 outer acyl chain thickness  13.75(83)  13.798  13.417 [  12.94   14.55] [  11.90   15.20]
+15        tether length    4.8(10)   4.825   3.867 [   3.70    5.96] [   3.05    6.62]
+16  bME to tether ratio    2.0(11)   2.184   1.381 [   0.74    3.36] [   0.25    3.85]
+17 number fraction tether   0.76(20)   0.821   0.997 [   0.53    0.96] [   0.31    1.00]
+18    bilayer roughness   3.12(64)   3.151   2.347 [   2.37    3.79] [   2.05    4.29]
+19 volume fraction bilayer  0.961(13)  0.9610  0.9541 [  0.948   0.975] [  0.933   0.989]
+20 background os047_4column 3.59(25)e-6 0.00000360 0.00000364 [0.0000033 0.0000038] [0.0000031 0.0000041]
+21              h2o rho -0.394(55)  -0.395  -0.415 [  -0.45   -0.34] [  -0.50   -0.29]
+22 gold layer thickness  177.8(23) 177.423 178.304 [ 175.83  179.78] [ 174.21  183.21]
 
-Statistics and plots based on 2409 samples (50.0% of total samples drawn)
+Statistics and plots based on 2398 samples (50.0% of total samples drawn)

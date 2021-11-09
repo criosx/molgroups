@@ -1,394 +1,396 @@
 # steps: 10, # draws: 2200
-step 1 cost 1.05(10)
-                background os046_4column |......... 4.95809e-08 in (-1e-07,1e-05)
-                 intensity os046_4column ......|...   0.994036 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000934441 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00644432 in (-0.015,0.015)
-                     substrate roughness ...|......    4.70517 in (2,9)
-                                siox rho ......|...    4.34735 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71249 in (5,30)
-                 gold chromium roughness ......|...    16.6259 in (2,24)
-                            chromium rho ....|.....      3.278 in (2.7,4)
-                chromium layer thickness .|........    33.4309 in (10,150)
-                                gold rho ......|...    4.58352 in (4.2,4.8)
-                                 d2o rho ........|.    6.26445 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77964 in (8,30)
-              outer acyl chain thickness .......|..    13.8166 in (8,16)
-                           tether length ..|.......    6.38408 in (3,18)
-                     bME to tether ratio .|........   0.524778 in (0.1,4)
-                  number fraction tether ......|...   0.700985 in (0.2,1)
-                       bilayer roughness |.........    2.52417 in (2,9)
-                 volume fraction bilayer .........|   0.969689 in (0,1)
-                background os047_4column ...|...... 3.76044e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358667 in (-0.6,0.6)
-                    gold layer thickness ..|.......     177.66 in (150,250)
-step 15 cost 1.05(10)
-step 29 cost 1.05(10)
-step 39 cost 1.05(10)
-step 53 cost 1.05(10)
-step 67 cost 1.05(10)
-step 81 cost 1.05(10)
-step 95 cost 1.05(10)
-step 109 cost 1.05(10)
-step 121 cost 1.05(10)
-step 136 cost 1.05(10)
-step 150 cost 1.05(10)
-step 164 cost 1.05(10)
-step 178 cost 1.05(10)
-step 190 cost 1.05(10)
-step 204 cost 1.05(10)
-step 217 cost 1.05(10)
-step 229 cost 1.05(10)
-step 241 cost 1.05(10)
-step 255 cost 1.05(10)
-step 267 cost 1.05(10)
-step 278 cost 1.05(10)
-step 291 cost 1.05(10)
-step 303 cost 1.05(10)
-step 315 cost 1.05(10)
-step 328 cost 1.05(10)
-step 341 cost 1.05(10)
-step 353 cost 1.05(10)
-step 366 cost 1.05(10)
-step 379 cost 1.05(10)
-                background os046_4column |......... 5.45612e-08 in (-1e-07,1e-05)
+step 1 cost 2.41(10)
+                background os046_4column |......... 5.45536e-08 in (-1e-07,1e-05)
                  intensity os046_4column ......|...   0.994225 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000924435 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00645166 in (-0.015,0.015)
+         sample_broadening os046_4column .|........ -0.000924424 in (-0.005,0.02)
+              theta_offset os046_4column .......|.. 0.00645165 in (-0.015,0.015)
                      substrate roughness ...|......    4.70774 in (2,9)
                                 siox rho ......|...    4.34397 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71312 in (5,30)
+           silicon oxide layer thickness |.........    5.71313 in (5,30)
                  gold chromium roughness ......|...    16.6099 in (2,24)
                             chromium rho ....|.....    3.26588 in (2.7,4)
                 chromium layer thickness .|........    33.4289 in (10,150)
                                 gold rho ......|...    4.58171 in (4.2,4.8)
                                  d2o rho ........|.     6.2633 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77698 in (8,30)
+              inner acyl chain thickness |.........    9.77697 in (8,30)
               outer acyl chain thickness .......|..    13.8234 in (8,16)
                            tether length ..|.......    6.37685 in (3,18)
-                     bME to tether ratio .|........   0.525238 in (0.1,4)
+                     bME to tether ratio .|........    0.52524 in (0.1,4)
                   number fraction tether ......|...   0.700784 in (0.2,1)
                        bilayer roughness |.........    2.52537 in (2,9)
-                 volume fraction bilayer .........|   0.969672 in (0,1)
+                 volume fraction bilayer .........|   0.969671 in (0,1)
                 background os047_4column ...|...... 3.74866e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358213 in (-0.6,0.6)
+                                 h2o rho ..|.......  -0.358212 in (-0.6,0.6)
                     gold layer thickness ..|.......    177.681 in (150,250)
-step 391 cost 1.05(10)
-step 404 cost 1.05(10)
-step 418 cost 1.05(10)
-step 431 cost 1.05(10)
-step 444 cost 1.05(10)
-step 457 cost 1.05(10)
-step 470 cost 1.05(10)
-step 484 cost 1.05(10)
-step 496 cost 1.05(10)
-step 508 cost 1.05(10)
-step 521 cost 1.05(10)
-step 533 cost 1.05(10)
-step 545 cost 1.05(10)
-step 558 cost 1.05(10)
-step 570 cost 1.05(10)
-step 583 cost 1.05(10)
-step 597 cost 1.05(10)
-step 610 cost 1.05(10)
-step 624 cost 1.05(10)
-step 638 cost 1.05(10)
-step 651 cost 1.05(10)
-step 665 cost 1.05(10)
-step 679 cost 1.05(10)
-step 692 cost 1.05(10)
-step 706 cost 1.05(10)
-step 720 cost 1.05(10)
-step 733 cost 1.05(10)
-step 747 cost 1.05(10)
-step 761 cost 1.05(10)
-                background os046_4column |......... 5.45612e-08 in (-1e-07,1e-05)
-                 intensity os046_4column ......|...   0.994225 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000924435 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00645166 in (-0.015,0.015)
-                     substrate roughness ...|......    4.70774 in (2,9)
-                                siox rho ......|...    4.34397 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71312 in (5,30)
-                 gold chromium roughness ......|...    16.6099 in (2,24)
-                            chromium rho ....|.....    3.26588 in (2.7,4)
-                chromium layer thickness .|........    33.4289 in (10,150)
-                                gold rho ......|...    4.58171 in (4.2,4.8)
-                                 d2o rho ........|.     6.2633 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77698 in (8,30)
-              outer acyl chain thickness .......|..    13.8234 in (8,16)
-                           tether length ..|.......    6.37685 in (3,18)
-                     bME to tether ratio .|........   0.525238 in (0.1,4)
-                  number fraction tether ......|...   0.700784 in (0.2,1)
-                       bilayer roughness |.........    2.52537 in (2,9)
-                 volume fraction bilayer .........|   0.969672 in (0,1)
-                background os047_4column ...|...... 3.74866e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358213 in (-0.6,0.6)
-                    gold layer thickness ..|.......    177.681 in (150,250)
-step 775 cost 1.05(10)
-step 789 cost 1.05(10)
-step 802 cost 1.05(10)
-step 816 cost 1.05(10)
-step 830 cost 1.05(10)
-step 844 cost 1.05(10)
-step 858 cost 1.05(10)
-step 872 cost 1.05(10)
-step 886 cost 1.05(10)
-step 900 cost 1.05(10)
-step 914 cost 1.05(10)
-step 928 cost 1.05(10)
-step 942 cost 1.05(10)
-step 956 cost 1.05(10)
-step 970 cost 1.05(10)
-step 984 cost 1.05(10)
-step 997 cost 1.05(10)
-step 1011 cost 1.05(10)
-step 1024 cost 1.05(10)
-step 1037 cost 1.05(10)
-step 1051 cost 1.05(10)
-step 1065 cost 1.05(10)
-step 1079 cost 1.05(10)
-step 1093 cost 1.05(10)
-step 1107 cost 1.05(10)
-step 1121 cost 1.05(10)
-step 1135 cost 1.05(10)
-step 1149 cost 1.05(10)
-step 1163 cost 1.05(10)
-                background os046_4column |......... 5.45612e-08 in (-1e-07,1e-05)
-                 intensity os046_4column ......|...   0.994225 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000924435 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00645166 in (-0.015,0.015)
-                     substrate roughness ...|......    4.70774 in (2,9)
-                                siox rho ......|...    4.34397 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71312 in (5,30)
-                 gold chromium roughness ......|...    16.6099 in (2,24)
-                            chromium rho ....|.....    3.26588 in (2.7,4)
-                chromium layer thickness .|........    33.4289 in (10,150)
-                                gold rho ......|...    4.58171 in (4.2,4.8)
-                                 d2o rho ........|.     6.2633 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77698 in (8,30)
-              outer acyl chain thickness .......|..    13.8234 in (8,16)
-                           tether length ..|.......    6.37685 in (3,18)
-                     bME to tether ratio .|........   0.525238 in (0.1,4)
-                  number fraction tether ......|...   0.700784 in (0.2,1)
-                       bilayer roughness |.........    2.52537 in (2,9)
-                 volume fraction bilayer .........|   0.969672 in (0,1)
-                background os047_4column ...|...... 3.74866e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358213 in (-0.6,0.6)
-                    gold layer thickness ..|.......    177.681 in (150,250)
-step 1177 cost 1.05(10)
-step 1191 cost 1.05(10)
-step 1205 cost 1.05(10)
-step 1219 cost 1.05(10)
-step 1233 cost 1.05(10)
-step 1247 cost 1.05(10)
-step 1261 cost 1.05(10)
-step 1275 cost 1.05(10)
-step 1289 cost 1.05(10)
-step 1303 cost 1.05(10)
-step 1317 cost 1.05(10)
-step 1331 cost 1.05(10)
-step 1345 cost 1.05(10)
-step 1359 cost 1.05(10)
-step 1372 cost 1.05(10)
-step 1386 cost 1.05(10)
-step 1400 cost 1.05(10)
-step 1414 cost 1.05(10)
-step 1428 cost 1.05(10)
-step 1442 cost 1.05(10)
-step 1456 cost 1.05(10)
-step 1470 cost 1.05(10)
-step 1483 cost 1.05(10)
-step 1497 cost 1.05(10)
-step 1511 cost 1.05(10)
-step 1525 cost 1.05(10)
-step 1539 cost 1.05(10)
-step 1553 cost 1.05(10)
-                background os046_4column |......... 5.45612e-08 in (-1e-07,1e-05)
-                 intensity os046_4column ......|...   0.994225 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000924435 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00645166 in (-0.015,0.015)
-                     substrate roughness ...|......    4.70774 in (2,9)
-                                siox rho ......|...    4.34397 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71312 in (5,30)
-                 gold chromium roughness ......|...    16.6099 in (2,24)
-                            chromium rho ....|.....    3.26588 in (2.7,4)
-                chromium layer thickness .|........    33.4289 in (10,150)
-                                gold rho ......|...    4.58171 in (4.2,4.8)
-                                 d2o rho ........|.     6.2633 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77698 in (8,30)
-              outer acyl chain thickness .......|..    13.8234 in (8,16)
-                           tether length ..|.......    6.37685 in (3,18)
-                     bME to tether ratio .|........   0.525238 in (0.1,4)
-                  number fraction tether ......|...   0.700784 in (0.2,1)
-                       bilayer roughness |.........    2.52537 in (2,9)
-                 volume fraction bilayer .........|   0.969672 in (0,1)
-                background os047_4column ...|...... 3.74866e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358213 in (-0.6,0.6)
-                    gold layer thickness ..|.......    177.681 in (150,250)
-step 1567 cost 1.05(10)
-step 1581 cost 1.05(10)
-step 1594 cost 1.05(10)
-step 1608 cost 1.05(10)
-step 1622 cost 1.05(10)
-step 1635 cost 1.05(10)
-step 1649 cost 1.05(10)
-step 1663 cost 1.05(10)
-step 1677 cost 1.05(10)
-step 1691 cost 1.05(10)
-step 1705 cost 1.05(10)
-step 1719 cost 1.05(10)
-step 1733 cost 1.05(10)
-step 1746 cost 1.05(10)
-step 1760 cost 1.05(10)
-step 1774 cost 1.05(10)
-step 1788 cost 1.05(10)
-step 1802 cost 1.05(10)
-step 1815 cost 1.05(10)
-step 1829 cost 1.05(10)
-step 1843 cost 1.05(10)
-step 1857 cost 1.05(10)
-step 1871 cost 1.05(10)
-step 1885 cost 1.05(10)
-step 1899 cost 1.05(10)
-step 1913 cost 1.05(10)
-step 1926 cost 1.05(10)
-step 1939 cost 1.05(10)
-step 1953 cost 1.05(10)
-                background os046_4column |......... 5.45612e-08 in (-1e-07,1e-05)
-                 intensity os046_4column ......|...   0.994225 in (0.9,1.05)
-         sample_broadening os046_4column .|........ -0.000924435 in (-0.005,0.02)
-              theta_offset os046_4column .......|.. 0.00645166 in (-0.015,0.015)
-                     substrate roughness ...|......    4.70774 in (2,9)
-                                siox rho ......|...    4.34397 in (3.1,5.1)
-           silicon oxide layer thickness |.........    5.71312 in (5,30)
-                 gold chromium roughness ......|...    16.6099 in (2,24)
-                            chromium rho ....|.....    3.26588 in (2.7,4)
-                chromium layer thickness .|........    33.4289 in (10,150)
-                                gold rho ......|...    4.58171 in (4.2,4.8)
-                                 d2o rho ........|.     6.2633 in (5.3,6.5)
-              inner acyl chain thickness |.........    9.77698 in (8,30)
-              outer acyl chain thickness .......|..    13.8234 in (8,16)
-                           tether length ..|.......    6.37685 in (3,18)
-                     bME to tether ratio .|........   0.525238 in (0.1,4)
-                  number fraction tether ......|...   0.700784 in (0.2,1)
-                       bilayer roughness |.........    2.52537 in (2,9)
-                 volume fraction bilayer .........|   0.969672 in (0,1)
-                background os047_4column ...|...... 3.74866e-06 in (-1e-07,1e-05)
-                                 h2o rho ..|.......  -0.358213 in (-0.6,0.6)
-                    gold layer thickness ..|.......    177.681 in (150,250)
-step 1967 cost 1.05(10)
-step 1981 cost 1.05(10)
-step 1995 cost 1.05(10)
-step 2009 cost 1.05(10)
+step 15 cost 2.34(10)
+step 29 cost 1.77(10)
+step 39 cost 1.21(10)
+step 53 cost 1.14(10)
+step 67 cost 1.14(10)
+step 81 cost 1.14(10)
+step 95 cost 1.14(10)
+step 109 cost 1.12(10)
+step 120 cost 1.12(10)
+step 134 cost 1.12(10)
+step 148 cost 1.12(10)
+step 162 cost 1.12(10)
+step 176 cost 1.12(10)
+step 188 cost 1.12(10)
+step 201 cost 1.12(10)
+step 215 cost 1.12(10)
+step 227 cost 1.12(10)
+step 239 cost 1.12(10)
+step 253 cost 1.12(10)
+step 265 cost 1.12(10)
+step 277 cost 1.12(10)
+step 290 cost 1.12(10)
+step 302 cost 1.12(10)
+step 314 cost 1.12(10)
+step 327 cost 1.11(10)
+step 340 cost 1.11(10)
+step 353 cost 1.11(10)
+step 367 cost 1.11(10)
+step 380 cost 1.11(10)
+                background os046_4column |......... 1.99855e-07 in (-1e-07,1e-05)
+                 intensity os046_4column .....|....   0.987742 in (0.9,1.05)
+         sample_broadening os046_4column .|........ -0.000754602 in (-0.005,0.02)
+              theta_offset os046_4column .......|.. 0.00743559 in (-0.015,0.015)
+                     substrate roughness ....|.....    5.06288 in (2,9)
+                                siox rho .....|....    4.11333 in (3.1,5.1)
+           silicon oxide layer thickness |.........     6.0968 in (5,30)
+                 gold chromium roughness .....|....    15.0234 in (2,24)
+                            chromium rho .....|....    3.35383 in (2.7,4)
+                chromium layer thickness .|........    35.3777 in (10,150)
+                                gold rho ......|...     4.5955 in (4.2,4.8)
+                                 d2o rho ........|.    6.28691 in (5.3,6.5)
+              inner acyl chain thickness |.........    9.12666 in (8,30)
+              outer acyl chain thickness .......|..    14.0175 in (8,16)
+                           tether length .|........    5.97079 in (3,18)
+                     bME to tether ratio ......|...    2.49079 in (0.1,4)
+                  number fraction tether .........|   0.980092 in (0.2,1)
+                       bilayer roughness |.........    2.56585 in (2,9)
+                 volume fraction bilayer .........|   0.946464 in (0,1)
+                background os047_4column ...|...... 3.53064e-06 in (-1e-07,1e-05)
+                                 h2o rho .|........   -0.36814 in (-0.6,0.6)
+                    gold layer thickness ..|.......    175.771 in (150,250)
+step 393 cost 1.11(10)
+step 406 cost 1.11(10)
+step 419 cost 1.11(10)
+step 432 cost 1.11(10)
+step 444 cost 1.11(10)
+step 457 cost 1.11(10)
+step 470 cost 1.11(10)
+step 483 cost 1.11(10)
+step 497 cost 1.11(10)
+step 511 cost 1.11(10)
+step 524 cost 1.11(10)
+step 538 cost 1.11(10)
+step 552 cost 1.11(10)
+step 566 cost 1.10(10)
+step 580 cost 1.10(10)
+step 594 cost 1.10(10)
+step 608 cost 1.10(10)
+step 622 cost 1.10(10)
+step 636 cost 1.10(10)
+step 650 cost 1.10(10)
+step 664 cost 1.10(10)
+step 677 cost 1.10(10)
+step 690 cost 1.10(10)
+step 703 cost 1.10(10)
+step 716 cost 1.10(10)
+step 729 cost 1.10(10)
+step 742 cost 1.10(10)
+step 754 cost 1.10(10)
+                background os046_4column |......... 1.27382e-07 in (-1e-07,1e-05)
+                 intensity os046_4column ......|...   0.992547 in (0.9,1.05)
+         sample_broadening os046_4column ..|....... 0.000177341 in (-0.005,0.02)
+              theta_offset os046_4column ......|... 0.00337491 in (-0.015,0.015)
+                     substrate roughness ....|.....    4.81814 in (2,9)
+                                siox rho .......|..    4.52684 in (3.1,5.1)
+           silicon oxide layer thickness |.........    5.35615 in (5,30)
+                 gold chromium roughness ......|...    16.5924 in (2,24)
+                            chromium rho ....|.....    3.22654 in (2.7,4)
+                chromium layer thickness .|........    33.1881 in (10,150)
+                                gold rho .....|....    4.51728 in (4.2,4.8)
+                                 d2o rho .......|..    6.17366 in (5.3,6.5)
+              inner acyl chain thickness |.........    9.79652 in (8,30)
+              outer acyl chain thickness ......|...    13.4174 in (8,16)
+                           tether length |.........    3.86729 in (3,18)
+                     bME to tether ratio ...|......    1.38132 in (0.1,4)
+                  number fraction tether .........|    0.99746 in (0.2,1)
+                       bilayer roughness |.........    2.34725 in (2,9)
+                 volume fraction bilayer .........|   0.954052 in (0,1)
+                background os047_4column ...|...... 3.63876e-06 in (-1e-07,1e-05)
+                                 h2o rho .|........  -0.415126 in (-0.6,0.6)
+                    gold layer thickness ..|.......    178.304 in (150,250)
+step 767 cost 1.10(10)
+step 780 cost 1.10(10)
+step 793 cost 1.10(10)
+step 806 cost 1.10(10)
+step 819 cost 1.10(10)
+step 831 cost 1.10(10)
+step 844 cost 1.10(10)
+step 857 cost 1.10(10)
+step 870 cost 1.10(10)
+step 883 cost 1.10(10)
+step 896 cost 1.10(10)
+step 909 cost 1.10(10)
+step 922 cost 1.10(10)
+step 935 cost 1.10(10)
+step 948 cost 1.10(10)
+step 961 cost 1.10(10)
+step 974 cost 1.10(10)
+step 987 cost 1.10(10)
+step 1000 cost 1.10(10)
+step 1013 cost 1.10(10)
+step 1026 cost 1.10(10)
+step 1039 cost 1.10(10)
+step 1052 cost 1.10(10)
+step 1065 cost 1.10(10)
+step 1078 cost 1.10(10)
+step 1091 cost 1.10(10)
+step 1104 cost 1.10(10)
+step 1117 cost 1.10(10)
+step 1130 cost 1.10(10)
+                background os046_4column |......... 1.27382e-07 in (-1e-07,1e-05)
+                 intensity os046_4column ......|...   0.992547 in (0.9,1.05)
+         sample_broadening os046_4column ..|....... 0.000177341 in (-0.005,0.02)
+              theta_offset os046_4column ......|... 0.00337491 in (-0.015,0.015)
+                     substrate roughness ....|.....    4.81814 in (2,9)
+                                siox rho .......|..    4.52684 in (3.1,5.1)
+           silicon oxide layer thickness |.........    5.35615 in (5,30)
+                 gold chromium roughness ......|...    16.5924 in (2,24)
+                            chromium rho ....|.....    3.22654 in (2.7,4)
+                chromium layer thickness .|........    33.1881 in (10,150)
+                                gold rho .....|....    4.51728 in (4.2,4.8)
+                                 d2o rho .......|..    6.17366 in (5.3,6.5)
+              inner acyl chain thickness |.........    9.79652 in (8,30)
+              outer acyl chain thickness ......|...    13.4174 in (8,16)
+                           tether length |.........    3.86729 in (3,18)
+                     bME to tether ratio ...|......    1.38132 in (0.1,4)
+                  number fraction tether .........|    0.99746 in (0.2,1)
+                       bilayer roughness |.........    2.34725 in (2,9)
+                 volume fraction bilayer .........|   0.954052 in (0,1)
+                background os047_4column ...|...... 3.63876e-06 in (-1e-07,1e-05)
+                                 h2o rho .|........  -0.415126 in (-0.6,0.6)
+                    gold layer thickness ..|.......    178.304 in (150,250)
+step 1143 cost 1.10(10)
+step 1156 cost 1.10(10)
+step 1169 cost 1.10(10)
+step 1182 cost 1.10(10)
+step 1195 cost 1.10(10)
+step 1208 cost 1.10(10)
+step 1221 cost 1.10(10)
+step 1234 cost 1.10(10)
+step 1247 cost 1.10(10)
+step 1260 cost 1.10(10)
+step 1273 cost 1.10(10)
+step 1286 cost 1.10(10)
+step 1300 cost 1.10(10)
+step 1314 cost 1.10(10)
+step 1327 cost 1.10(10)
+step 1340 cost 1.10(10)
+step 1354 cost 1.10(10)
+step 1368 cost 1.10(10)
+step 1381 cost 1.10(10)
+step 1393 cost 1.10(10)
+step 1406 cost 1.10(10)
+step 1420 cost 1.10(10)
+step 1434 cost 1.10(10)
+step 1448 cost 1.10(10)
+step 1462 cost 1.10(10)
+step 1476 cost 1.10(10)
+step 1490 cost 1.10(10)
+step 1504 cost 1.10(10)
+step 1518 cost 1.10(10)
+                background os046_4column |......... 1.27382e-07 in (-1e-07,1e-05)
+                 intensity os046_4column ......|...   0.992547 in (0.9,1.05)
+         sample_broadening os046_4column ..|....... 0.000177341 in (-0.005,0.02)
+              theta_offset os046_4column ......|... 0.00337491 in (-0.015,0.015)
+                     substrate roughness ....|.....    4.81814 in (2,9)
+                                siox rho .......|..    4.52684 in (3.1,5.1)
+           silicon oxide layer thickness |.........    5.35615 in (5,30)
+                 gold chromium roughness ......|...    16.5924 in (2,24)
+                            chromium rho ....|.....    3.22654 in (2.7,4)
+                chromium layer thickness .|........    33.1881 in (10,150)
+                                gold rho .....|....    4.51728 in (4.2,4.8)
+                                 d2o rho .......|..    6.17366 in (5.3,6.5)
+              inner acyl chain thickness |.........    9.79652 in (8,30)
+              outer acyl chain thickness ......|...    13.4174 in (8,16)
+                           tether length |.........    3.86729 in (3,18)
+                     bME to tether ratio ...|......    1.38132 in (0.1,4)
+                  number fraction tether .........|    0.99746 in (0.2,1)
+                       bilayer roughness |.........    2.34725 in (2,9)
+                 volume fraction bilayer .........|   0.954052 in (0,1)
+                background os047_4column ...|...... 3.63876e-06 in (-1e-07,1e-05)
+                                 h2o rho .|........  -0.415126 in (-0.6,0.6)
+                    gold layer thickness ..|.......    178.304 in (150,250)
+step 1532 cost 1.10(10)
+step 1546 cost 1.10(10)
+step 1560 cost 1.10(10)
+step 1574 cost 1.10(10)
+step 1587 cost 1.10(10)
+step 1601 cost 1.10(10)
+step 1615 cost 1.10(10)
+step 1628 cost 1.10(10)
+step 1642 cost 1.10(10)
+step 1656 cost 1.10(10)
+step 1670 cost 1.10(10)
+step 1684 cost 1.10(10)
+step 1698 cost 1.10(10)
+step 1712 cost 1.10(10)
+step 1726 cost 1.10(10)
+step 1740 cost 1.10(10)
+step 1754 cost 1.10(10)
+step 1768 cost 1.10(10)
+step 1782 cost 1.10(10)
+step 1796 cost 1.10(10)
+step 1810 cost 1.10(10)
+step 1824 cost 1.10(10)
+step 1837 cost 1.10(10)
+step 1851 cost 1.10(10)
+step 1865 cost 1.10(10)
+step 1879 cost 1.10(10)
+step 1893 cost 1.10(10)
+step 1907 cost 1.10(10)
+step 1921 cost 1.10(10)
+                background os046_4column |......... 1.27382e-07 in (-1e-07,1e-05)
+                 intensity os046_4column ......|...   0.992547 in (0.9,1.05)
+         sample_broadening os046_4column ..|....... 0.000177341 in (-0.005,0.02)
+              theta_offset os046_4column ......|... 0.00337491 in (-0.015,0.015)
+                     substrate roughness ....|.....    4.81814 in (2,9)
+                                siox rho .......|..    4.52684 in (3.1,5.1)
+           silicon oxide layer thickness |.........    5.35615 in (5,30)
+                 gold chromium roughness ......|...    16.5924 in (2,24)
+                            chromium rho ....|.....    3.22654 in (2.7,4)
+                chromium layer thickness .|........    33.1881 in (10,150)
+                                gold rho .....|....    4.51728 in (4.2,4.8)
+                                 d2o rho .......|..    6.17366 in (5.3,6.5)
+              inner acyl chain thickness |.........    9.79652 in (8,30)
+              outer acyl chain thickness ......|...    13.4174 in (8,16)
+                           tether length |.........    3.86729 in (3,18)
+                     bME to tether ratio ...|......    1.38132 in (0.1,4)
+                  number fraction tether .........|    0.99746 in (0.2,1)
+                       bilayer roughness |.........    2.34725 in (2,9)
+                 volume fraction bilayer .........|   0.954052 in (0,1)
+                background os047_4column ...|...... 3.63876e-06 in (-1e-07,1e-05)
+                                 h2o rho .|........  -0.415126 in (-0.6,0.6)
+                    gold layer thickness ..|.......    178.304 in (150,250)
+step 1935 cost 1.10(10)
+step 1949 cost 1.10(10)
+step 1963 cost 1.10(10)
+step 1977 cost 1.10(10)
+step 1991 cost 1.10(10)
+step 2005 cost 1.10(10)
 Did not converge!
 -- Model 0 os046_4column
 .probe
   .back_absorption = back_absorption os046_4column = 1
-  .background = background os046_4column = 5.45612e-08 in [-1e-07,1e-05]
-  .intensity = intensity os046_4column = 0.994225 in [0.9,1.05]
-  .sample_broadening = sample_broadening os046_4column = -0.000924435 in [-0.005,0.02]
-  .theta_offset = theta_offset os046_4column = 0.00645166 in [-0.015,0.015]
+  .background = background os046_4column = 1.27382e-07 in [-1e-07,1e-05]
+  .intensity = intensity os046_4column = 0.992547 in [0.9,1.05]
+  .sample_broadening = sample_broadening os046_4column = 0.000177341 in [-0.005,0.02]
+  .theta_offset = theta_offset os046_4column = 0.00337491 in [-0.015,0.015]
 .sample
   .layers
     [0]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 4.34397 in [3.1,5.1]
-      .thickness = silicon oxide layer thickness = 5.71312 in [5,30]
+        .rho = siox rho = 4.52684 in [3.1,5.1]
+      .thickness = silicon oxide layer thickness = 5.35615 in [5,30]
     [2]
-      .interface = gold chromium roughness = 16.6099 in [2,24]
+      .interface = gold chromium roughness = 16.5924 in [2,24]
       .material
         .irho = chromium irho = 0
-        .rho = chromium rho = 3.26588 in [2.7,4]
-      .thickness = chromium layer thickness = 33.4289 in [10,150]
+        .rho = chromium rho = 3.22654 in [2.7,4]
+      .thickness = chromium layer thickness = 33.1881 in [10,150]
     [3]
       .interface = gold interface = 0
       .material
         .irho = gold irho = 0
-        .rho = gold rho = 4.58171 in [4.2,4.8]
-      .thickness = (gold layer thickness - 20.0) = 157.681
+        .rho = gold rho = 4.51728 in [4.2,4.8]
+      .thickness = (gold layer thickness - 20.0) = 158.304
     [4]
-      .bulknsld = d2o rho = 6.2633 in [5.3,6.5]
-      .global_rough = substrate roughness = 4.70774 in [2,9]
+      .bulknsld = d2o rho = 6.17366 in [5.3,6.5]
+      .global_rough = substrate roughness = 4.81814 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 9.77698 in [8,30]
-      .l_lipid2 = outer acyl chain thickness = 13.8234 in [8,16]
-      .l_tether = tether length = 6.37685 in [3,18]
-      .mult_tether = bME to tether ratio = 0.525238 in [0.1,4]
-      .nf_tether = number fraction tether = 0.700784 in [0.2,1]
-      .rho_substrate = gold rho = 4.58171 in [4.2,4.8]
-      .sigma = bilayer roughness = 2.52537 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 9.79652 in [8,30]
+      .l_lipid2 = outer acyl chain thickness = 13.4174 in [8,16]
+      .l_tether = tether length = 3.86729 in [3,18]
+      .mult_tether = bME to tether ratio = 1.38132 in [0.1,4]
+      .nf_tether = number fraction tether = 0.99746 in [0.2,1]
+      .rho_substrate = gold rho = 4.51728 in [4.2,4.8]
+      .sigma = bilayer roughness = 2.34725 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.969672 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.954052 in [0,1]
     [5]
       .interface = d2o interface = 5
       .material
         .irho = d2o irho = 0
-        .rho = d2o rho = 6.2633 in [5.3,6.5]
+        .rho = d2o rho = 6.17366 in [5.3,6.5]
       .thickness = d2o thickness = 0
-  .thickness = stack thickness = 346.823
+  .thickness = stack thickness = 346.848
 
-[chisq=0.96(18), nllf=61.3542]
+[chisq=1.04(18), nllf=66.6946]
 -- Model 1 os047_4column
 .probe
   .back_absorption = back_absorption os047_4column = 1
-  .background = background os047_4column = 3.74866e-06 in [-1e-07,1e-05]
-  .intensity = intensity os046_4column = 0.994225 in [0.9,1.05]
-  .sample_broadening = sample_broadening os046_4column = -0.000924435 in [-0.005,0.02]
-  .theta_offset = theta_offset os046_4column = 0.00645166 in [-0.015,0.015]
+  .background = background os047_4column = 3.63876e-06 in [-1e-07,1e-05]
+  .intensity = intensity os046_4column = 0.992547 in [0.9,1.05]
+  .sample_broadening = sample_broadening os046_4column = 0.000177341 in [-0.005,0.02]
+  .theta_offset = theta_offset os046_4column = 0.00337491 in [-0.015,0.015]
 .sample
   .layers
     [0]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = silicon irho = 0
         .rho = silicon rho = 2.069
       .thickness = silicon thickness = 0
     [1]
-      .interface = substrate roughness = 4.70774 in [2,9]
+      .interface = substrate roughness = 4.81814 in [2,9]
       .material
         .irho = siox irho = 0
-        .rho = siox rho = 4.34397 in [3.1,5.1]
-      .thickness = silicon oxide layer thickness = 5.71312 in [5,30]
+        .rho = siox rho = 4.52684 in [3.1,5.1]
+      .thickness = silicon oxide layer thickness = 5.35615 in [5,30]
     [2]
-      .interface = gold chromium roughness = 16.6099 in [2,24]
+      .interface = gold chromium roughness = 16.5924 in [2,24]
       .material
         .irho = chromium irho = 0
-        .rho = chromium rho = 3.26588 in [2.7,4]
-      .thickness = chromium layer thickness = 33.4289 in [10,150]
+        .rho = chromium rho = 3.22654 in [2.7,4]
+      .thickness = chromium layer thickness = 33.1881 in [10,150]
     [3]
       .interface = gold interface = 0
       .material
         .irho = gold irho = 0
-        .rho = gold rho = 4.58171 in [4.2,4.8]
-      .thickness = (gold layer thickness - 20.0) = 157.681
+        .rho = gold rho = 4.51728 in [4.2,4.8]
+      .thickness = (gold layer thickness - 20.0) = 158.304
     [4]
-      .bulknsld = h2o rho = -0.358213 in [-0.6,0.6]
-      .global_rough = substrate roughness = 4.70774 in [2,9]
+      .bulknsld = h2o rho = -0.415126 in [-0.6,0.6]
+      .global_rough = substrate roughness = 4.81814 in [2,9]
       .interface = bilayer interface = 0
-      .l_lipid1 = inner acyl chain thickness = 9.77698 in [8,30]
-      .l_lipid2 = outer acyl chain thickness = 13.8234 in [8,16]
-      .l_tether = tether length = 6.37685 in [3,18]
-      .mult_tether = bME to tether ratio = 0.525238 in [0.1,4]
-      .nf_tether = number fraction tether = 0.700784 in [0.2,1]
-      .rho_substrate = gold rho = 4.58171 in [4.2,4.8]
-      .sigma = bilayer roughness = 2.52537 in [2,9]
+      .l_lipid1 = inner acyl chain thickness = 9.79652 in [8,30]
+      .l_lipid2 = outer acyl chain thickness = 13.4174 in [8,16]
+      .l_tether = tether length = 3.86729 in [3,18]
+      .mult_tether = bME to tether ratio = 1.38132 in [0.1,4]
+      .nf_tether = number fraction tether = 0.99746 in [0.2,1]
+      .rho_substrate = gold rho = 4.51728 in [4.2,4.8]
+      .sigma = bilayer roughness = 2.34725 in [2,9]
       .thickness = bilayer thickness = 150
-      .vf_bilayer = volume fraction bilayer = 0.969672 in [0,1]
+      .vf_bilayer = volume fraction bilayer = 0.954052 in [0,1]
     [5]
       .interface = h2o interface = 5
       .material
         .irho = h2o irho = 0
-        .rho = h2o rho = -0.358213 in [-0.6,0.6]
+        .rho = h2o rho = -0.415126 in [-0.6,0.6]
       .thickness = h2o thickness = 0
-  .thickness = stack thickness = 346.823
+  .thickness = stack thickness = 346.848
 
-[chisq=0.95(17), nllf=61.5404]
-[overall chisq=1.05(10), nllf=122.895]
+[chisq=0.97(17), nllf=62.5272]
+[overall chisq=1.10(10), nllf=129.222]
