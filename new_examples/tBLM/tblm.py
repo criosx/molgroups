@@ -25,7 +25,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate,nf_tether, mult_teth
     normarea, area, nsl = blm.fnWriteProfile(z)
 
     # Fill in the remaining volume with buffer of appropriate nSLD
-    nsld = nsl / (normarea * stepsize) + (1.0 - area / normarea) * bulknsld
+    nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
