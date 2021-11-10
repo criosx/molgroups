@@ -286,17 +286,19 @@ class Component(Molecule):
     def __init__(self, length=9.575, **kwargs):
         super().__init__(**kwargs)
         self.length = length
-        self.nSL = self.sld * self.cell_volume * 1e-6 # units of Ang
-        self.DnSL = self.Dsld * self.cell_volume * 1e-6 # units of Ang
+        self.nSLs = self.fnGetnSL()
+
+    def fnGetnSL(self, xray_wavelength=None):
+        if xray_wavelength is None:
+            return numpy.array([self.sld * self.cell_volume * 1e-6, self.Dsld * self.cell_volume * 1e-6])
+        else:
+            return numpy.array([xray_sld(self.formula, wavelength=xray_wavelength)[0] * self.cell_volume * 1e-6])
 
 def Component2Box(name=None, molecule=None, xray_wavelength=None):
     # Creates a new Box2Err from Component data
 
     box = Box2Err(name=name, dvolume=molecule.cell_volume, dlength=molecule.length)
-    if xray_wavelength is None:
-        box.fnSetnSL(molecule.sld * molecule.cell_volume * 1e-6, molecule.Dsld * molecule.cell_volume * 1e-6)
-    else:
-        box.fnSetnSL(xray_sld(molecule.formula, wavelength=xray_wavelength)[0] * molecule.cell_volume * 1e-6)
+    box.fnSetnSL(*molecule.fnGetnSL(xray_wavelength))
 
     return box
 
@@ -947,16 +949,12 @@ class tBLM(BLM):
         self.tether_bme = Box2Err(name='tether_bme')
         self.tether_free = Box2Err(name='tether_free')
         self.tether_hg = Box2Err(name='tether_hg')
-        self.bme_component = Component(name='bME', formula=filler.formula,
-                                 cell_volume=filler.cell_volume, length=5.2)
-        self.tether_component = Component(name='tether', formula=tether.tether.formula,
+        self.tether = Component(name='tether', formula=tether.tether.formula,
                                  cell_volume=tether.tether.cell_volume, length=self.l_tether)
-        self.tetherg_component = Component(name='tetherg', formula=tether.tetherg.formula,
+        self.tether.nSLs = self.tether.fnGetnSL(xray_wavelength=xray_wavelength)
+        self.tetherg = Component(name='tetherg', formula=tether.tetherg.formula,
                                  cell_volume=tether.tetherg.cell_volume, length=10.0)
-        self.tether = Component2Box(name='tether', molecule=Component(name='tether', formula=tether.tether.formula,
-                                 cell_volume=tether.tether.cell_volume, length=self.l_tether), xray_wavelength=xray_wavelength)
-        self.tetherg = Component2Box(name='tetherg', molecule=Component(name='tetherg', formula=tether.tetherg.formula,
-                                 cell_volume=tether.tetherg.cell_volume, length=10.0), xray_wavelength=xray_wavelength)
+        self.tetherg.nSLs = self.tetherg.fnGetnSL(xray_wavelength=xray_wavelength)
 
         self.substrate.l = 40
         self.substrate.z = 0
@@ -988,15 +986,10 @@ class tBLM(BLM):
 
         # set all lengths
         self.bME.z = 0.5 * self.bME.l + self.substrate.z + self.substrate.l * 0.5
-        self.tether.z = 0.5 * self.tether.l + self.substrate.z + self.substrate.l * 0.5
-        self.tetherg.z = self.tether.z + 0.5 * self.tether.l + 0.5 * self.tetherg.l
         self.tether_bme.z = self.bME.z
         self.tether_free.z = self.tether_bme.z + 0.5 * self.tether_bme.l + 0.5 * self.tether_free.l
-        #self.tether_hg.z = self.substrate.z + 0.5 * self.substrate.l + self.l_tether - 0.5 * self.tether_hg.l
         self.tether_hg.z = self.tether_free.z + 0.5 * self.tether_free.l + 0.5 * self.tether_hg.l
         
-        #self._adjust_z(self.tetherg.z + 0.5 * self.tetherg.l)
-        #self._adjust_z(self.substrate.z + 0.5 * self.substrate.l + self.l_tether)
         self._adjust_z(self.tether_hg.z + 0.5 * self.tether_hg.l)
         
         self._adjust_defects()
@@ -1102,44 +1095,32 @@ class tBLM(BLM):
         self._calc_av_hg()
 
         # tether glycerol part
-        V_tg = self.tetherg.vol
-
         c_s_tg = c_s_ihc
         c_A_tg = c_A_ihc
         c_V_tg = nf_ihc_tether
-        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
 
-        self.tetherg.l = self.tetherg.vol / ((self.vol_acyl_tether - self.vol_methyl_tether) / self.lipid1.l) / 0.9
-        self.tetherg.nf = c_s_tg * c_A_tg * c_V_tg
+        #self.tetherg.l = self.tetherg.cell_volume / ((self.vol_acyl_tether - self.vol_methyl_tether) / self.lipid1.l) / 0.9
+        tetherg_nf = c_s_tg * c_A_tg * c_V_tg
 
         # tether EO part
-        l_EO = self.l_tether
-
         c_s_EO = c_s_ihc
         c_A_EO = c_A_ihc
         c_V_EO = nf_ihc_tether
-        # TODO: Check previous line for correctness. Suspect (1 - self.hc_substitution_2) should not be either _1 or not there at all.
-        self.tether.nf = c_s_EO * c_A_EO * c_V_EO
-        #self.init_mult_tether = self.mult_tether
+        tether_nf = c_s_EO * c_A_EO * c_V_EO
 
         # Adjust the submembrane space.
-        self._adjust_submembrane()
+        self._adjust_submembrane(tether_nf, tetherg_nf)
         # check to make sure there isn't too much volume in the submembrane space. If there is, increase l_tether to accommodate it
-        total_submembrane_V = self.tether.vol * self.tether.nf + self.tetherg.vol * self.tetherg.nf + \
-                        self.mult_tether * self.tether.nf * self.bME.vol + numpy.sum([hg.nf * hg.vol for hg in self.headgroups1])
-        if total_submembrane_V > self.l_tether * self.normarea:
+        total_submembrane_V = self.tether.cell_volume * tether_nf + self.tetherg.cell_volume * tetherg_nf + \
+                        self.mult_tether * tether_nf * self.bME.vol + numpy.sum([hg.nf * hg.vol for hg in self.headgroups1])
+        if total_submembrane_V > self.l_tether * self.normarea * self.vf_bilayer:
             #print('Warning too much volume')
             #print('total_submembrane_V', 'allowed_submembrane_V', 'new l_tether: ', total_submembrane_V, self.normarea * self.l_tether, total_submembrane_V / self.normarea)
-            self.l_tether = total_submembrane_V / self.normarea
+            self.l_tether = total_submembrane_V / (self.normarea * self.vf_bilayer)
             # After changing submembrane space size, recalculate everything
-            self._adjust_submembrane()
+            self._adjust_submembrane(tether_nf, tetherg_nf)
 
-        # Turn off unwanted boxes.
-        # TODO: Turn these parameters into something else so the object is not contaminated.
-        self.tetherg.nf = 0.0
-        self.tether.nf = 0.0
-
-    def _adjust_submembrane(self):
+    def _adjust_submembrane(self, tether_nf, tetherg_nf):
 
         """new approach to submembrane space:
         1. divide into three regions, tether_bme, tether_free, and tether_hg
@@ -1167,14 +1148,14 @@ class tBLM(BLM):
         self._calc_av_hg()
 
         # If too much tether is present, adjust the value
-        A_bme, min_A_tether_bme = self._adjust_mult_tether()
+        A_bme, min_A_tether_bme = self._adjust_mult_tether(tether_nf, tetherg_nf)
 
         # Find separation between bme and headgroups
         dsub = self.l_tether - (self.initial_bME_l + self.av_hg1_l)
         #print('dsub', dsub)
 
         # Total volume of tether molecules, including the glycerol
-        V_tether = self.tether.vol * self.tether.nf + self.tetherg.vol * self.tetherg.nf
+        V_tether = self.tether.cell_volume * tether_nf + self.tetherg.cell_volume * tetherg_nf
 
         # Set initial values
         V_tether_free = 0.0
@@ -1187,7 +1168,7 @@ class tBLM(BLM):
             # Calculate minimum area that has to reside in the headgroup region
             # NOTE: right now this is just the tetherg volume. It should probably be larger (at least 2 EO groups). This
             #       can be adjusted in the Tether molecule so tetherg has more volume.
-            min_A_tether_hg = self.tetherg.vol * self.tetherg.nf / self.av_hg1_l
+            min_A_tether_hg = self.tetherg.cell_volume * tetherg_nf / self.av_hg1_l
 
             # Calculate base area for both headgroups and tether
             A_hg = numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) + min_A_tether_hg
@@ -1249,10 +1230,10 @@ class tBLM(BLM):
             self._calc_av_hg()
 
             # apportion volume. Logic is the same as previously, just without the tether_free region.
-            A_bme, min_A_tether_bme = self._adjust_mult_tether() # do it again because bME thickness has changed
+            A_bme, min_A_tether_bme = self._adjust_mult_tether(tether_nf, tetherg_nf) # do it again because bME thickness has changed
 
             # Calculate base area for both headgroups and tether
-            min_A_tether_hg = self.tetherg.vol * self.tetherg.nf / self.av_hg1_l
+            min_A_tether_hg = self.tetherg.cell_volume * tetherg_nf / self.av_hg1_l
             A_hg = numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) + min_A_tether_hg
             V_tether_bme = min_A_tether_bme * self.bME.l
             V_tether_hg = min_A_tether_hg * self.av_hg1_l
@@ -1280,18 +1261,18 @@ class tBLM(BLM):
             V_tether_hg += V_tether * self.av_hg1_l / (self.bME.l + self.av_hg1_l)
 
             # Shouldn't need this
-            V_excess_bme = V_tether_bme + self.mult_tether * self.tether.nf * self.bME.vol - self.normarea * self.bME.l
+            V_excess_bme = V_tether_bme + self.mult_tether * tether_nf * self.bME.vol - self.normarea * self.vf_bilayer * self.bME.l
             if V_excess_bme > 0:
                 #print('V_excess_bme', V_excess_bme)
                 V_tether_hg += V_excess_bme
                 V_tether_bme -= V_excess_bme
-            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.av_hg1_l
+            V_excess_hg = V_tether_hg + numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) - self.normarea * self.vf_bilayer * self.av_hg1_l
             if V_excess_hg > 0:
                 #print('V_excess_hg', V_excess_hg)
                 V_tether_hg -= V_excess_hg
                 V_tether_bme += V_excess_hg
 
-        #print('A_bme', 'A_tether_bme', 'min_A_tether_bme', '*mult_tether', 'mult_tether', self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l, V_tether_bme / self.bME.l, min_A_tether_bme, min_A_tether_bme * (1+self.mult_tether), self.mult_tether)
+        #print('A_bme', 'A_tether_bme', 'min_A_tether_bme', '*mult_tether', 'mult_tether', self.mult_tether * tether_nf * self.bME.vol / self.bME.l, V_tether_bme / self.bME.l, min_A_tether_bme, min_A_tether_bme * (1+self.mult_tether), self.mult_tether)
         #Set volumes of tether objects
         self.tether_bme.vol = V_tether_bme
         self.tether_free.vol = V_tether_free
@@ -1303,23 +1284,22 @@ class tBLM(BLM):
         self.tether_hg.l = self.l_tether - self.tether_bme.l - self.tether_free.l
         
         # Set scattering lengths based on volume-averaged nSLDs of the components.
-        self.tether_bme.fnSetnSL(self.tether.nSL / self.tether.vol * self.tether_bme.vol, self.tether.nSL2 / self.tether.vol * self.tether_bme.vol)
-        self.tether_free.fnSetnSL(self.tether.nSL / self.tether.vol * self.tether_free.vol, self.tether.nSL2 / self.tether.vol * self.tether_free.vol)
-        frac_tether_g = self.tetherg.vol / V_tether_hg
-        self.tether_hg.fnSetnSL((self.tetherg.nSL / self.tetherg.vol * frac_tether_g + self.tether.nSL / self.tether.vol * (1 - frac_tether_g)) * self.tether_hg.vol,
-                                (self.tetherg.nSL2 / self.tetherg.vol * frac_tether_g + self.tether.nSL2 / self.tether.vol * (1 - frac_tether_g)) * self.tether_hg.vol)
+        self.tether_bme.fnSetnSL(*(self.tether.nSLs / self.tether.cell_volume * self.tether_bme.vol))
+        self.tether_free.fnSetnSL(*(self.tether.nSLs / self.tether.cell_volume * self.tether_free.vol))
+        frac_tether_g = self.tetherg.cell_volume / V_tether_hg
+        self.tether_hg.fnSetnSL(*((self.tetherg.nSLs / self.tetherg.cell_volume * frac_tether_g + self.tetherg.nSLs / self.tetherg.cell_volume * (1 - frac_tether_g)) * self.tether_hg.vol))
         #print('tether_hg sld', (self.tetherg.nSL / self.tetherg.vol * frac_tether_g + self.tether.nSL / self.tether.vol * (1 - frac_tether_g)))
 
-        self.bME.nf = self.mult_tether * self.tether.nf
+        self.bME.nf = self.mult_tether * tether_nf
 
-    def _adjust_mult_tether(self):
+    def _adjust_mult_tether(self, tether_nf, tetherg_nf):
         """ bME + tether in the bME region can't be bigger than normarea. If it is, reduce mult_tether until it isn't."""
-        min_A_tether_bme = self.tether.nf * self.bME.vol / self.bME.l # minimum amount of volume in tether region.
-        A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
-        if A_bme > self.normarea:
-            self.mult_tether = max(0, (self.normarea - min_A_tether_bme) / (self.tether.nf * self.bME.vol / self.bME.l))
+        min_A_tether_bme = tether_nf * self.bME.vol / self.bME.l # minimum amount of volume in tether region.
+        A_bme = self.mult_tether * tether_nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
+        if A_bme > self.normarea * self.vf_bilayer:
+            self.mult_tether = max(0, (self.normarea * self.vf_bilayer - min_A_tether_bme) / (tether_nf * self.bME.vol / self.bME.l))
             #print('big A_bme', 'normarea', 'new mult_tether', A_bme, self.normarea, self.mult_tether)
-            A_bme = self.mult_tether * self.tether.nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
+            A_bme = self.mult_tether * tether_nf * self.bME.vol / self.bME.l + min_A_tether_bme # area in bme region
 
         return A_bme, min_A_tether_bme
 
@@ -1337,14 +1317,13 @@ class tBLM(BLM):
     def fnSetSigma(self, sigma):
         super().fnSetSigma(sigma)
         self.substrate.fnSetSigma(self.global_rough)
-        self.bME.fnSetSigma(self.global_rough)
-        self.tether.fnSetSigma(self.global_rough, sigma)
-        self.tetherg.fnSetSigma(sigma)
         if self.tether_free.vol > 0:
+            self.bME.fnSetSigma(self.global_rough)
             self.tether_bme.fnSetSigma(self.global_rough)
             self.tether_free.fnSetSigma(self.global_rough, sigma)
             self.tether_hg.fnSetSigma(sigma)
         else:
+            self.bME.fnSetSigma(self.global_rough, sigma)
             self.tether_bme.fnSetSigma(self.global_rough, sigma)
             self.tether_hg.fnSetSigma(sigma)
 
