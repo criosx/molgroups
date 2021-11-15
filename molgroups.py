@@ -4,15 +4,20 @@ from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 
-class nSLDObj():
+from periodictable.fasta import Molecule, xray_sld
+# in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
+# to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
+
+
+class nSLDObj:
 
     def __init__(self, name=None):
-        self.bWrapping=True
-        self.bConvolution=False
-        self.bProtonExchange=False
-        self.dSigmaConvolution=1
-        self.iNumberOfConvPoints=7
-        self.absorb=0
+        self.bWrapping = True
+        self.bConvolution = False
+        self.bProtonExchange = False
+        self.dSigmaConvolution = 1
+        self.iNumberOfConvPoints = 7
+        self.absorb = 0
         
         self.z = 0
         self.l = 0
@@ -28,7 +33,7 @@ class nSLDObj():
         return self.absorb
         
     # returns a n-point gaussian interpolation of the area within 4 sigma
-    # all area calculatioins are routed through this function, whether they use convolution or not
+    # all area calculations are routed through this function, whether they use convolution or not
     # convolution works only for objects with fixed nSLD. Broadening an nSLD profile is not as direct as
     # broadening a nSL profile. For reason, however, objects report a nSLD(z) and not a nSL(z)
     # if it becomes necessary to broaden profiles with variable nSLD, structural changes to the code
@@ -45,7 +50,7 @@ class nSLDObj():
         if self.bConvolution:
             dnormsum = 0
             dsum = 0
-            for  i in range(self.iNumberOfConvPoints):
+            for i in range(self.iNumberOfConvPoints):
                 dd = 8 / float(self.iNumberOfConvPoints*i) - 4
                 dgauss = numpy.exp((-0.5)*dd*dd)       # (sigma_convolution)^2/(sigma_convolution)^2 cancels
                 dnormsum += dgauss
@@ -106,7 +111,7 @@ class nSLDObj():
     def fnWriteProfile(self, z, aArea=None, anSL=None):
     
         # do we want a 0.5 * stepsize shift? I believe refl1d FunctionalLayer uses 
-        #z = numpy.linspace(0, dimension * stepsize, dimension, endpoint=False)
+        # z = numpy.linspace(0, dimension * stepsize, dimension, endpoint=False)
         # z, aArea, anSL must be numpy arrays with the same shape
        
         # TODO implement wrapping
@@ -140,7 +145,7 @@ class nSLDObj():
         overmax = temparea > dMaxArea
         # note: unphysical overfill will trigger the following assertion error
         # TODO: implement a correction instead of throwing an error
-        assert (not numpy.any((temparea - dMaxArea)>aArea))
+        assert (not numpy.any((temparea - dMaxArea) > aArea))
         anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea)/aArea[overmax])) + nsl[overmax]
         aArea[overmax] = dMaxArea
 
@@ -150,13 +155,15 @@ class nSLDObj():
 
         return aArea, anSL
 
+
 class CompositenSLDObj(nSLDObj):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def fnFindSubgroups(self):
-        # this should be run at the end of init. Could also store keys if memory is an issue and then use self.__dict__[key]
+        # this should be run at the end of init. Could also store keys if memory is an issue
+        # and then use self.__dict__[key]
         # Could use a "subgroup adder" function that adds to subgroups
         self.subgroups = [getattr(self, attr) for attr in dir(self) if isinstance(getattr(self, attr), nSLDObj)]
 
@@ -185,15 +192,16 @@ class CompositenSLDObj(nSLDObj):
             self.fnFindSubgroups()
 
         for g in self.subgroups:
-            #g.fnWritePar2File(f, cName + '.' + g.name, z) # this allows objects with the same names from multiple bilayers
-            g.fnWritePar2File(f, cName+'_'+g.name, z) # current behavior
+            # g.fnWritePar2File(f, cName + '.' + g.name, z)
+            # this allows objects with the same names from multiple bilayers
+            # current behavior:
+            g.fnWritePar2File(f, cName+'_'+g.name, z)
 
-# ------------------------------------------------------------------------------------------------------
-# Function Object Implementation
-# ------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------
 # Simple Objects
 # ------------------------------------------------------------------------------------------------------
+
+
 class Box2Err(nSLDObj):
 
     def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
@@ -218,8 +226,8 @@ class Box2Err(nSLDObj):
         # Gaussian function definition, integral is volume, return value is area at positions z
         if (self.l != 0) and (self.sigma1 != 0) and (self.sigma2 != 0):
             area = erf((z - self.z + 0.5 * self.l) / (numpy.sqrt(2) * self.sigma1))
-            #result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
-            #result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
+            # result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
+            # result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
             area -= erf((z - self.z - 0.5 * self.l) / (numpy.sqrt(2) * self.sigma2))            
             area *= (self.vol / self.l) * 0.5
             area *= self.nf
@@ -276,9 +284,6 @@ class Box2Err(nSLDObj):
 # Lipids and headgroups
 # ------------------------------------------------------------------------------------------------------
 
-from periodictable.fasta import Molecule, xray_sld
-# in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
-# to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
 
 class Component(Molecule):
     # Subclasses Molecule to automatically store a component length for use later
@@ -294,6 +299,7 @@ class Component(Molecule):
         else:
             return numpy.array([xray_sld(self.formula, wavelength=xray_wavelength)[0] * self.cell_volume * 1e-6])
 
+
 def Component2Box(name=None, molecule=None, xray_wavelength=None):
     # Creates a new Box2Err from Component data
 
@@ -301,6 +307,7 @@ def Component2Box(name=None, molecule=None, xray_wavelength=None):
     box.fnSetnSL(*molecule.fnGetnSL(xray_wavelength))
 
     return box
+
 
 def AddMolecules(component_list, length=None):
     # Adds together components and molecules. Note that length information is lost
@@ -312,6 +319,7 @@ def AddMolecules(component_list, length=None):
         return Molecule(name=total_name, formula=total_formula, cell_volume=total_cell_volume)
     else:
         return Component(name=total_name, formula=total_formula, cell_volume=total_cell_volume, length=length)
+
 
 # PC headgroup pieces
 choline = Component(name='choline', formula='C5 H13 N', cell_volume=120., length=6.34)
@@ -325,7 +333,7 @@ pg = Component(name='PG', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length
 ps = Component(name='PS', formula='C8 H8 H[1]3 N O10 P', cell_volume=280., length=8.1)
 pa = Component(name='PA', formula='C5 H5 H[1] O8 P', cell_volume=174., length=5.0)
 pi = Component(name='PI', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, length=10.7)
-pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0) # doesn't match molgroups.cc
+pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0)  # diff to molgroups.cc
 cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
 
 # standard acyl chains
@@ -356,6 +364,7 @@ SAcEO6 = AddMolecules([SAc, EO6])
 # be standardized, (1) by creating a CompositeHeadgroup class that has this flag already, and (2) by
 # finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
 
+
 class PC(CompositenSLDObj):
     def __init__(self, name='PC', innerleaflet=False, xray_wavelength=None, **kwargs):
         # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
@@ -385,8 +394,8 @@ class PC(CompositenSLDObj):
         self.choline.nf=1
 
         self.l = 9.575
-        self.vol=self.cg.vol+self.phosphate.vol+self.choline.vol
-        self.nSL=self.cg.nSL+self.phosphate.nSL+self.choline.nSL
+        self.vol = self.cg.vol+self.phosphate.vol+self.choline.vol
+        self.nSL = self.cg.nSL+self.phosphate.nSL+self.choline.nSL
         self.ph_relative_pos = .58
         self.nf = 1.
         self.fnFindSubgroups()        
@@ -452,9 +461,10 @@ class PC(CompositenSLDObj):
 
         super().fnWritePar2File(fp, cName, z)
 
+
 class PCm(PC):
     # deprecated. Use PC(innerleaflet=True)
-    def __init__ (self, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cg.sigma2 = 2.53
         self.cg.sigma1 = 2.29
@@ -477,12 +487,13 @@ class PCm(PC):
     def fnGetUpperLimit(self): 
         return self.cg.fnGetUpperLimit()
 
-    def fnWritePar2File (self,fp, cName, z):
+    def fnWritePar2File (self, fp, cName, z):
         fp.write("PCm " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
                  str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf) + " \n")
         self.fnWriteData2File(fp, cName, z)
 
         super().fnWritePar2File(fp, cName, z)
+
 
 class Lipid(object):
     def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
@@ -506,16 +517,19 @@ class Lipid(object):
             raise TypeError('Lipid.tails must be Molecule or list of Molecules')
         
         # headgroup
-        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula = '', cell_volume=0.0, length=9.575)
+        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula='',
+                                                                           cell_volume=0.0, length=9.575)
 
         # Create methyl groups
         if isinstance(methyls, list):
-            assert n_tails==len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' % (len(tails), len(methyls))
+            assert n_tails == len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' \
+                                            % (len(tails), len(methyls))
         elif isinstance(methyls, Molecule) | (methyls is None):
             methyls = n_tails * [methyls]
         else:
             raise TypeError('Lipid.methyls must be Molecule or list of Molecules')
-        methyls = [m if m is not None else Molecule(name='', formula='', cell_volume=0.0) for m in methyls]  # Replace None with null molecule
+        # Replace None with null molecule
+        methyls = [m if m is not None else Molecule(name='', formula='', cell_volume=0.0) for m in methyls]
         methylvolsum = sum([m.cell_volume for m in methyls])
         methylformula = ' '.join([str(m.formula) for m in methyls])
         self.methyls = Molecule(name='methyls', formula = methylformula, cell_volume=methylvolsum)
@@ -524,6 +538,7 @@ class Lipid(object):
             self.name = name
         else:
             self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
+
 
 class Tether(Lipid):
     """Subclass of Lipid for use with tether molecules.
@@ -538,7 +553,6 @@ class Tether(Lipid):
             self.name = name
         else:
             self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
-
 
 
 DOPC = Lipid(name='DOPC', headgroup=PC, tails=2*[oleoyl])
