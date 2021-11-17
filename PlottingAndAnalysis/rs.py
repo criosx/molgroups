@@ -948,29 +948,29 @@ class CMolStat:
         # entries next
         print('Pulling all molgroups ...')
         print('  substrate ...')
-        diIterations['substrate'], __, __ = self.fnPullMolgroupLoader(['bilayer_substrate'])
+        diIterations['substrate'], __, __ = self.fnPullMolgroupLoader(['bilayer.substrate'])
         print('  siox ...')
-        diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer_siox'])
+        diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer.siox'])
         print('  tether ...')
-        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer_bME', 'bilayer_tetherg', 'bilayer_tether'])
+        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether'])
         print('  innerhg ...')
-        diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1', 'bilayer_headgroup1_2', 'bilayer_headgroup1_3'])
-        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_cg'])
-        diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_phosphate'])
-        diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup1_choline'])
+        diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1', 'bilayer.headgroup1_2', 'bilayer.headgroup1_3'])
+        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1.cg'])
+        diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
+        diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.choline'])
         print('  innerhc ...')
-        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid1', 'bilayer_methyl1'])
-        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid1'])
-        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer_methyl1'])
+        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid1', 'bilayer.methyl1'])
+        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid1'])
+        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer.methyl1'])
         print('  outerhc ...')
-        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid2', 'bilayer_methyl2'])
-        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer_lipid2'])
-        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer_methyl2'])
+        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid2', 'bilayer.methyl2'])
+        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid2'])
+        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer.methyl2'])
         print('  outerhg ...')
-        diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2', 'bilayer_headgroup2_2', 'bilayer_headgroup2_3'])
-        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_cg'])
-        diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_phosphate'])
-        diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer_headgroup2_choline'])
+        diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1', 'bilayer.headgroup2_2', 'bilayer.headgroup2_3'])
+        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.cg'])
+        diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2.phosphate'])
+        diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2.choline'])
         print('  protein ...')
         diIterations['protein'], __, __ = self.fnPullMolgroupLoader(['protein'])
 
@@ -1843,16 +1843,16 @@ class CMolStat:
 
         self.fnLoadParameters()
         self.fnLoadStatData(sparse)
-        try: 
+        if hasattr(self.Interactor, 'problem'):
             problem = self.Interactor.problem
-        except:
+        else:
             problem = self.Interactor.fnRestoreFitProblem()
 
         j = 0
-        self.diStatResults['nSLDProfiles'] = []  # delete list of all nSLD profiles
-        self.diStatResults['Molgroups'] = []  # delete list of all molecular groups
+        self.diStatResults['nSLDProfiles'] = []
+        self.diStatResults['Molgroups'] = []
 
-        for iteration in range(self.diStatResults['NumberOfStatValues']):  # cycle through all individual stat. results
+        for iteration in range(self.diStatResults['NumberOfStatValues']):
             try:
                 # appends a new list for profiles for the current MC iteration
                 self.diStatResults['nSLDProfiles'].append([])
@@ -1863,8 +1863,9 @@ class CMolStat:
                 for element in liParameters:
                     if element not in list(self.diStatResults['Parameters'].keys()):
                         bConsistency = False
-                if bConsistency:  # check for consistency
-                    if verbose: print('Processing parameter set %i.\n' % (j))
+                if bConsistency:
+                    if verbose:
+                        print('Processing parameter set %i.\n' % (j))
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
@@ -1876,6 +1877,7 @@ class CMolStat:
                     problem.model_update()
                     # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
                     # way, also implement which contrast to use for pulling groups
+                    # garefl based code should save a mol.dat automatically on updating the model
                     if 'models' in dir(problem):
                         for M in problem.models:
                             M.chisq()
@@ -1883,18 +1885,22 @@ class CMolStat:
                     else:
                         problem.chisq()
 
-                    self.Interactor.fnSaveMolgroups(problem)
+                    # explicit saving is not needed anymore
+                    # garefl is automatically saved and refl1d / bumps contains a directory in problem.moldat
+                    # self.Interactor.fnSaveMolgroups(problem)
 
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
                             z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
                             self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                            if verbose: print(M.chisq())
+                            if verbose:
+                                print(M.chisq())
                     else:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                        if verbose: print(problem.chisq())
+                        if verbose:
+                            print(problem.chisq())
 
                     if bRecreateMolgroups:
                         self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)
