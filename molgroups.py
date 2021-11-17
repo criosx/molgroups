@@ -574,20 +574,13 @@ class PCm(PC):
 
 
 class Lipid(object):
-    def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
+    def __init__(self, headgroup, tails, methyls, name=None):
         # hg = Molecule object with headgroup information or PC molgroups object
         # tails = List of molecule objects containing lipid tail information
         # methyls = List of methyl groups, one for each lipid tail; OR, a single group
         #           that is copied to each tail; OR, None, which uses a null group with
         #           no volume (use with cholesterol). Use methyl=Dmethyl for CD3.
         # default is DOPC using the PC class.
-
-        # if headgroup is None:
-        #    headgroup = PC()
-        # if tails is None:
-        #    tails = [oleoyl, oleoyl]
-        # if methyls is None:
-        #     methyls = methyl
 
         n_tails = len(tails)
 
@@ -651,9 +644,9 @@ class Tether(Lipid):
             self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
 
 
-DOPC = Lipid(name='DOPC', headgroup=PC, tails=2 * [oleoyl])
-POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl])
-DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl])
+DOPC = Lipid(name='DOPC', headgroup=PC, tails=2 * [oleoyl], methyls=methyl)
+POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl], methyls=methyl)
+DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl], methyls=methyl)
 chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
 
 WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
@@ -661,72 +654,65 @@ HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, ol
 HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
 
 
-def _unpack_lipids(self, lipids, xray_wavelength=None):
-    """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
-        and lists of acyl chain and methyl volumes and nSLs. Creates the following attributes:
-        o headgroups1: a list of inner leaflet headgroup objects
-        o headgroups2: a list of outer leaflet headgroup objects
-        NB: each object in headgroups1 and headgroups2 is created as a standalone attribute in "self"
-            so that searching for all nSLDObj in self will return each headgroup individually as 
-            headgroup1_1, headgroup1_2, ... headgroup1_n for n lipids. Similarly for headgroup2.
-        o vol_acyl_lipids: a numpy array of acyl chain volumes
-        o vol_methyl_lipids: a numpy array of methyl volumes
-        o nsl_acyl_lipids: a numpy array of acyl chain nSL
-        o nsl_methyl_lipids: a numpy array of methyl nSL
-        """
-    n_lipids = len(lipids)
-    self.lipids = lipids # store this information
-
-    self.headgroups1 = []   # list of inner headgroups
-    self.headgroups2 = []   # list of outer headgroups
-    self.vol_acyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain volumes
-    self.nsl_acyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain nsls
-    self.vol_methyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain methyl volumes
-    self.nsl_methyl_lipids = numpy.zeros(n_lipids)     # list of acyl chain methyl nsls
-
-    # create objects for each lipid headgroup and a composite tail object
-    # TODO: create separate lipid objects so methyl sigmas can be different for different species
-    for i, lipid in enumerate(lipids):
-        ihg_name = 'headgroup1_%i' % (i+1)
-        ohg_name = 'headgroup2_%i' % (i+1)
-
-        if isinstance(lipid.headgroup, Component):
-            # populates nSL, nSL2, vol, and l
-            ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
-            ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
-
-        elif issubclass(lipid.headgroup, CompositenSLDObj):
-            ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True, xray_wavelength=xray_wavelength)
-            ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False, xray_wavelength=xray_wavelength)
-
-        else:
-            raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
-
-        # Note that because there's always one lipid, the objects self.headgroups1[0]
-        # and self.headgroups2[0] always exist
-        self.__setattr__(ihg_name, ihg_obj)
-        self.headgroups1.append(self.__getattribute__(ihg_name))
-        self.__setattr__(ohg_name, ohg_obj)
-        self.headgroups2.append(self.__getattribute__(ohg_name))
-
-        # find null headgroups to exclude from averaging over headgroup properties
-        self.null_hg1 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups1], dtype=bool)
-        self.null_hg2 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups2], dtype=bool)
-
-        self.vol_acyl_lipids[i] = lipid.tails.cell_volume
-        self.vol_methyl_lipids[i] = lipid.methyls.cell_volume        
-        if xray_wavelength is None:
-            self.nsl_acyl_lipids[i] = lipid.tails.sld * lipid.tails.cell_volume * 1e-6
-            self.nsl_methyl_lipids[i] = lipid.methyls.sld * lipid.methyls.cell_volume * 1e-6            
-        else:
-            self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[0] * lipid.tails.cell_volume * 1e-6
-            self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[0] * lipid.methyls.cell_volume * 1e-6
-
-    self.initial_hg1_lengths = numpy.array([hg1.l for hg1 in self.headgroups1])
-
-
 class BLM(CompositenSLDObj):
-    def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
+    def __init__(self, lipids, lipid_nf, xray_wavelength=None, **kwargs):
+
+        def _unpack_lipids():
+            """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
+                and lists of acyl chain and methyl volumes and nSLs. Creates the following attributes:
+                o headgroups1: a list of inner leaflet headgroup objects
+                o headgroups2: a list of outer leaflet headgroup objects
+                NB: each object in headgroups1 and headgroups2 is created as a standalone attribute in "self"
+                    so that searching for all nSLDObj in self will return each headgroup individually as
+                    headgroup1_1, headgroup1_2, ... headgroup1_n for n lipids. Similarly for headgroup2.
+                o vol_acyl_lipids: a numpy array of acyl chain volumes
+                o vol_methyl_lipids: a numpy array of methyl volumes
+                o nsl_acyl_lipids: a numpy array of acyl chain nSL
+                o nsl_methyl_lipids: a numpy array of methyl nSL
+                """
+
+            # create objects for each lipid headgroup and a composite tail object
+            # TODO: create separate lipid objects so methyl sigmas can be different for different species
+            for i, lipid in enumerate(lipids):
+                ihg_name = 'headgroup1_%i' % (i + 1)
+                ohg_name = 'headgroup2_%i' % (i + 1)
+
+                if isinstance(lipid.headgroup, Component):
+                    # populates nSL, nSL2, vol, and l
+                    ihg_obj = Component2Box(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
+                    ohg_obj = Component2Box(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
+
+                elif issubclass(lipid.headgroup, CompositenSLDObj):
+                    ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True, xray_wavelength=xray_wavelength)
+                    ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False, xray_wavelength=xray_wavelength)
+
+                else:
+                    raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
+
+                # Note that because there's always one lipid, the objects self.headgroups1[0]
+                # and self.headgroups2[0] always exist
+                self.__setattr__(ihg_name, ihg_obj)
+                self.headgroups1.append(self.__getattribute__(ihg_name))
+                self.__setattr__(ohg_name, ohg_obj)
+                self.headgroups2.append(self.__getattribute__(ohg_name))
+
+                # find null headgroups to exclude from averaging over headgroup properties
+                self.null_hg1 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups1], dtype=bool)
+                self.null_hg2 = numpy.array([hg.vol <= 0.0 for hg in self.headgroups2], dtype=bool)
+
+                self.vol_acyl_lipids[i] = lipid.tails.cell_volume
+                self.vol_methyl_lipids[i] = lipid.methyls.cell_volume
+                if xray_wavelength is None:
+                    self.nsl_acyl_lipids[i] = lipid.tails.sld * lipid.tails.cell_volume * 1e-6
+                    self.nsl_methyl_lipids[i] = lipid.methyls.sld * lipid.methyls.cell_volume * 1e-6
+                else:
+                    self.nsl_acyl_lipids[i] = xray_sld(lipid.tails.formula, wavelength=xray_wavelength)[
+                                                  0] * lipid.tails.cell_volume * 1e-6
+                    self.nsl_methyl_lipids[i] = xray_sld(lipid.methyls.formula, wavelength=xray_wavelength)[
+                                                    0] * lipid.methyls.cell_volume * 1e-6
+
+            self.initial_hg1_lengths = numpy.array([hg1.l for hg1 in self.headgroups1])
+
         super().__init__(**kwargs)
         assert len(lipids) == len(lipid_nf), \
             'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
@@ -734,8 +720,19 @@ class BLM(CompositenSLDObj):
 
         # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
         self.lipid_nf = numpy.array(lipid_nf) / numpy.sum(lipid_nf)
+        n_lipids = len(lipids)
+        self.lipids = lipids  # store this information
 
-        _unpack_lipids(self, lipids, xray_wavelength=xray_wavelength)
+        self.headgroups1 = []  # list of inner headgroups
+        self.headgroups2 = []  # list of outer headgroups
+        self.null_hg1 = numpy.zeros(n_lipids)
+        self.null_hg2 = numpy.zeros(n_lipids)
+        self.vol_acyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain volumes
+        self.nsl_acyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain nsls
+        self.vol_methyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain methyl volumes
+        self.nsl_methyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain methyl nsls
+
+        _unpack_lipids()
 
         self.lipid1 = Box2Err(name='lipid1')
         self.methyl1 = Box2Err(name='methyl1')
@@ -768,18 +765,18 @@ class BLM(CompositenSLDObj):
 
     def _calc_av_hg(self):
         # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
-        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) * self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
-        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) * self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
+        self.av_hg1_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) *
+                                  self.lipid_nf[~self.null_hg1]) / numpy.sum(self.lipid_nf[~self.null_hg1])
+        self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) *
+                                  self.lipid_nf[~self.null_hg2]) / numpy.sum(self.lipid_nf[~self.null_hg2])
 
     def fnAdjustParameters(self):
-
         self._adjust_lipids()
         self._adjust_z(self.startz + self.av_hg1_l)
         self._adjust_defects()
         self.fnSetSigma(self.sigma)
 
     def _adjust_lipids(self):
-
         self.l_lipid1 = max(self.l_lipid1, 0.01)
         self.l_lipid2 = max(self.l_lipid2, 0.01)
         for nf in self.lipid_nf:
@@ -877,7 +874,7 @@ class BLM(CompositenSLDObj):
         if self.radius_defect<(0.5*(hclength+hglength)):
             self.radius_defect = 0.5 * (hclength+hglength)
         
-        volhalftorus = numpy.pi**2 * (self.radius_defect - (2. * hclength / 3. / numpy.pi)) * hclength * hclength / 4
+        volhalftorus = numpy.pi**2 * (self.radius_defect - (2. * hclength / 3. / numpy.pi)) * hclength * hclength / 4.
         volcylinder = numpy.pi * self.radius_defect * self.radius_defect * hclength
         defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
         
@@ -891,8 +888,10 @@ class BLM(CompositenSLDObj):
         defectratio = self.defect_hydrocarbon.vol / self.lipid2.vol
         self.defect_headgroup.vol = defectratio * numpy.sum([hg.nf * hg.vol for hg in self.headgroups2])
         self.defect_headgroup.l = hclength + hglength
-        self.defect_headgroup.z = self.lipid1.z - 0.5 * self.lipid1.l - 0.5 * self.av_hg1_l + 0.5 * (hclength + hglength)
-        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld) for hg in self.headgroups2])
+        self.defect_headgroup.z = self.lipid1.z - 0.5 * self.lipid1.l - \
+                                  0.5 * self.av_hg1_l + 0.5 * (hclength + hglength)
+        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld)
+                                                             for hg in self.headgroups2])
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
 
@@ -1023,7 +1022,9 @@ class ssBLM(BLM):
         self.l_lipid2 = _l_lipid2
         self.vf_bilayer = _vf_bilayer
         if _nf_lipids is not None:   # pass None to keep lipid_nf unchanged
-            assert len(_nf_lipids)==len(self.lipids), 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_lipids), len(self.lipids))
+            assert len(_nf_lipids)==len(self.lipids), \
+                'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % \
+                (len(_nf_lipids), len(self.lipids))
             self.lipid_nf = numpy.array(_nf_lipids)
         self.hc_substitution_1 = _hc_substitution_1
         self.hc_substitution_2 = _hc_substitution_2
