@@ -623,16 +623,7 @@ class Tether(Lipid):
         Uses hg field for tether glycerol.
         Tether includes both volume from """
 
-    def __init__(self, name=None, tether=None, tetherg=None, tails=None, methyls=None):
-
-        if tether is None:
-            tether = SEO6
-        if tetherg is None:
-            tetherg = tetherg_ether
-        if tails is None:
-            tails = [oleoyl, oleoyl]
-        if methyls is None:
-            methyls = methyl
+    def __init__(self, name, tether, tetherg, tails, methyls):
 
         super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
         self.tether = tether
@@ -649,9 +640,9 @@ POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl], methyls=methy
 DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl], methyls=methyl)
 chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
 
-WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
-HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
+WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl], methyls=methyl)
+HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=methyl)
+HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=methyl)
 
 
 class BLM(CompositenSLDObj):
