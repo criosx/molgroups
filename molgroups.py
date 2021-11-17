@@ -84,94 +84,6 @@ SEO6 = AddMolecules([thiol, EO6])
 SAcEO6 = AddMolecules([SAc, EO6])
 
 
-class Lipid(object):
-    def __init__(self, name=None, headgroup=None, tails=None, methyls=None):
-        # hg = Molecule object with headgroup information or PC molgroups object
-        # tails = List of molecule objects containing lipid tail information
-        # methyls = List of methyl groups, one for each lipid tail; OR, a single group
-        #           that is copied to each tail; OR, None, which uses a null group with
-        #           no volume (use with cholesterol). Use methyl=Dmethyl for CD3.
-        # default is DOPC using the PC class.
-
-        if headgroup is None:
-            headgroup = pc
-        if tails is None:
-            tails = [oleoyl, oleoyl]
-        if methyls is None:
-            methyls = methyl
-
-        n_tails = len(tails)
-
-        # tails section
-        if isinstance(tails, list):
-            tail_volume = sum([t.cell_volume for t in tails])
-            tail_formula = ' '.join([str(t.formula) for t in tails])
-            self.tails = Molecule(name='tails', formula=tail_formula, cell_volume=tail_volume)
-        elif isinstance(tails, Molecule):
-            self.tails = tails
-        else:
-            raise TypeError('Lipid.tails must be Molecule or list of Molecules')
-
-        # headgroup
-        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula='',
-                                                                           cell_volume=0.0, length=9.575)
-
-        # Create methyl groups
-        if isinstance(methyls, list):
-            assert n_tails == len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' \
-                                            % (len(tails), len(methyls))
-        elif isinstance(methyls, Molecule) | (methyls is None):
-            methyls = n_tails * [methyls]
-        else:
-            raise TypeError('Lipid.methyls must be Molecule or list of Molecules')
-        # Replace None with null molecule
-        methyls = [m if m is not None else Molecule(name='', formula='', cell_volume=0.0) for m in methyls]
-        methylvolsum = sum([m.cell_volume for m in methyls])
-        methylformula = ' '.join([str(m.formula) for m in methyls])
-        self.methyls = Molecule(name='methyls', formula=methylformula, cell_volume=methylvolsum)
-
-        if name is not None:
-            self.name = name
-        else:
-            self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
-
-
-class Tether(Lipid):
-    """Subclass of Lipid for use with tether molecules.
-        Uses hg field for tether glycerol.
-        Tether includes both volume from """
-
-    def __init__(self, name=None, tether=None, tetherg=None, tails=None, methyls=None):
-
-        if tether is None:
-            tether = SEO6
-        if tetherg is None:
-            tetherg = tetherg_ether
-        if tails is None:
-            tails = [oleoyl, oleoyl]
-        if methyls is None:
-            methyls = methyl
-
-        super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
-        self.tether = tether
-        self.tetherg = self.headgroup
-
-        if name is not None:
-            self.name = name
-        else:
-            self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
-
-
-DOPC = Lipid(name='DOPC', headgroup=pc, tails=2 * [oleoyl])
-POPC = Lipid(name='POPC', headgroup=pc, tails=[palmitoyl, oleoyl])
-DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl])
-chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
-
-WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
-HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
-
-
 class nSLDObj:
 
     def __init__(self, name=None):
@@ -275,6 +187,19 @@ class nSLDObj:
         A = numpy.vstack((z, area, nsl)).T
         numpy.savetxt(fp, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
         fp.write('\n')
+
+    def fnWriteConstant2Dict(self, rdict, name, darea, dSLD, z):
+        rdict[name] = {}
+        rdict[name]['header'] = "Constant " + name + " area " + str(darea)
+        rdict[name]['area'] = darea
+        rdict[name]['sld'] = dSLD
+        constarea = numpy.ones_like(z) * darea
+        constsld = numpy.ones_like(z) * dSLD
+        rdict[name]['zaxis'] = z
+        rdict[name]['area'] = constarea
+        rdict[name]['nsl'] = constsld * numpy.gradient(z) *constarea
+        rdict[name]['nsld'] = constsld
+        return rdict
 
     # Philosophy for this first method: You simply add more and more volume and nSLD to the
     # volume and nSLD array. After all objects have filled up those arrays the maximal area is
@@ -642,6 +567,93 @@ class PCm(PC):
 
         return rdict
 
+class Lipid(object):
+    def __init__(self, name=None, headgroup=PC, tails=[oleoyl, oleoyl], methyls=methyl):
+        # hg = Molecule object with headgroup information or PC molgroups object
+        # tails = List of molecule objects containing lipid tail information
+        # methyls = List of methyl groups, one for each lipid tail; OR, a single group
+        #           that is copied to each tail; OR, None, which uses a null group with
+        #           no volume (use with cholesterol). Use methyl=Dmethyl for CD3.
+        # default is DOPC using the PC class.
+
+        # if headgroup is None:
+        #    headgroup = PC()
+        # if tails is None:
+        #    tails = [oleoyl, oleoyl]
+        # if methyls is None:
+        #     methyls = methyl
+
+        n_tails = len(tails)
+
+        # tails section
+        if isinstance(tails, list):
+            tail_volume = sum([t.cell_volume for t in tails])
+            tail_formula = ' '.join([str(t.formula) for t in tails])
+            self.tails = Molecule(name='tails', formula=tail_formula, cell_volume=tail_volume)
+        elif isinstance(tails, Molecule):
+            self.tails = tails
+        else:
+            raise TypeError('Lipid.tails must be Molecule or list of Molecules')
+
+        # headgroup
+        self.headgroup = headgroup if headgroup is not None else Component(name=None, formula='',
+                                                                           cell_volume=0.0, length=9.575)
+
+        # Create methyl groups
+        if isinstance(methyls, list):
+            assert n_tails == len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' \
+                                            % (len(tails), len(methyls))
+        elif isinstance(methyls, Molecule) | (methyls is None):
+            methyls = n_tails * [methyls]
+        else:
+            raise TypeError('Lipid.methyls must be Molecule or list of Molecules')
+        # Replace None with null molecule
+        methyls = [m if m is not None else Molecule(name='', formula='', cell_volume=0.0) for m in methyls]
+        methylvolsum = sum([m.cell_volume for m in methyls])
+        methylformula = ' '.join([str(m.formula) for m in methyls])
+        self.methyls = Molecule(name='methyls', formula=methylformula, cell_volume=methylvolsum)
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
+
+
+class Tether(Lipid):
+    """Subclass of Lipid for use with tether molecules.
+        Uses hg field for tether glycerol.
+        Tether includes both volume from """
+
+    def __init__(self, name=None, tether=None, tetherg=None, tails=None, methyls=None):
+
+        if tether is None:
+            tether = SEO6
+        if tetherg is None:
+            tetherg = tetherg_ether
+        if tails is None:
+            tails = [oleoyl, oleoyl]
+        if methyls is None:
+            methyls = methyl
+
+        super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
+        self.tether = tether
+        self.tetherg = self.headgroup
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = ' + '.join([c.name for c in ([self.tether] + tails) if c.name is not None])
+
+
+DOPC = Lipid(name='DOPC', headgroup=PC, tails=2 * [oleoyl])
+POPC = Lipid(name='POPC', headgroup=PC, tails=[palmitoyl, oleoyl])
+DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl])
+chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=None)
+
+WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl])
+HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
+HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl])
+
 
 def _unpack_lipids(self, lipids, xray_wavelength=None):
     """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
@@ -710,8 +722,8 @@ def _unpack_lipids(self, lipids, xray_wavelength=None):
 class BLM(CompositenSLDObj):
     def __init__(self, lipids=[DOPC], lipid_nf=[1.0], xray_wavelength=None, **kwargs):
         super().__init__(**kwargs)
-        assert len(lipids)==len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
-        assert len(lipids)>0, 'Must specify at least one lipid'
+        assert len(lipids) == len(lipid_nf), 'List of lipids and number fractions must be of equal length, not %i and %i' % (len(lipids), len(lipid_nf))
+        assert len(lipids) > 0, 'Must specify at least one lipid'
 
         # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
         self.lipid_nf = numpy.array(lipid_nf) / numpy.sum(lipid_nf)
@@ -951,9 +963,7 @@ class BLM(CompositenSLDObj):
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
-        normarea = numpy.ones_like(z) * self.normarea
-        rdict[cName] = {}
-        rdict[cName]['normarea'] = normarea
+        rdict = self.fnWriteConstant2Dict(rdict, cName + "_normarea", self.normarea, 0, z)
         return rdict
 
 
@@ -1947,3 +1957,5 @@ class DiscreteEuler(nSLDObj):
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
         return rdict
+
+

@@ -28,9 +28,9 @@ class CDataInteractor:
         diMolgroups = {}
         li = []
 
-        moldict = problem.extra.moldat
+        moldict = problem.moldat
 
-        for group in moldict.keys():
+        for group in moldict:
             tdata = (moldict[group]['header']).split()  # read header that contains molgroup data
             diMolgroups[tdata[1]] = {}
             diMolgroups[tdata[1]].update({'headerdata': {}})
