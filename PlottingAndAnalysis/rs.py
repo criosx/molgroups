@@ -1110,48 +1110,6 @@ class CMolStat:
             lvalue.append(str(self.diParameters[parameter]['value']))
         return lvalue
 
-    # -------------------------------------------------------------------------------
-
-    def fnGetTaggedParameters(self):  # returns a list of the name and the
-        file = open(self.setupfilename)  # range + stepsize information of parameters
-        data = file.readlines()  # which are tagged for displacement error
-        file.close()  # analysis
-        output = []
-        for line in data:
-            if '!rstag' in line:
-                smatch = compile(r'pars_add\(pars.*?\"(.+?)\"\s*,.+?,(.+?),(.+?)\).+!rstag\s+(.+?)\s+(.+?)\s+(.+?)\s+!',
-                                 IGNORECASE | VERBOSE)
-                output.append(smatch.search(line).groups())
-        return output
-
-    def fnImportMCMCBestFit(self, sPath):  # imports best-fit from MCMC
-
-        call(['cp', 'setup.c', 'setup.back'])
-        call(['cp', 'setup.cc', 'setup.backcc'])
-
-        self.fnLoadParameters(sPath)  # Load Parameters and modify setup.cc
-
-        # get list of parameters from setup.c/par.dat and sort by number of appearance in setup.cc
-        li_parameters = list(self.diParameters.keys())
-        li_parameters = sorted(li_parameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-
-        # change setup.c to quasi fix all parameters
-        li_addition = []
-        for parameter in li_parameters:
-            li_addition.append(('%s = %s;\n' %
-                                (self.diParameters[parameter]['variable'], self.diParameters[parameter]['value'])))
-        self.fnWriteConstraint2SetupC(li_addition)
-        call(["rm", "-f", "setup.o"])
-        call(["sync"])  # synchronize file system
-        sleep(1)  # wait for system to clean up
-        self.fnMake()  # compile changed setup.c
-        call(['nice', './fit', '-el'])  # initiate write out par.dat via LM fit
-        call(['cp', 'pop_bak.dat', 'pop.dat'])
-        call(['mv', 'setup.back', 'setup.c'])
-        call(['mv', 'setup.backcc', 'setup.cc'])
-        call(["sync"])  # synchronize file system
-        sleep(1)  # wait for system to clean up
-
     def fnLoadAndPrintPar(self, sPath='./'):
         self.fnLoadParameters(sPath)
         self.fnLoadCovar(sPath)
@@ -1206,8 +1164,8 @@ class CMolStat:
 
         self.diStatResults['NumberOfStatValues'] = \
             len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-        #print('StatDataLength: ')
-        #print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
+        # print('StatDataLength: ')
+        # print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
 
     def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
 

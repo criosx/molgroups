@@ -260,8 +260,10 @@ class CDataInteractor:
         # saves all data out to a file
 
     @staticmethod
-    def fnSaveSingleColumnsFromStatDict(sFilename, data, skipentries=[]):
+    def fnSaveSingleColumnsFromStatDict(sFilename, data, skipentries=None):
 
+        if skipentries is None:
+            skipentries = []
         File = open(sFilename, "w")
 
         for element in data:
@@ -360,10 +362,11 @@ class CBumpsInteractor(CDataInteractor):
 
         return self.diParameters, overall
 
-    def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=[]):
-        if path.isfile(self.mcmcpath + "/sErr.dat") or path.isfile(
-            self.mcmcpath + "/isErr.dat"
-        ):
+    def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=None):
+        if skip_entries is None:
+            skip_entries = []
+
+        if path.isfile(self.mcmcpath + "/sErr.dat") or path.isfile(self.mcmcpath + "/isErr.dat"):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
@@ -620,6 +623,46 @@ class CGaReflInteractor(CRefl1DInteractor):
                 return int(i)
         return 0
 
+    def fnGetTaggedParameters(self):  # returns a list of the name and the
+        file = open(self.spath + '/setup.cc')  # range + stepsize information of parameters
+        data = file.readlines()  # which are tagged for displacement error
+        file.close()  # analysis
+        output = []
+        for line in data:
+            if '!rstag' in line:
+                smatch = compile(r'pars_add\(pars.*?\"(.+?)\"\s*,.+?,(.+?),(.+?)\).+!rstag\s+(.+?)\s+(.+?)\s+(.+?)\s+!',
+                                 IGNORECASE | VERBOSE)
+                output.append(smatch.search(line).groups())
+        return output
+
+    def fnImportMCMCBestFit(self):  # imports best-fit from MCMC
+
+        call(['cp', 'setup.c', 'setup.back'])
+        call(['cp', 'setup.cc', 'setup.backcc'])
+
+        self.fnLoadParameters()                             # Load Parameters and modify setup.cc
+
+        # get list of parameters from setup.c/par.dat and sort by number of appearance in setup.cc
+        li_parameters = list(self.diParameters.keys())
+        li_parameters = sorted(li_parameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+
+        # change setup.c to quasi fix all parameters
+        li_addition = []
+        for parameter in li_parameters:
+            li_addition.append(('%s = %s;\n' %
+                                (self.diParameters[parameter]['variable'], self.diParameters[parameter]['value'])))
+        self.fnWriteConstraint2Runfile(li_addition)
+        call(["rm", "-f", "setup.o"])
+        call(["sync"])  # synchronize file system
+        sleep(1)  # wait for system to clean up
+        self.fnMake()  # compile changed setup.c
+        call(['nice', './fit', '-el'])  # initiate write out par.dat via LM fit
+        call(['cp', 'pop_bak.dat', 'pop.dat'])
+        call(['mv', 'setup.back', 'setup.c'])
+        call(['mv', 'setup.backcc', 'setup.cc'])
+        call(["sync"])  # synchronize file system
+        sleep(1)  # wait for system to clean up
+
     def fnLoadParameters(self):
         filename = self.spath + '/setup.cc'
         self.diParameters = {}
@@ -719,7 +762,9 @@ class CGaReflInteractor(CRefl1DInteractor):
 
         return self.diParameters, chisq
 
-    def fnLoadStatData(self, dSparse=0., rescale_small_numbers=True, skip_entries=[]):
+    def fnLoadStatData(self, dSparse=0., rescale_small_numbers=True, skip_entries=None):
+        if skip_entries is None:
+            skip_entries = []
         # Load a file like iSErr or SErr into
         # the self.liStatResult object
         sStatResultHeader = ''
@@ -744,9 +789,7 @@ class CGaReflInteractor(CRefl1DInteractor):
         file = open(self.spath+'/setup.cc', 'r+')  # name sname and replaces the lower and
         data = file.readlines()  # upper fit limits by the given values
         file.close()
-        smatch = compile(r'(pars_add\(pars.*?\"' + sname +
-                         '.+?,.+?,).+?(,).+?(\))',
-                         IGNORECASE | VERBOSE)
+        smatch = compile(r'(pars_add\(pars.*?\"' + sname + '.+?,.+?,).+?(,).+?(\))', IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
             newdata.append(smatch.sub(r'\1 ' + str(flowerlimit) + r'\2 '
