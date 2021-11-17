@@ -24,17 +24,14 @@ class CDataInteractor:
     def fnBackupSimdat(self):
         raise NotImplementedError()
 
-    def fnLoadMolgroups(self):
+    def fnLoadMolgroups(self, problem=None):
         diMolgroups = {}
         li = []
 
-        file = open(self.spath + '/mol.dat')
-        data = file.readlines()
-        file.close()
+        moldict = problem.extra.moldat
 
-        i = 0
-        while i < len(data):
-            tdata = (data[i]).split()  # read header that contains molgroup data
+        for group in moldict.keys():
+            tdata = (moldict[group]['header']).split()  # read header that contains molgroup data
             diMolgroups[tdata[1]] = {}
             diMolgroups[tdata[1]].update({'headerdata': {}})
             diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
@@ -42,22 +39,10 @@ class CDataInteractor:
             for j in range(2, len(tdata), 2):
                 diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
 
-            i += 2  # skip header line for data columns
-            zax = li[:]
-            areaax = li[:]
-            nslax = li[:]
+            zax = moldict[group]['zaxis']
+            areaax = moldict[group]['area']
+            nslax = moldict[group]['nsl']
             diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
-
-            while i < len(data):
-                tline = (data[i]).split()
-                if tline:
-                    diMolgroups[tdata[1]]['zaxis'].append(float(tline[0]))
-                    diMolgroups[tdata[1]]['areaaxis'].append(float(tline[1]))
-                    diMolgroups[tdata[1]]['nslaxis'].append(float(tline[2]))
-                    i += 1
-                else:
-                    break
-            i += 1
 
         return diMolgroups
 
@@ -437,7 +422,7 @@ class CBumpsInteractor(CDataInteractor):
 
     def fnRestoreMolgroups(self, problem):
         # Populates the diMolgroups dictionary based from a saved molgroups.dat file
-        diMolgroups = self.fnLoadMolgroups()
+        diMolgroups = self.fnLoadMolgroups(problem=problem)
         return diMolgroups
 
     @staticmethod
@@ -586,6 +571,43 @@ class CGaReflInteractor(CRefl1DInteractor):
         file.writelines(newdata)
         file.close()
         return filelist
+
+    def fnLoadMolgroups(self, problem=None):
+        diMolgroups = {}
+        li = []
+
+        file = open(self.spath + '/mol.dat')
+        data = file.readlines()
+        file.close()
+
+        i = 0
+        while i < len(data):
+            tdata = (data[i]).split()  # read header that contains molgroup data
+            diMolgroups[tdata[1]] = {}
+            diMolgroups[tdata[1]].update({'headerdata': {}})
+            diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
+            diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
+            for j in range(2, len(tdata), 2):
+                diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
+
+            i += 2  # skip header line for data columns
+            zax = li[:]
+            areaax = li[:]
+            nslax = li[:]
+            diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
+
+            while i < len(data):
+                tline = (data[i]).split()
+                if tline:
+                    diMolgroups[tdata[1]]['zaxis'].append(float(tline[0]))
+                    diMolgroups[tdata[1]]['areaaxis'].append(float(tline[1]))
+                    diMolgroups[tdata[1]]['nslaxis'].append(float(tline[2]))
+                    i += 1
+                else:
+                    break
+            i += 1
+
+        return diMolgroups
 
     def fnGetNumberOfModelsFromSetupC(self):
         file = open(self.runfile, "r")  # open setup.c
@@ -798,6 +820,11 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
+
+    def fnSaveMolgroups(self, problem):
+        # should call the setup.cc function that saves mol.dat
+        # TODO: Needs testing
+        problem.active_model.fitness.output_model()
 
     def fnSimulateData(self, liExpression):
         self.fnWriteConstraint2Runfile(liExpression)                        # change runfile to quasi-fix all parameters
