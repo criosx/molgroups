@@ -1843,16 +1843,16 @@ class CMolStat:
 
         self.fnLoadParameters()
         self.fnLoadStatData(sparse)
-        try: 
+        if hasattr(self.Interactor, 'problem'):
             problem = self.Interactor.problem
-        except:
+        else:
             problem = self.Interactor.fnRestoreFitProblem()
 
         j = 0
-        self.diStatResults['nSLDProfiles'] = []  # delete list of all nSLD profiles
-        self.diStatResults['Molgroups'] = []  # delete list of all molecular groups
+        self.diStatResults['nSLDProfiles'] = []
+        self.diStatResults['Molgroups'] = []
 
-        for iteration in range(self.diStatResults['NumberOfStatValues']):  # cycle through all individual stat. results
+        for iteration in range(self.diStatResults['NumberOfStatValues']):
             try:
                 # appends a new list for profiles for the current MC iteration
                 self.diStatResults['nSLDProfiles'].append([])
@@ -1863,8 +1863,9 @@ class CMolStat:
                 for element in liParameters:
                     if element not in list(self.diStatResults['Parameters'].keys()):
                         bConsistency = False
-                if bConsistency:  # check for consistency
-                    if verbose: print('Processing parameter set %i.\n' % (j))
+                if bConsistency:
+                    if verbose:
+                        print('Processing parameter set %i.\n' % (j))
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
@@ -1876,6 +1877,7 @@ class CMolStat:
                     problem.model_update()
                     # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
                     # way, also implement which contrast to use for pulling groups
+                    # garefl based code should save a mol.dat automatically on updating the model
                     if 'models' in dir(problem):
                         for M in problem.models:
                             M.chisq()
@@ -1883,18 +1885,22 @@ class CMolStat:
                     else:
                         problem.chisq()
 
-                    self.Interactor.fnSaveMolgroups(problem)
+                    # explicit saving is not needed anymore
+                    # garefl is automatically saved and refl1d / bumps contains a directory in problem.moldat
+                    # self.Interactor.fnSaveMolgroups(problem)
 
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
                             z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
                             self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                            if verbose: print(M.chisq())
+                            if verbose:
+                                print(M.chisq())
                     else:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                        if verbose: print(problem.chisq())
+                        if verbose:
+                            print(problem.chisq())
 
                     if bRecreateMolgroups:
                         self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)

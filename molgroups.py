@@ -461,22 +461,21 @@ class Box2Err(nSLDObj):
 
     def fnWritePar2Dict(self, rdict, cName, z):
 
-        rdict['cName'] = {}
-        rdict['cName']['header'] = "Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + \
+        rdict[cName] = {}
+        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + \
                                    " sigma2 " + str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + \
                                    " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf)
-        rdict['cName']['z'] = self.z
-        rdict['cName']['sigma1'] = self.sigma1
-        rdict['cName']['sigma2'] = self.sigma2
-        rdict['cName']['l'] = self.l
-        rdict['cName']['vol'] = self.vol
-        rdict['cName']['nSL'] = self.nSL
-        rdict['cName']['nSL2'] = self.nSL2
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName]['z'] = self.z
+        rdict[cName]['sigma1'] = self.sigma1
+        rdict[cName]['sigma2'] = self.sigma2
+        rdict[cName]['l'] = self.l
+        rdict[cName]['vol'] = self.vol
+        rdict[cName]['nSL'] = self.nSL
+        rdict[cName]['nSL2'] = self.nSL2
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
 
         return rdict
-
 
 
 # TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
@@ -583,14 +582,14 @@ class PC(CompositenSLDObj):
 
     def fnWritePar2Dict(self, rdict, cName, z):
         prefix = "PCm" if self.innerleaflet else "PC"
-        rdict['cName'] = {}
-        rdict['cName']['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
-        rdict['cName']['header'] += str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf)
-        rdict['cName']['z'] = self.z
-        rdict['cName']['l'] = self.l
-        rdict['cName']['vol'] = self.cg.vol + self.phosphate.vol + self.choline.vol
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName] = {}
+        rdict[cName]['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
+        rdict[cName]['header'] += str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf)
+        rdict[cName]['z'] = self.z
+        rdict[cName]['l'] = self.l
+        rdict[cName]['vol'] = self.cg.vol + self.phosphate.vol + self.choline.vol
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
 
         rdict = super().fnWritePar2Dict(rdict, cName, z)
 
@@ -630,14 +629,14 @@ class PCm(PC):
         super().fnWritePar2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        rdict['cName'] = {}
-        rdict['cName']['header'] = "PCm " + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
-        rdict['cName']['header'] += str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf)
-        rdict['cName']['z'] = self.z
-        rdict['cName']['l'] = self.l
-        rdict['cName']['vol'] = self.cg.vol + self.phosphate.vol + self.choline.vol
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName] = {}
+        rdict[cName]['header'] = "PCm " + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
+        rdict[cName]['header'] += str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf)
+        rdict[cName]['z'] = self.z
+        rdict[cName]['l'] = self.l
+        rdict[cName]['vol'] = self.cg.vol + self.phosphate.vol + self.choline.vol
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
 
         rdict = super().fnWritePar2Dict(rdict, cName, z)
 
@@ -953,8 +952,8 @@ class BLM(CompositenSLDObj):
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
         normarea = numpy.ones_like(z) * self.normarea
-        rdict['cName'] = {}
-        rdict['cName']['normarea'] = normarea
+        rdict[cName] = {}
+        rdict[cName]['normarea'] = normarea
         return rdict
 
 
@@ -1582,13 +1581,13 @@ class Hermite(nSLDObj):
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        rdict['cName'] = {}
-        rdict['cName']['header'] = "Hermite " + cName + " numberofcontrolpoints " + str(self.numberofcontrolpoints)
-        rdict['cName']['header'] += " normarea " + str(self.normarea) + " nf " + str(self.nf)
-        rdict['cName']['numberofcontrolpoints'] = self.numberofcontrolpoints
-        rdict['cName']['normarea'] = self.normarea
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName] = {}
+        rdict[cName]['header'] = "Hermite " + cName + " numberofcontrolpoints " + str(self.numberofcontrolpoints)
+        rdict[cName]['header'] += " normarea " + str(self.normarea) + " nf " + str(self.nf)
+        rdict[cName]['numberofcontrolpoints'] = self.numberofcontrolpoints
+        rdict[cName]['normarea'] = self.normarea
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
         return rdict
 
 
@@ -1749,14 +1748,14 @@ class ContinuousEuler(nSLDObj):
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        rdict['cName'] = {}
-        rdict['cName']['header'] = "ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Alpha "
-        rdict['cName']['header'] += str(self.alpha) + " Beta " + str(self.beta) + " nf " + str(self.nf)
-        rdict['cName']['startposition'] = self.z
-        rdict['cName']['alpha'] = self.alpha
-        rdict['cName']['beta'] = self.beta
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName] = {}
+        rdict[cName]['header'] = "ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Alpha "
+        rdict[cName]['header'] += str(self.alpha) + " Beta " + str(self.beta) + " nf " + str(self.nf)
+        rdict[cName]['startposition'] = self.z
+        rdict[cName]['alpha'] = self.alpha
+        rdict[cName]['beta'] = self.beta
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
         return rdict
 
 
@@ -1939,12 +1938,12 @@ class DiscreteEuler(nSLDObj):
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        rdict['cName'] = {}
-        rdict['cName']['header'] = "DiscreteEuler " + cName + " StartPosition " + str(self.z) + " beta "
-        rdict['cName']['header'] += str(self.beta) + " gamma " + str(self.gamma) + " nf " + str(self.nf)
-        rdict['cName']['startposition'] = self.z
-        rdict['cName']['beta'] = self.beta
-        rdict['cName']['gamma'] = self.gamma
-        rdict['cName']['nf'] = self.nf
-        rdict['cName'] = self.fnWriteData2Dict(rdict['cName'], z)
+        rdict[cName] = {}
+        rdict[cName]['header'] = "DiscreteEuler " + cName + " StartPosition " + str(self.z) + " beta "
+        rdict[cName]['header'] += str(self.beta) + " gamma " + str(self.gamma) + " nf " + str(self.nf)
+        rdict[cName]['startposition'] = self.z
+        rdict[cName]['beta'] = self.beta
+        rdict[cName]['gamma'] = self.gamma
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
         return rdict
