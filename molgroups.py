@@ -963,7 +963,7 @@ class BLM(CompositenSLDObj):
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
-        rdict = self.fnWriteConstant2Dict(rdict, cName + "_normarea", self.normarea, 0, z)
+        rdict = self.fnWriteConstant2Dict(rdict, cName + ".normarea", self.normarea, 0, z)
         return rdict
 
 
