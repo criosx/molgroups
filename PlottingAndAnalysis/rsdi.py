@@ -290,8 +290,8 @@ class CDataInteractor:
 class CBumpsInteractor(CDataInteractor):
     def __init__(self, spath=".", mcmcpath=".", runfile="", state=None, problem=None):
         super().__init__(spath, mcmcpath, runfile)
-        self.state = self.fnRestoreState() if state == None else state
-        self.problem = self.fnRestoreFitProblem() if problem == None else problem
+        self.state = self.fnRestoreState() if state is None else state
+        self.problem = self.fnRestoreFitProblem() if problem is None else problem
 
     def fnLoadMCMCResults(self):
         # load Parameter
