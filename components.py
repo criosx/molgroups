@@ -138,7 +138,7 @@ SAcEO6 = AddMolecules([SAc, EO6])
 bmeSAc = AddMolecules([SAc, ethanoyl], length=5.2)
 bme = AddMolecules([thiol, ethanoyl], length=5.2)
 
-# Combined lipids
+# Combined lipids (deprecated): use objects from lipids.py
 DOPC = Lipid(name='DOPC', headgroup=pc, tails=2 * [oleoyl], methyls=methyl)
 POPC = Lipid(name='POPC', headgroup=pc, tails=[palmitoyl, oleoyl], methyls=methyl)
 DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl], methyls=methyl)
