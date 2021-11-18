@@ -464,15 +464,11 @@ class PC_flip(PC):
 
     def fnGetProfiles(self, z):
 
-        area, nsl, nsld = super().fnGetProfiles(z) # if not self.innerleaflet else super().fnGetProfiles(-z + 2*self.fnGetZ())
-
         if self.innerleaflet:
-            z0 = self.fnGetZ()
-            #f = interp1d(z, numpy.vstack((area, nsl, nsld)), bounds_error=False, fill_value=0.0)
-            #area, nsl, nsld = f(-z + 2*z0)
-            area = numpy.interp(-z + 2*z0, z, area)
-            nsl = numpy.interp(-z + 2*z0, z, nsl)
-            nsld = numpy.interp(-z + 2*z0, z, nsld)
+            area, nsl, nsld = super().fnGetProfiles(-z[::-1] + 2*self.fnGetZ())
+            area, nsl, nsld = area[::-1], nsl[::-1], nsld[::-1]
+        else:
+            area, nsl, nsld = super().fnGetProfiles(z)
 
         return area, nsl, nsld
 
