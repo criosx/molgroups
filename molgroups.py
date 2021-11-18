@@ -1548,24 +1548,24 @@ class ContinuousEuler(nSLDObj):
         self.rescoords = resdata[:,1:4]
         if rotcenter is not None:
             rotcenter = numpy.array(rotcenter)
-            assert(rotcenter.shape == self.rescoords[0,:].shape)
+            assert rotcenter.shape == self.rescoords[0,:].shape
             self.rescoords -= rotcenter
         self.rotcoords = numpy.zeros_like(self.rescoords)
         self.resscatter = resdata[:, 4:]
-        self.alpha = 0.
+        self.gamma = 0.
         self.beta = 0.
         self.sigma = 2.
         self.z = 0.
         self.nf = 1.
         self.protexchratio = 1.
-        self.R = Rotation.from_euler('zy', [self.alpha, self.beta], degrees=True)
+        self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
 
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
         # max(area) = volume_fraction * normarea
 
     def _apply_transform(self):
         
-        self.R = Rotation.from_euler('zy', [self.alpha, self.beta], degrees=True)
+        self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
         self.rotcoords = self.R.apply(self.rescoords)
         self.rotcoords[:,2] += self.z
 
@@ -1620,9 +1620,9 @@ class ContinuousEuler(nSLDObj):
 
         return volume * self.nf
 
-    def fnSet(self, alpha, beta, zpos, sigma, nf):
+    def fnSet(self, gamma, beta, zpos, sigma, nf):
 
-        self.alpha = alpha
+        self.gamma = gamma
         self.beta = beta
         self.z = zpos
         self.nf = nf
@@ -1630,16 +1630,16 @@ class ContinuousEuler(nSLDObj):
         self._apply_transform()
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("ContinuousEuler "+cName+" StartPosition "+str(self.z)+" Alpha "
-                 +str(self.alpha)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
+        fp.write("ContinuousEuler "+cName+" StartPosition "+str(self.z)+" Gamma "
+                 +str(self.gamma)+" Beta "+str(self.beta) +" nf "+str(self.nf)+" \n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict[cName] = {}
-        rdict[cName]['header'] = "ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Alpha "
-        rdict[cName]['header'] += str(self.alpha) + " Beta " + str(self.beta) + " nf " + str(self.nf)
+        rdict[cName]['header'] = "ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Gamma "
+        rdict[cName]['header'] += str(self.gamma) + " Beta " + str(self.beta) + " nf " + str(self.nf)
         rdict[cName]['startposition'] = self.z
-        rdict[cName]['alpha'] = self.alpha
+        rdict[cName]['gamma'] = self.gamma
         rdict[cName]['beta'] = self.beta
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
