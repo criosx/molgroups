@@ -5,6 +5,7 @@ import sys
 sys.path.append('')
 import numpy as np
 import molgroups as mol
+import components as cmp
 from refl1d.names import load4, Parameter, SLD, Slab, Stack, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
@@ -45,7 +46,8 @@ mult_tether =  Parameter(name='bME to tether ratio', value=2).range(0.1, 4) #rat
 l_tether =  Parameter(name='tether length', value=10).range(3, 18) #distance from substrate to inner headgroup/acyl chain interface
 
 ### Define bilayer object
-blm = mol.tBLM(tether=mol.HC18SAc, filler=mol.bmeSAc, lipids=[mol.POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
+POPC = cmp.Lipid(name='POPC', headgroup=mol.PC, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=cmp.methyl)
+blm = mol.tBLM(tether=cmp.HC18SAc, filler=cmp.bmeSAc, lipids=[POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
 
 ### Define molgroups space.
 dimension=300       # Number of steps
