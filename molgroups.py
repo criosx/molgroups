@@ -1,6 +1,6 @@
 import numpy
 from scipy.special import erf
-from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
+from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn, interp1d
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 
@@ -458,6 +458,23 @@ class PC(CompositenSLDObj):
 
         return rdict
 
+class PC_flip(PC):
+    def __init__(self, **kwargs):
+        super().__init__(innerleaflet=False, **kwargs)
+
+    def fnGetProfiles(self, z):
+
+        area, nsl, nsld = super().fnGetProfiles(z) # if not self.innerleaflet else super().fnGetProfiles(-z + 2*self.fnGetZ())
+
+        if self.innerleaflet:
+            z0 = self.fnGetZ()
+            #f = interp1d(z, numpy.vstack((area, nsl, nsld)), bounds_error=False, fill_value=0.0)
+            #area, nsl, nsld = f(-z + 2*z0)
+            area = numpy.interp(-z + 2*z0, z, area)
+            nsl = numpy.interp(-z + 2*z0, z, nsl)
+            nsld = numpy.interp(-z + 2*z0, z, nsld)
+
+        return area, nsl, nsld
 
 class PCm(PC):
     # deprecated. Use PC(innerleaflet=True)
