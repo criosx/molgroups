@@ -4,7 +4,7 @@ from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 
-from periodictable.fasta import xray_sld
+from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
 from components import Component
 
 class nSLDObj:
@@ -277,7 +277,7 @@ class Box2Err(nSLDObj):
     def fnGetnSL(self):
         if self.bProtonExchange & (self.bulknsld is not None):
             if self.vol != 0:
-                return ((self.bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - self.bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
+                return ((self.bulknsld - H2O_SLD) * self.nSL2 + (D2O_SLD - self.bulknsld) * self.nSL) / (D2O_SLD - H2O_SLD)
             else:
                 return 0.
         else:
@@ -1603,7 +1603,7 @@ class ContinuousEuler(nSLDObj):
                 # get nslD profile
                 h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,3])
                 nslD = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
-                fracD = self.protexchratio * (self.bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+                fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
                 nsl = fracD * nslD + (1 - fracD) * nslH
 
             else:
@@ -1783,7 +1783,7 @@ class DiscreteEuler(nSLDObj):
         if self.bulknsld is not None:
             # get nslD profile
             nslD = gaussian_filter(nslD, self.sigma / dz, order=0, mode='constant', cval=0)
-            fracD = self.protexchratio * (self.bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+            fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
             nsl = fracD * nslD + (1 - fracD) * nslH
 
         else:
