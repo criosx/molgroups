@@ -538,7 +538,7 @@ class BLM(CompositenSLDObj):
             for i, lipid in enumerate(lipids):
                 ihg_name = 'headgroup1_%i' % (i + 1)
                 ohg_name = 'headgroup2_%i' % (i + 1)
-                print(lipid.headgroup, isinstance(lipid.headgroup, cmp.Component))
+
                 if isinstance(lipid.headgroup, cmp.Component):
                     # populates nSL, nSL2, vol, and l
                     ihg_obj = ComponentBox(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
