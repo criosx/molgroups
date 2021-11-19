@@ -23,6 +23,7 @@ class nSLDObj:
         self.nSL = 0
         self.nf = 0
         self.sigma = 0
+        self.bulknsld = None
 
         if name is not None:
             self.name = name
@@ -71,6 +72,9 @@ class nSLDObj:
 
     def fnGetZ(self):
         return self.z
+
+    def fnSetBulknSLD(self, bulknsld):
+        self.bulknsld = bulknsld
         
     def fnSetConvolution(self, sigma_convolution, iNumberOfConvPoints):
         self.bConvolution = True
@@ -190,6 +194,11 @@ class CompositenSLDObj(nSLDObj):
         # Could use a "subgroup adder" function that adds to subgroups
         self.subgroups = [getattr(self, attr) for attr in dir(self) if isinstance(getattr(self, attr), nSLDObj)]
 
+    def fnSetBulknSLD(self, bulknsld):
+        super().fnSetBulknSLD(bulknsld)
+        for g in self.subgroups:
+            g.fnSetBulknSLD(bulknsld)
+
     def fnGetProfiles(self, z):
         area = numpy.zeros_like(z)
         nsl = numpy.zeros_like(z)
@@ -241,13 +250,9 @@ class Box2Err(nSLDObj):
         self.vol = dvolume
         self.nSL = dnSL
         self.nf = dnumberfraction
-        self.nsldbulk_store = 0.
         self.nSL2 = None
 
-    def fnGetProfiles(self, z, bulknsld=0):
-
-        if bulknsld != 0:
-            self.nsldbulk_store = bulknsld
+    def fnGetProfiles(self, z):
 
         # calculate area
         # Gaussian function definition, integral is volume, return value is area at positions z
@@ -262,17 +267,17 @@ class Box2Err(nSLDObj):
             area = numpy.zeros_like(z)
         
         # calculate nSLD
-        nsld = self.fnGetnSL(bulknsld) / self.vol * numpy.ones_like(z) if self.vol != 0 else numpy.zeros_like(z)
+        nsld = self.fnGetnSL() / self.vol * numpy.ones_like(z) if self.vol != 0 else numpy.zeros_like(z)
 
         # calculate nSL.
         nsl = area * nsld * numpy.gradient(z)
         
         return area, nsl, nsld
 
-    def fnGetnSL(self, bulknsld):
-        if self.bProtonExchange:
+    def fnGetnSL(self):
+        if self.bProtonExchange & (self.bulknsld is not None):
             if self.vol != 0:
-                return ((bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
+                return ((self.bulknsld + 0.56e-6) * self.nSL2 + (6.36e-6 - self.bulknsld) * self.nSL) / (6.36e-6 + 0.56e-6)
             else:
                 return 0.
         else:
@@ -417,8 +422,8 @@ class PC(CompositenSLDObj):
     def fnGetUpperLimit(self):
         return self.cg.fnGetUpperLimit() if self.innerleaflet else self.choline.fnGetUpperLimit()
     
-    def fnGetnSL(self, bulknsld=None):
-        return self.cg.nSL + self.phosphate.nSL + self.choline.nSL
+    def fnGetnSL(self):
+        return self.cg.fnGetnSL() + self.phosphate.fnGetnSL() + self.choline.fnGetnSL()
     
     def fnGetZ(self): 
         return self.z
@@ -539,6 +544,9 @@ class BLM(CompositenSLDObj):
                     ihg_obj = ComponentBox(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
                     ohg_obj = ComponentBox(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
 
+                # TODO: Following crashes if the lipid headgroup is imported as "from molgroups import PC"
+                # instead of "import molgroups as mol; mol.PC". Perhaps a simple try/catch would work better here; if
+                # lipid.headgroup is not a class, then it will crash.
                 elif issubclass(lipid.headgroup, CompositenSLDObj):
                     ihg_obj = lipid.headgroup(name=ihg_name, innerleaflet=True, xray_wavelength=xray_wavelength)
                     ohg_obj = lipid.headgroup(name=ohg_name, innerleaflet=False, xray_wavelength=xray_wavelength)
@@ -605,7 +613,6 @@ class BLM(CompositenSLDObj):
         self.absorb = 0.
         self.l_lipid1 = 11.
         self.l_lipid2 = 11.
-        self.bulknsld = -0.56e-6
         self.normarea = 60.
         self.startz = 50.
         self.sigma = 2.
@@ -616,9 +623,10 @@ class BLM(CompositenSLDObj):
 
         self._calc_av_hg()
         self.initial_hg1_l = self.av_hg1_l
-
-        self.fnAdjustParameters()
         self.fnFindSubgroups()
+        self.fnSetBulknSLD(-0.56e-6)
+        self.fnAdjustParameters()
+        
 
     def _calc_av_hg(self):
         # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
@@ -747,7 +755,7 @@ class BLM(CompositenSLDObj):
         self.defect_headgroup.l = hclength + hglength
         self.defect_headgroup.z = self.lipid1.z - 0.5 * self.lipid1.l - \
                                   0.5 * self.av_hg1_l + 0.5 * (hclength + hglength)
-        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL(self.bulknsld)
+        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL()
                                                              for hg in self.headgroups2])
         self.defect_headgroup.fnSetSigma(self.sigma)
         self.defect_headgroup.nf = 1
@@ -779,7 +787,7 @@ class BLM(CompositenSLDObj):
               nf_lipids=None, hc_substitution_1=0.,
               hc_substitution_2=0., radius_defect=100.):
         self.sigma = sigma
-        self.bulknsld = bulknsld
+        self.fnSetBulknSLD(bulknsld)
         self.startz = startz
         self.l_lipid1 = l_lipid1
         self.l_lipid2 = l_lipid2
@@ -878,7 +886,7 @@ class ssBLM(BLM):
               _l_lipid2, _vf_bilayer, _nf_lipids=None, _hc_substitution_1=0.,
               _hc_substitution_2=0., _radius_defect=100.):
         self.sigma = _sigma
-        self.bulknsld = _bulknsld
+        self.fnSetBulknSLD(_bulknsld)
         self.global_rough = _global_rough
         self.rho_substrate = _rho_substrate
         self.rho_siox = _rho_siox
@@ -1319,7 +1327,7 @@ class tBLM(BLM):
               _l_lipid2, _vf_bilayer, _nf_lipids=None, _hc_substitution_1=0.,
               _hc_substitution_2=0., _radius_defect=100.):
         self.sigma = _sigma
-        self.bulknsld = _bulknsld
+        self.fnSetBulknSLD(_bulknsld)
         self.global_rough = _global_rough
         self.rho_substrate = _rho_substrate
         self.nf_tether = _nf_tether
@@ -1523,7 +1531,7 @@ class SLDHermite(Hermite):
 
 class ContinuousEuler(nSLDObj):
     """ Uses scipy.spatial library to do Euler rotations in real time"""
-    def __init__(self, fn8col, rotcenter=None, **kwargs):
+    def __init__(self, fn8col, rotcenter=None, xray=False, **kwargs):
         """ requires file name fn8col containing 8-column data, any header information commented with #:
             1. residue number
             2. x coordinate
@@ -1558,6 +1566,8 @@ class ContinuousEuler(nSLDObj):
         self.z = 0.
         self.nf = 1.
         self.protexchratio = 1.
+        self.xray = xray
+        self.fnSetBulknSLD(None)
         self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
 
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
@@ -1569,9 +1579,9 @@ class ContinuousEuler(nSLDObj):
         self.rotcoords = self.R.apply(self.rescoords)
         self.rotcoords[:,2] += self.z
 
-    def fnGetProfiles(self, z, bulknsld=None, xray=False):
-        # xray=True for xray profile
-        # xray=False (default) for a neutron probe; bulknsld determines fraction of exchangeable hydrogens used
+    def fnGetProfiles(self, z):
+        # self.xray=True for xray profile
+        # self.xray=False (default) for a neutron probe; bulknsld determines fraction of exchangeable hydrogens used
 
         # get area profile
         dz = z[1] - z[0]                            # calculate step size (MUST be uniform)
@@ -1581,7 +1591,7 @@ class ContinuousEuler(nSLDObj):
         area = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
         area /= dz
 
-        if xray:
+        if self.xray:
             h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,1])
             nsl = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
         else:
@@ -1589,11 +1599,11 @@ class ContinuousEuler(nSLDObj):
             h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,2])
             nslH = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
 
-            if bulknsld is not None:
+            if self.bulknsld is not None:
                 # get nslD profile
                 h = numpy.histogram(self.rotcoords[:,2], bins=zbins, weights=self.resscatter[:,3])
                 nslD = gaussian_filter(h[0], self.sigma / dz, order=0, mode='constant', cval=0)
-                fracD = self.protexchratio * (bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+                fracD = self.protexchratio * (self.bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
                 nsl = fracD * nslD + (1 - fracD) * nslH
 
             else:
@@ -1620,13 +1630,14 @@ class ContinuousEuler(nSLDObj):
 
         return volume * self.nf
 
-    def fnSet(self, gamma, beta, zpos, sigma, nf):
+    def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
 
         self.gamma = gamma
         self.beta = beta
         self.z = zpos
         self.nf = nf
         self.sigma = sigma
+        self.fnSetBulknSLD(bulknsld)
         self._apply_transform()
 
     def fnWritePar2File(self, fp, cName, z):
@@ -1748,12 +1759,13 @@ class DiscreteEuler(nSLDObj):
         self.sigma = 2.         # smoothing function
         self.z = 0.             # z offset value
         self.nf = 1.            # number fraction
+        self.fnSetBulknSLD(None)
         self.protexchratio = 1. # proton exchange ratio
 
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction"
         # concept so that max(area) = volume_fraction * normarea
 
-    def fnGetProfiles(self, z, bulknsld=None):
+    def fnGetProfiles(self, z, **kwargs):
 
         # perform interpolation
         self._set_interpolation_points(z)
@@ -1768,10 +1780,10 @@ class DiscreteEuler(nSLDObj):
 
         nslH = gaussian_filter(nslH, self.sigma / dz, order=0, mode='constant', cval=0)
 
-        if bulknsld is not None:
+        if self.bulknsld is not None:
             # get nslD profile
             nslD = gaussian_filter(nslD, self.sigma / dz, order=0, mode='constant', cval=0)
-            fracD = self.protexchratio * (bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
+            fracD = self.protexchratio * (self.bulknsld + 0.56e-6) / (6.36e-6 + 0.56e-6)
             nsl = fracD * nslD + (1 - fracD) * nslH
 
         else:
@@ -1811,13 +1823,14 @@ class DiscreteEuler(nSLDObj):
 
         return volume * self.nf
 
-    def fnSet(self, beta, gamma, zpos, sigma, nf):
+    def fnSet(self, beta, gamma, zpos, sigma, nf, bulknsld=None):
 
         self.beta = beta
         self.gamma = gamma
         self.z = zpos
         self.nf = nf
         self.sigma = sigma
+        self.fnSetBulknSLD(bulknsld)
 
     def fnWritePar2File(self, fp, cName, z):
         fp.write("DiscreteEuler "+cName+" StartPosition "+str(self.z)+" beta "
