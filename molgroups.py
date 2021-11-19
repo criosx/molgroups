@@ -1765,7 +1765,7 @@ class DiscreteEuler(nSLDObj):
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction"
         # concept so that max(area) = volume_fraction * normarea
 
-    def fnGetProfiles(self, z, **kwargs):
+    def fnGetProfiles(self, z):
 
         # perform interpolation
         self._set_interpolation_points(z)
