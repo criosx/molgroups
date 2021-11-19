@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
-from components import Component
+import components as cmp
 
 class nSLDObj:
 
@@ -334,7 +334,7 @@ class ComponentBox(Box2Err):
     """ Box2Err from a components.Component object"""
     def __init__(self, molecule=None, xray_wavelength=None, **kwargs):
         assert molecule is not None, 'Molecule must be specified'
-        assert isinstance(molecule, Component), 'Molecule must be a components.Component object'
+        assert isinstance(molecule, cmp.Component), 'Molecule must be a components.Component object'
         super().__init__(dvolume=molecule.cell_volume, dlength=molecule.length, **kwargs)
         self.fnSetnSL(*molecule.fnGetnSL(xray_wavelength))
 
@@ -538,8 +538,8 @@ class BLM(CompositenSLDObj):
             for i, lipid in enumerate(lipids):
                 ihg_name = 'headgroup1_%i' % (i + 1)
                 ohg_name = 'headgroup2_%i' % (i + 1)
-
-                if isinstance(lipid.headgroup, Component):
+                print(lipid.headgroup, isinstance(lipid.headgroup, cmp.Component))
+                if isinstance(lipid.headgroup, cmp.Component):
                     # populates nSL, nSL2, vol, and l
                     ihg_obj = ComponentBox(name=ihg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
                     ohg_obj = ComponentBox(name=ohg_name, molecule=lipid.headgroup, xray_wavelength=xray_wavelength)
@@ -938,10 +938,10 @@ class tBLM(BLM):
         self.tether_bme = Box2Err(name='tether_bme')
         self.tether_free = Box2Err(name='tether_free')
         self.tether_hg = Box2Err(name='tether_hg')
-        self.tether = Component(name='tether', formula=tether.tether.formula,
+        self.tether = cmp.Component(name='tether', formula=tether.tether.formula,
                                  cell_volume=tether.tether.cell_volume, length=self.l_tether)
         self.tether.nSLs = self.tether.fnGetnSL(xray_wavelength=xray_wavelength)
-        self.tetherg = Component(name='tetherg', formula=tether.tetherg.formula,
+        self.tetherg = cmp.Component(name='tetherg', formula=tether.tetherg.formula,
                                  cell_volume=tether.tetherg.cell_volume, length=10.0)
         self.tetherg.nSLs = self.tetherg.fnGetnSL(xray_wavelength=xray_wavelength)
 
