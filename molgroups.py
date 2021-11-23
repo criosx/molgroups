@@ -1705,9 +1705,9 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
         else:
             resmol = aa[key]
         resvol[i] = resmol.cell_volume
-        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)
-        resnslH[i] = resmol.sld
-        resnslD[i] = resmol.Dsld
+        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength) * 1e-6
+        resnslH[i] = resmol.sld * 1e-6
+        resnslD[i] = resmol.Dsld * 1e-6
             
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
