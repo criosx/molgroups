@@ -7,6 +7,9 @@ from scipy.ndimage.filters import gaussian_filter
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
 import components as cmp
 
+D2O_SLD *= 1e-6
+H2O_SLD *= 1e-6
+
 class nSLDObj:
 
     def __init__(self, name=None):
