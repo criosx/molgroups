@@ -16,7 +16,8 @@ import rsdi
 
 
 class CMolStat:
-    def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None):
+    def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None,
+                 load_state=True):
         self.diParameters = {}
         # Dictionary with all the parameters
         # self.diParameters data structure:
@@ -68,13 +69,13 @@ class CMolStat:
 
         self.Interactor = None
         if self.fitsource == "bumps":
-            self.Interactor = rsdi.CBumpsInteractor(spath, mcmcpath, runfile, state, problem)
+            self.Interactor = rsdi.CBumpsInteractor(spath, mcmcpath, runfile, state, problem, load_state=load_state)
         elif self.fitsource == 'refl1d':
-            self.Interactor = rsdi.CRefl1DInteractor(spath, mcmcpath, runfile)
+            self.Interactor = rsdi.CRefl1DInteractor(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'garefl':
-            self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile)
+            self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'SASView':
-            self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile)
+            self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile, load_state=load_state)
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 

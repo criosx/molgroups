@@ -290,9 +290,10 @@ class CDataInteractor:
 # error analysis cannot be found.
 # The MCMC directory is called 'MCMC'
 class CBumpsInteractor(CDataInteractor):
-    def __init__(self, spath=".", mcmcpath=".", runfile="", state=None, problem=None):
+    def __init__(self, spath=".", mcmcpath=".", runfile="", state=None, problem=None, load_state=True):
         super().__init__(spath, mcmcpath, runfile)
-        self.state = self.fnRestoreState() if state is None else state
+        if load_state:
+            self.state = self.fnRestoreState() if state is None else state
         self.problem = self.fnRestoreFitProblem() if problem is None else problem
 
     def fnLoadMCMCResults(self):
@@ -453,8 +454,8 @@ class CBumpsInteractor(CDataInteractor):
 # The MCMC directory is called 'MCMC'
 # The refl1d script name has to be run.py.
 class CRefl1DInteractor(CBumpsInteractor):
-    def __init__(self, spath='.', mcmcpath='.', runfile=''):
-        super().__init__(spath, mcmcpath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
+        super().__init__(spath, mcmcpath, runfile, load_state)
 
     @staticmethod
     def fnRestoreSmoothProfile(M):
@@ -510,29 +511,21 @@ class CRefl1DInteractor(CBumpsInteractor):
 
 
 class CGaReflInteractor(CRefl1DInteractor):
-    def __init__(self, spath='.', mcmcpath='.', runfile=''):
-        super().__init__(spath, mcmcpath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
+        super().__init__(spath, mcmcpath, runfile, load_state)
 
-    def fnBackup(self):
-        if not path.isdir('rsbackup'):  # create backup dir
-            pr = Popen(["mkdir", "rsbackup"])
+    def fnBackup(self, dirname='rsbackup'):
+        if not path.isdir(dirname):  # create backup dir
+            pr = Popen(["mkdir", dirname])
             pr.wait()
-        pr = Popen(["cp", "pop.dat", "rsbackup/"])  # save all data that will
-        pr.wait()
-        pr = Popen(["cp", "par.dat", "rsbackup/"])  # change during fit
-        pr.wait()
-        pr = Popen(["cp", "covar.dat", "rsbackup/"])
-        pr.wait()
-        call("cp fit*.dat rsbackup/", shell=True)
+        call('cp *.dat ' + dirname, shell=True)
+        call('cp *.cc ' + dirname, shell=True)
+        call('cp *.h ' + dirname, shell=True)
+        call('cp *.o ' + dirname, shell=True)
+        call('cp *.py ' + dirname, shell=True)
+        call('cp *.pyc ' + dirname, shell=True)
+        call(['cp', 'Makefile', dirname])
         pr = Popen(["cp", "fit", "rsbackup/"])
-        pr.wait()
-        call("cp model*.dat rsbackup/", shell=True)
-        pr = Popen(["cp", "pop_bak.dat", "rsbackup/"])
-        pr.wait()
-        call("cp profile*.dat rsbackup/", shell=True)
-        pr = Popen(["cp", "setup.cc", "rsbackup/"])
-        pr.wait()
-        pr = Popen(["cp", "setup.o", "rsbackup/"])
         pr.wait()
 
     def fnBackupSimdat(self):
@@ -785,9 +778,11 @@ class CGaReflInteractor(CRefl1DInteractor):
         sleep(1)  # wait for system to clean up
         call(['make', '-C', self.spath])
 
-    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):  # scans setup.c file for parameter with
-        file = open(self.spath+'/setup.cc', 'r+')  # name sname and replaces the lower and
-        data = file.readlines()  # upper fit limits by the given values
+    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
+        # scans setup.c file for parameter with name sname and replaces the
+        # lower and upper fit limits by the given values
+        file = open(self.spath+'/setup.cc', 'r+')
+        data = file.readlines()
         file.close()
         smatch = compile(r'(pars_add\(pars.*?\"' + sname + '.+?,.+?,).+?(,).+?(\))', IGNORECASE | VERBOSE)
         newdata = []
@@ -863,6 +858,15 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
+
+    def fnRunMCMC(self, burn, steps, batch=False):
+        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile, '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+            lCommand.append('--batch')
+        lCommand.append('--store=' + self.spath+'/save')
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        call(lCommand)
 
     def fnSaveMolgroups(self, problem):
         # should call the setup.cc function that saves mol.dat
@@ -940,5 +944,5 @@ class CGaReflInteractor(CRefl1DInteractor):
 
 
 class CSASViewInteractor(CBumpsInteractor):
-    def __init__(self, spath='.', mcmcpath='.', runfile=''):
-        super().__init__(spath, mcmcpath, runfile)
+    def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
+        super().__init__(spath, mcmcpath, runfile, load_state)

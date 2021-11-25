@@ -1,0 +1,23 @@
+[0] = Parameter(17.5709, name='l_siox', bounds=(10,30))
+[1] = Parameter(3.71009, name='rho_siox', bounds=(3.2,3.8))
+[2] = Parameter(3.01598, name='l_submembrane', bounds=(1,10))
+[3] = Parameter(10.1184, name='l_lipid1', bounds=(10,15))
+[4] = Parameter(13.4499, name='l_lipid2', bounds=(10,15))
+[5] = Parameter(0.936813, name='vf_bilayer', bounds=(0.9,1))
+[6] = Parameter(-0.0101173, name='rho_solv_0', bounds=(-0.54,0.06))
+[7] = Parameter(4.57029, name='global_rough', bounds=(2,5))
+[8] = Parameter(2.28739, name='sigma', bounds=(2,5))
+[9] = Parameter(-6.89991, name='background_0', bounds=(-9,-5))
+
+[chisq=1.02(17), nllf=34.3294]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1               l_siox   18.1(15)  17.967  17.571 [  16.58   19.63] [  15.54   21.03]
+ 2             rho_siox   3.54(15)   3.538   3.710 [   3.39    3.72] [   3.28    3.79]
+ 3        l_submembrane   2.34(68)   2.358   3.016 [   1.57    3.06] [   1.11    3.54]
+ 4             l_lipid1   11.7(13)  11.371  10.118 [  10.27   13.22] [  10.03   14.68]
+ 5             l_lipid2  12.69(57)  12.712  13.450 [  12.12   13.25] [  11.54   13.78]
+ 6           vf_bilayer  0.954(29)  0.9558  0.9368 [  0.920   0.987] [  0.903   0.998]
+ 7           rho_solv_0 -16(11)e-3 -0.0162 -0.0101 [ -0.027  -0.005] [ -0.038   0.006]
+ 8         global_rough   3.23(74)   3.212   4.570 [   2.37    4.02] [   2.05    4.65]
+ 9                sigma   2.81(56)   2.717   2.287 [   2.22    3.40] [   2.04    4.05]
+10         background_0  -7.70(73)  -7.675  -6.900 [  -8.57   -6.86] [  -8.93   -6.52]
