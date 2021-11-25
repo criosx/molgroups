@@ -514,17 +514,17 @@ class CGaReflInteractor(CRefl1DInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
         super().__init__(spath, mcmcpath, runfile, load_state)
 
-    def fnBackup(self, dirname='rsbackup'):
-        if not path.isdir(dirname):  # create backup dir
-            pr = Popen(["mkdir", dirname])
+    def fnBackup(self, origin='.', target='rsbackup'):
+        if not path.isdir(target):  # create backup dir
+            pr = Popen(["mkdir", target])
             pr.wait()
-        call('cp *.dat ' + dirname, shell=True)
-        call('cp *.cc ' + dirname, shell=True)
-        call('cp *.h ' + dirname, shell=True)
-        call('cp *.o ' + dirname, shell=True)
-        call('cp *.py ' + dirname, shell=True)
-        call('cp *.pyc ' + dirname, shell=True)
-        call(['cp', 'Makefile', dirname])
+        call('cp ' + origin + '/*.dat ' + target+'/', shell=True)
+        call('cp ' + origin + '/*.cc ' + target+'/', shell=True)
+        call('cp ' + origin + '/*.h ' + target+'/', shell=True)
+        call('cp ' + origin + '/*.o ' + target+'/', shell=True)
+        call('cp ' + origin + '/*.py ' + target+'/', shell=True)
+        call('cp ' + origin + '/*.pyc ' + target+'/', shell=True)
+        call(['cp', 'Makefile', target+'/'])
         pr = Popen(["cp", "fit", "rsbackup/"])
         pr.wait()
 

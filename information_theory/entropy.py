@@ -9,7 +9,7 @@ import matplotlib
 import pandas
 import itertools
 import zipfile
-from numpy import mean, std, exp, log, sqrt, log2, pi, e
+from numpy import mean, std, exp, log, sqrt, log2, pi, e, ndarray
 from numpy.random import permutation
 from sklearn.mixture import BayesianGaussianMixture as GMM
 from os import path, mkdir
@@ -207,7 +207,7 @@ class Entropy:
         self.slurmscript = slurmscript
 
         self.molstat = rs.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile, state=None,
-                                   problem=None)
+                                   problem=None, load_state=False)
 
         # all parameters from entropypar.dat
         header_names = ['type', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim', 'step_sim']
@@ -260,21 +260,8 @@ class Entropy:
                 axis.append(row.l_sim + i * row.step_sim)
             self.axes.append(axis)
 
-        if path.isfile('results/MVN_entropy.npy'):
-            self.results_mvn = np.load('results/MVN_entropy.npy')
-            self.results_kdn = np.load('results/KDN_entropy.npy')
-            self.results_mvn_marginal = np.load('results/MVN_entropy_marginal.npy')
-            self.results_kdn_marginal = np.load('results/KDN_entropy_marginal.npy')
-            self.n_mvn = np.load('results/MVN_n.npy')
-            self.n_kdn = np.load('results/KDN_n.npy')
-            self.n_mvn_marginal = np.load('results/MVN_n_marginal.npy')
-            self.n_kdn_marginal = np.load('results/KDN_n_marginal.npy')
-            self.sqstd_mvn = np.load('results/MVN_sqstd.npy')
-            self.sqstd_kdn = np.load('results/KDN_sqstd.npy')
-            self.sqstd_mvn_marginal = np.load('results/MVN_sqstd_marginal.npy')
-            self.sqstd_kdn_marginal = np.load('results/KDN_sqstd_marginal.npy')
-            self.par_median = np.load('results/par_median.npy')
-            self.par_std = np.load('results/par_std.npy')
+        if path.isfile(spath+'/results/MVN_entropy.npy'):
+            self.load_results(spath)
         else:
             self.results_mvn = np.zeros(self.steplist)
             self.results_kdn = np.zeros(self.steplist)
@@ -364,8 +351,23 @@ class Entropy:
 
         return priorentropy, priorentropy_marginal
 
-    def runmcmc(self, iteration, dirname):
+    def load_results(self, dirname):
+        self.results_mvn = np.load(dirname+'/results/MVN_entropy.npy')
+        self.results_kdn = np.load(dirname+'/results/KDN_entropy.npy')
+        self.results_mvn_marginal = np.load(dirname+'/results/MVN_entropy_marginal.npy')
+        self.results_kdn_marginal = np.load(dirname+'/results/KDN_entropy_marginal.npy')
+        self.n_mvn = np.load(dirname+'/results/MVN_n.npy')
+        self.n_kdn = np.load(dirname+'/results/KDN_n.npy')
+        self.n_mvn_marginal = np.load(dirname+'/results/MVN_n_marginal.npy')
+        self.n_kdn_marginal = np.load(dirname+'/results/KDN_n_marginal.npy')
+        self.sqstd_mvn = np.load(dirname+'/results/MVN_sqstd.npy')
+        self.sqstd_kdn = np.load(dirname+'/results/KDN_sqstd.npy')
+        self.sqstd_mvn_marginal = np.load(dirname+'/results/MVN_sqstd_marginal.npy')
+        self.sqstd_kdn_marginal = np.load(dirname+'/results/KDN_sqstd_marginal.npy')
+        self.par_median = np.load(dirname+'/results/par_median.npy')
+        self.par_std = np.load(dirname+'/results/par_std.npy')
 
+    def runmcmc(self, iteration, dirname, fulldirname):
         # wait for a job to finish before submitting next cluster job
         if self.bClusterMode:
             self.waitforjob()
@@ -379,11 +381,11 @@ class Entropy:
             # replaces the placeholders in slurmscript with variables above
             script = self.slurmscript.format(**locals())
 
-            file = open(dirname + '/runscript', 'w')
+            file = open(fulldirname + '/runscript', 'w')
             file.writelines(script)
             file.close()
 
-            lCommand = ['sbatch', dirname + '/runscript']
+            lCommand = ['sbatch', fulldirname + '/runscript']
             Popen(lCommand)
             self.joblist.append(iteration)
 
@@ -480,31 +482,31 @@ class Entropy:
                 save_plot(ax1, ax2, self.n_mvn_marginal[slice], sp1, sp2, ec, 'MVN_n_marginal_'+str(slice), zmin=0)
                 save_plot(ax1, ax2, self.n_kdn_marginal[slice], sp1, sp2, ec, 'KDN_n_marginal_'+str(slice), zmin=0)
 
-    def save_results(self):
+    def save_results(self, dirname):
 
         if not path.isdir('results'):
             mkdir('results')
 
-        np.save('results/KDN_entropy', self.results_kdn, allow_pickle=False)
-        np.save('results/MVN_entropy', self.results_mvn, allow_pickle=False)
-        np.save('results/KDN_entropy_marginal', self.results_kdn_marginal, allow_pickle=False)
-        np.save('results/MVN_entropy_marginal', self.results_mvn_marginal, allow_pickle=False)
-        np.save('results/KDN_infocontent', self.priorentropy - self.results_kdn, allow_pickle=False)
-        np.save('results/MVN_infocontent', self.priorentropy - self.results_mvn, allow_pickle=False)
-        np.save('results/KDN_infocontent_marginal', self.priorentropy_marginal - self.results_kdn_marginal,
+        np.save(dirname+'/results/KDN_entropy', self.results_kdn, allow_pickle=False)
+        np.save(dirname+'/results/MVN_entropy', self.results_mvn, allow_pickle=False)
+        np.save(dirname+'/results/KDN_entropy_marginal', self.results_kdn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/MVN_entropy_marginal', self.results_mvn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/KDN_infocontent', self.priorentropy - self.results_kdn, allow_pickle=False)
+        np.save(dirname+'/results/MVN_infocontent', self.priorentropy - self.results_mvn, allow_pickle=False)
+        np.save(dirname+'/results/KDN_infocontent_marginal', self.priorentropy_marginal - self.results_kdn_marginal,
                 allow_pickle=False)
-        np.save('results/MVN_infocontent_marginal', self.priorentropy_marginal - self.results_mvn_marginal,
+        np.save(dirname+'/results/MVN_infocontent_marginal', self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
-        np.save('results/KDN_sqstd', self.sqstd_kdn, allow_pickle=False)
-        np.save('results/MVN_sqstd', self.sqstd_mvn, allow_pickle=False)
-        np.save('results/KDN_sqstd_marginal', self.sqstd_kdn_marginal, allow_pickle=False)
-        np.save('results/MVN_sqstd_marginal', self.sqstd_mvn_marginal, allow_pickle=False)
-        np.save('results/KDN_n', self.n_kdn, allow_pickle=False)
-        np.save('results/MVN_n', self.n_mvn, allow_pickle=False)
-        np.save('results/KDN_n_marginal', self.n_kdn_marginal, allow_pickle=False)
-        np.save('results/MVN_n_marginal', self.n_mvn_marginal, allow_pickle=False)
-        np.save('results/par_median', self.par_median, allow_pickle=False)
-        np.save('results/par_std', self.par_std, allow_pickle=False)
+        np.save(dirname+'/results/KDN_sqstd', self.sqstd_kdn, allow_pickle=False)
+        np.save(dirname+'/results/MVN_sqstd', self.sqstd_mvn, allow_pickle=False)
+        np.save(dirname+'/results/KDN_sqstd_marginal', self.sqstd_kdn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/MVN_sqstd_marginal', self.sqstd_mvn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/KDN_n', self.n_kdn, allow_pickle=False)
+        np.save(dirname+'/results/MVN_n', self.n_mvn, allow_pickle=False)
+        np.save(dirname+'/results/KDN_n_marginal', self.n_kdn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/MVN_n_marginal', self.n_mvn_marginal, allow_pickle=False)
+        np.save(dirname+'/results/par_median', self.par_median, allow_pickle=False)
+        np.save(dirname+'/results/par_std', self.par_std, allow_pickle=False)
 
         # save to txt when not more than two-dimensional array
         if len(self.steplist) <= 2:
@@ -618,16 +620,16 @@ class Entropy:
 
     def run_optimization(self):
 
-        def calc_entropy_for_index(itindex, dirname):
+        def calc_entropy_for_index(itindex, fulldirname):
             # check if result directory is zipped. If yes, unzip.
-            if path.isfile(dirname + '.zip'):
-                if not path.isfile(dirname + '/save/run-chain.mc'):
+            if path.isfile(fulldirname + '.zip'):
+                if not path.isfile(fulldirname + '/save/run-chain.mc'):
                     # if a zip file and unzipped file exists -> prefer the unzipped file
-                    File = zipfile.ZipFile(dirname + '.zip', 'r')
-                    call(['mkdir', dirname])
-                    File.extractall(dirname)
+                    File = zipfile.ZipFile(fulldirname + '.zip', 'r')
+                    call(['mkdir', fulldirname])
+                    File.extractall(fulldirname)
                     File.close()
-                call(['rm', dirname + '.zip'])
+                call(['rm', fulldirname + '.zip'])
 
             # Calculate Entropy n times and average
             mvn_entropy = []
@@ -665,7 +667,7 @@ class Entropy:
                                     points_median, points_std)
 
             # save results for every iteration and delete large files
-            self.save_results()
+            self.save_results(self.spath)
 
         def set_sim_pars_for_index(it, bPriorResultExists):
             qrange = 0
@@ -714,18 +716,18 @@ class Entropy:
             # set up fit limits and simulation parameters including parameters that are varied and
             # fixed during the process
             dirname = 'iteration_' + str(iteration)
-            bUnzippedPriorResult = path.isfile(dirname + '/save/run-chain.mc')
-            bPriorResultExists = bUnzippedPriorResult or path.isfile(dirname + '.zip')
+            fulldirname = self.spath + '/' + dirname
+            bUnzippedPriorResult = path.isfile(fulldirname + '/save/run-chain.mc')
+            bPriorResultExists = bUnzippedPriorResult or path.isfile(fulldirname + '.zip')
 
             if not bPriorResultExists:
                 # copy garefl/refl1d files into directory
-                if not path.isdir(dirname):
-                    call(['mkdir', dirname])
-                call(['rm', '-r', dirname + '/save'])
-                self.molstat.Interactor.fnBackup(dirname)
+                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                call(['rm', '-r', fulldirname + '/save'])
 
             # switch molstat over to new directory
-            self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=dirname, mcmcpath='save', runfile=self.runfile)
+            self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                       runfile=self.runfile)
             pre, qrange = set_sim_pars_for_index(it, bPriorResultExists)
 
             # Run fit
@@ -736,21 +738,21 @@ class Entropy:
                 # offsite. Therefore, if an unzipped result is found, it is ignored.
                 self.simpar.to_csv('simpar.dat', sep=' ', header=None, index=False)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
-                self.runmcmc(iteration, dirname)
+                self.runmcmc(iteration, dirname, fulldirname)
                 bPriorResultExists = True
 
             # Entropy calculation. Do not run entropy calculation when on cluster.
             if not self.bClusterMode and bPriorResultExists:
-                calc_entropy_for_index(itindex, dirname)
+                calc_entropy_for_index(itindex, fulldirname)
 
             # switch molstat back to original
-            # TODO: Avoid loading in the state everytime
-            self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=self.spath, mcmcpath=self.mcmcpath,
-                                       runfile=self.runfile, load_state=False)
             if self.deldir:
-                call(['rm', dirname + '/save/run-point.mc'])
-                call(['rm', dirname + '/save/run-chain.mc'])
-                call(['rm', dirname + '/save/run-stats.mc'])
+                call(['rm', fulldirname + '/save/run-point.mc'])
+                call(['rm', fulldirname + '/save/run-chain.mc'])
+                call(['rm', fulldirname + '/save/run-stats.mc'])
+            # TODO: Is this necessary?
+            # self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=self.spath, mcmcpath=self.mcmcpath,
+            #                           runfile=self.runfile, load_state=False)
 
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False
