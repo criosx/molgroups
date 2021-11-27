@@ -1881,16 +1881,19 @@ class CMolStat:
         pickle.dump(object, File)
         File.close()
 
-    def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
-                               tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
-                               cbmatmax=1.25e-6, mode='water', pre=1, qrange=0):
+    def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
+                       tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5, cbmatmax=1.25e-6,
+                       mode='water', pre=1, qrange=0):
 
         # simulates reflectivity based on a parameter file called simpar.dat
         # requires a compiled and ready to go fit whose fit parameters are modified and fixed
+        # data files currently need to be named sim#.dat
         # The method is designed to be useable with reflectivity and SANS.
 
-        self.diParameters, _ = self.Interactor.fnLoadParameters()                  # Load Parameters and modify setup.cc
-        self.Interactor.fnBackup()                                              # Backup setup files
+        # Load Parameters and modify setup.cc
+        self.diParameters, _ = self.Interactor.fnLoadParameters()
+        # Backup setup files
+        self.Interactor.fnBackup()
 
         try:
             liParameters = list(self.diParameters.keys())
@@ -1919,7 +1922,6 @@ class CMolStat:
 
                 print(str(parameter) + ' ' + str(parvalue) + strchange)
                 liAddition.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], parvaluefinal)))
-
 
             # if q-range is changing, back up original sim dat or reload previously backed up data
             # to always work with the same set of original data
@@ -1950,8 +1952,6 @@ class CMolStat:
                                                 pre=pre)
         finally:
             self.Interactor.fnRemoveBackup()
-
-    # -------------------------------------------------------------------------------
 
     def fnStatTable(self, sTableName, fConfidence):
 

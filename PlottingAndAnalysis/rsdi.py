@@ -8,6 +8,9 @@ from subprocess import call, Popen
 from time import sleep
 import numpy
 import pandas
+import shutil
+import glob
+import os
 
 
 class CDataInteractor:
@@ -416,10 +419,12 @@ class CBumpsInteractor(CDataInteractor):
 
     def fnRestoreState(self):
         import bumps.dream.state
-        if path.isfile(self.mcmcpath + "/" + self.runfile + '.py'):
-            state = bumps.dream.state.load_state(self.mcmcpath + "/" + self.runfile)
+        fulldir = self.spath + '/' + self.mcmcpath
+        if path.isfile(fulldir + "/" + self.runfile + '.py'):
+            state = bumps.dream.state.load_state(fulldir + "/" + self.runfile)
             state.mark_outliers()  # ignore outlier chains
         else:
+            print("No file: " + fulldir + "/" + self.runfile + '.py')
             print("No state to reload.")
             state = None
         return state
@@ -455,7 +460,7 @@ class CBumpsInteractor(CDataInteractor):
 # The refl1d script name has to be run.py.
 class CRefl1DInteractor(CBumpsInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
-        super().__init__(spath, mcmcpath, runfile, load_state)
+        super().__init__(spath, mcmcpath, runfile, load_state=load_state)
 
     @staticmethod
     def fnRestoreSmoothProfile(M):
@@ -512,21 +517,29 @@ class CRefl1DInteractor(CBumpsInteractor):
 
 class CGaReflInteractor(CRefl1DInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
-        super().__init__(spath, mcmcpath, runfile, load_state)
+        super().__init__(spath, mcmcpath, runfile, load_state=load_state)
 
-    def fnBackup(self, origin='.', target='rsbackup'):
-        if not path.isdir(target):  # create backup dir
-            pr = Popen(["mkdir", target])
-            pr.wait()
-        call('cp ' + origin + '/*.dat ' + target+'/', shell=True)
-        call('cp ' + origin + '/*.cc ' + target+'/', shell=True)
-        call('cp ' + origin + '/*.h ' + target+'/', shell=True)
-        call('cp ' + origin + '/*.o ' + target+'/', shell=True)
-        call('cp ' + origin + '/*.py ' + target+'/', shell=True)
-        call('cp ' + origin + '/*.pyc ' + target+'/', shell=True)
-        call(['cp', 'Makefile', target+'/'])
-        pr = Popen(["cp", "fit", "rsbackup/"])
-        pr.wait()
+    def fnBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if not path.isdir(target):
+            os.mkdir(target)
+        for file in glob.glob(origin + r'/*.dat'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.cc'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.h'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.o'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.py'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.pyc'):
+            shutil.copy(file, target)
+        shutil.copy(origin + '/Makefile', target)
+        shutil.copy(origin + '/fit', target)
 
     def fnBackupSimdat(self):
         def backup_simdat(i):
@@ -823,31 +836,25 @@ class CGaReflInteractor(CRefl1DInteractor):
             problem = None
         return problem
 
-    def fnRemoveBackup(self):  # deletes the backup directory
-        self.fnRestoreBackup()
-        call(['rm', '-rf', 'rsbackup'])
+    # deletes the backup directory after restoring it
+    def fnRemoveBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            self.fnRestoreBackup(origin, target)
+            shutil.rmtree(target)
 
-    def fnRestoreBackup(self):  # copies all files from the backup directory
-        if path.isfile('rsbackup/pop.dat'):
-            call(['cp', 'rsbackup/pop.dat', '.'])  # back to the working directory
-        if path.isfile('rsbackup/par.dat'):
-            call(['cp', 'rsbackup/par.dat', '.'])
-        if path.isfile('rsbackup/covar.dat'):
-            call(['cp', 'rsbackup/covar.dat', '.'])
-        if path.isfile('rsbackup/fit*.dat'):
-            call(['cp', 'rsbackup/fit*.dat', '.'])
-        if path.isfile('rsbackup/fit'):
-            call(['cp', 'rsbackup/fit', '.'])
-        if path.isfile('rsbackup/fit*.dat'):
-            call(['cp', 'rsbackup/model*.dat', '.'])
-        if path.isfile('rsbackup/pop_bak.dat'):
-            call(['cp', 'rsbackup/pop_bak.dat', '.'])
-        if path.isfile('rsbackup/profile*.dat'):
-            call(['cp', 'rsbackup/profile*.dat', '.'])
-        if path.isfile('rsbackup/setup.cc'):
-            call(['cp', 'rsbackup/setup.cc', '.'])
-        if path.isfile('rsbackup/setup.o'):
-            call(['cp', 'rsbackup/setup.o', '.'])
+    # copies all files from the backup directory (target) to origin
+    def fnRestoreBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            for file in glob.glob(target + r'/*.*'):
+                shutil.copy(file, origin)
 
     def fnRestoreMolgroups(self, problem):
         problem.active_model.fitness.output_model()
@@ -860,7 +867,7 @@ class CGaReflInteractor(CRefl1DInteractor):
         return z, rho, irho
 
     def fnRunMCMC(self, burn, steps, batch=False):
-        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile, '--fit=dream', '--parallel', '--init=lhs']
+        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             lCommand.append('--batch')
         lCommand.append('--store=' + self.spath+'/save')
@@ -945,4 +952,4 @@ class CGaReflInteractor(CRefl1DInteractor):
 
 class CSASViewInteractor(CBumpsInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
-        super().__init__(spath, mcmcpath, runfile, load_state)
+        super().__init__(spath, mcmcpath, runfile, load_state=load_state)

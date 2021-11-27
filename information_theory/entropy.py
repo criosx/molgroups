@@ -206,8 +206,7 @@ class Entropy:
         self.plotlimits_filename = plotlimits_filename
         self.slurmscript = slurmscript
 
-        self.molstat = rs.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile, state=None,
-                                   problem=None, load_state=False)
+        self.molstat = rs.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
         # all parameters from entropypar.dat
         header_names = ['type', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim', 'step_sim']
@@ -280,13 +279,15 @@ class Entropy:
 
         self.priorentropy, self.priorentropy_marginal = self.calc_prior()
 
-    def calc_entropy(self):
+    def calc_entropy(self, molstat=None):
+        if molstat is None:
+            molstat = self.molstat
 
         N_entropy = 10000  # was 10000
         N_norm = 10000  # was 2500
 
         # read MCMC result and save sErr.dat
-        points, parnames, logp = self.molstat.Interactor.fnLoadMCMCResults()
+        points, parnames, logp = molstat.Interactor.fnLoadMCMCResults()
 
         # Do statistics over points
         points_median = np.median(points, axis=0)
@@ -367,13 +368,13 @@ class Entropy:
         self.par_median = np.load(dirname+'/results/par_median.npy')
         self.par_std = np.load(dirname+'/results/par_std.npy')
 
-    def runmcmc(self, iteration, dirname, fulldirname):
+    def runmcmc(self, molstat_instance, iteration, dirname, fulldirname):
         # wait for a job to finish before submitting next cluster job
         if self.bClusterMode:
             self.waitforjob()
 
         # run MCMC either cluster or local
-        self.molstat.Interactor.fnMake()
+        molstat_instance.Interactor.fnMake()
         if self.bClusterMode:
             # write runscript
             mcmc_iteration = str(iteration)
@@ -390,7 +391,7 @@ class Entropy:
             self.joblist.append(iteration)
 
         else:
-            self.molstat.Interactor.fnRunMCMC(burn=self.mcmcburn, steps=self.mcmcsteps, batch=True)
+            molstat_instance.Interactor.fnRunMCMC(burn=self.mcmcburn, steps=self.mcmcsteps, batch=True)
         return
 
     def plot_results(self):
@@ -620,16 +621,7 @@ class Entropy:
 
     def run_optimization(self):
 
-        def calc_entropy_for_index(itindex, fulldirname):
-            # check if result directory is zipped. If yes, unzip.
-            if path.isfile(fulldirname + '.zip'):
-                if not path.isfile(fulldirname + '/save/run-chain.mc'):
-                    # if a zip file and unzipped file exists -> prefer the unzipped file
-                    File = zipfile.ZipFile(fulldirname + '.zip', 'r')
-                    call(['mkdir', fulldirname])
-                    File.extractall(fulldirname)
-                    File.close()
-                call(['rm', fulldirname + '.zip'])
+        def calc_entropy_for_index(molstat_iter, itindex):
 
             # Calculate Entropy n times and average
             mvn_entropy = []
@@ -642,7 +634,7 @@ class Entropy:
             for j in range(1):  # was 10
                 # calculate entropy, dependent parameters == parameters of interest
                 # independent parameters == nuisance parameters
-                a, b, c, d, e, f = self.calc_entropy()
+                a, b, c, d, e, f = self.calc_entropy(molstat_iter)
                 mvn_entropy.append(a)
                 kdn_entropy.append(b)
                 mvn_entropy_marginal.append(c)
@@ -669,7 +661,7 @@ class Entropy:
             # save results for every iteration and delete large files
             self.save_results(self.spath)
 
-        def set_sim_pars_for_index(it, bPriorResultExists):
+        def set_sim_pars_for_index(it):
             qrange = 0
             pre = 0
             # cycle through all parameters
@@ -698,8 +690,7 @@ class Entropy:
                         pre = simvalue
                     else:
                         self.simpar.loc[self.simpar['par'] == row.par, 'value'] = simvalue
-                        if not bPriorResultExists or not self.bFetchMode:
-                            self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
+                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
                     isim += 1
                 else:
                     if row.par == 'qrange':
@@ -707,8 +698,7 @@ class Entropy:
                     elif row.par == 'prefactor':
                         pre = row.value
                     else:
-                        if not bPriorResultExists or not self.bFetchMode:
-                            self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
+                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
             return pre, qrange
 
         def work_on_index(iteration, it, itindex):
@@ -717,42 +707,38 @@ class Entropy:
             # fixed during the process
             dirname = 'iteration_' + str(iteration)
             fulldirname = self.spath + '/' + dirname
-            bUnzippedPriorResult = path.isfile(fulldirname + '/save/run-chain.mc')
-            bPriorResultExists = bUnzippedPriorResult or path.isfile(fulldirname + '.zip')
+            bPriorResultExists = path.isfile(fulldirname + '/save/run-chain.mc')
 
-            if not bPriorResultExists:
-                # copy garefl/refl1d files into directory
-                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
-                call(['rm', '-r', fulldirname + '/save'])
-
-            # switch molstat over to new directory
-            self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+            # create molstat for new directory
+            molstat_iter = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
                                        runfile=self.runfile)
-            pre, qrange = set_sim_pars_for_index(it, bPriorResultExists)
 
-            # Run fit
-            if (not bPriorResultExists and not self.bFetchMode) or (self.bClusterMode and bUnzippedPriorResult):
-                # fetch mode and cluster mode are exclusive
-                # there should be no unzipped results in cluster mode, as cluster mode performs only one
-                # single iteration over the parameter space, because the entropy has to be calculated
-                # offsite. Therefore, if an unzipped result is found, it is ignored.
+            # fetch mode and cluster mode are exclusive
+            if not self.bFetchMode:
+                # run a new fit, preparations are done in the root directory and the new fit is copied into the
+                # iteration directory, preparations in the iterations directory are not possible, because it would
+                # be lacking a results directory, which is needed for restoring a state/parameters
+                pre, qrange = set_sim_pars_for_index(it)
                 self.simpar.to_csv('simpar.dat', sep=' ', header=None, index=False)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
-                self.runmcmc(iteration, dirname, fulldirname)
+                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                call(['rm', '-r', fulldirname + '/save'])
+                self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
+                # Populate molstat_iter with new fit results
+                molstat_iter = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                           runfile=self.runfile)
+                print('Here, here:', self.fitsource, fulldirname, self.runfile, molstat_iter.Interactor.state)
                 bPriorResultExists = True
 
             # Entropy calculation. Do not run entropy calculation when on cluster.
             if not self.bClusterMode and bPriorResultExists:
-                calc_entropy_for_index(itindex, fulldirname)
+                calc_entropy_for_index(molstat_iter, itindex)
 
             # switch molstat back to original
             if self.deldir:
                 call(['rm', fulldirname + '/save/run-point.mc'])
                 call(['rm', fulldirname + '/save/run-chain.mc'])
                 call(['rm', fulldirname + '/save/run-stats.mc'])
-            # TODO: Is this necessary?
-            # self.molstat = rs.CMolStat(fitsource=self.fitsource, spath=self.spath, mcmcpath=self.mcmcpath,
-            #                           runfile=self.runfile, load_state=False)
 
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False
@@ -789,6 +775,7 @@ class Entropy:
                 it.iternext()
             return bWorkedOnIndex
 
+        self.molstat.Interactor.fnBackup()
         # every index has at least one result before re-analyzing any data point (refinement)
         bRefinement = False
         while True:
@@ -808,6 +795,8 @@ class Entropy:
         if self.bClusterMode:
             while self.joblist:
                 self.waitforjob(bFinish=True)
+
+        self.molstat.Interactor.fnRemoveBackup()
 
 
 if __name__ == "__main__":
