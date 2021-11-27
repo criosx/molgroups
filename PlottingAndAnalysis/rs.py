@@ -1874,11 +1874,12 @@ class CMolStat:
 
         self.fnSaveObject(self.diStatResults, self.mcmcpath + '/StatDataPython.dat')  # save stat data to disk
 
-    def fnSaveObject(self, object, sFileName):
+    @staticmethod
+    def fnSaveObject(save_object, sFileName):
         import pickle
 
         File = open(sFileName, "wb")
-        pickle.dump(object, File)
+        pickle.dump(save_object, File)
         File.close()
 
     def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
@@ -1892,8 +1893,6 @@ class CMolStat:
 
         # Load Parameters and modify setup.cc
         self.diParameters, _ = self.Interactor.fnLoadParameters()
-        # Backup setup files
-        self.Interactor.fnBackup()
 
         try:
             liParameters = list(self.diParameters.keys())
@@ -1951,7 +1950,7 @@ class CMolStat:
                                                 rhomax=rhomax, cbmatmin=cbmatmin, cbmatmax=cbmatmax, mode=mode,
                                                 pre=pre)
         finally:
-            self.Interactor.fnRemoveBackup()
+            pass
 
     def fnStatTable(self, sTableName, fConfidence):
 

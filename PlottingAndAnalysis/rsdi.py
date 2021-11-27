@@ -881,12 +881,14 @@ class CGaReflInteractor(CRefl1DInteractor):
         problem.active_model.fitness.output_model()
 
     def fnSimulateData(self, liExpression):
+        shutil.copy(self.spath + '/setup.cc', self.spath + '/setup_bak.cc')
         self.fnWriteConstraint2Runfile(liExpression)                        # change runfile to quasi-fix all parameters
         self.fnMake()                                                       # compile changed setup.c
-        call(["rm", "-f", "mol.dat"])
-        call(["./fit", "-g"])                                               # write out profile.dat and fit.dat
+        call(["rm", "-f", self.spath + "/mol.dat"])
+        call([self.spath + "/fit", "-g"])                                   # write out profile.dat and fit.dat
         call(["sync"])                                                      # synchronize file system
         sleep(1)                                                            # wait for system to clean up
+        shutil.copy(self.spath + '/setup_bak.cc', self.spath + '/setup.cc')
 
         i = 0
         while path.isfile('fit' + str(i) + '.dat'):

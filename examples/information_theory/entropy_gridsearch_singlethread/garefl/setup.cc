@@ -144,7 +144,7 @@ fitinfo* setup_models(int *models)
     pars_add(pars, "l_lipid2", &(l_lipid2), 10.0, 15.0);
     pars_add(pars, "vf_bilayer", &(vf_bilayer), 0.9, 1.0);
     
-    pars_add(pars, "rho_solv_0", &(fit[0].m.rho[fit[0].m.n-1]), -4.000000000000078e-08, 5.599999999999994e-07);
+    pars_add(pars, "rho_solv_0", &(fit[0].m.rho[fit[0].m.n-1]), -5.399999999999999e-07, 5.999999999999943e-08);
     
     pars_add(pars, "global_rough", &(global_rough), 2.0, 5.0);
     pars_add(pars, "sigma",        &(sigma), 2.0, 5.0);

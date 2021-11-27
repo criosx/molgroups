@@ -718,11 +718,13 @@ class Entropy:
                 # run a new fit, preparations are done in the root directory and the new fit is copied into the
                 # iteration directory, preparations in the iterations directory are not possible, because it would
                 # be lacking a results directory, which is needed for restoring a state/parameters
+                self.molstat.Interactor.fnBackup(target=self.spath + '/' 'simbackup')
                 pre, qrange = set_sim_pars_for_index(it)
                 self.simpar.to_csv('simpar.dat', sep=' ', header=None, index=False)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
                 self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
                 call(['rm', '-r', fulldirname + '/save'])
+                self.molstat.Interactor.fnRemoveBackup(target=self.spath + '/' 'simbackup')
                 self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
                 # Populate molstat_iter with new fit results
                 molstat_iter = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
@@ -775,7 +777,6 @@ class Entropy:
                 it.iternext()
             return bWorkedOnIndex
 
-        self.molstat.Interactor.fnBackup()
         # every index has at least one result before re-analyzing any data point (refinement)
         bRefinement = False
         while True:
@@ -795,8 +796,6 @@ class Entropy:
         if self.bClusterMode:
             while self.joblist:
                 self.waitforjob(bFinish=True)
-
-        self.molstat.Interactor.fnRemoveBackup()
 
 
 if __name__ == "__main__":

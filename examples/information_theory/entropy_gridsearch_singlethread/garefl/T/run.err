@@ -1,0 +1,47 @@
+[0] = l_siox = 18 in [10,30]
+[1] = rho_siox = 3.55 in [3.2,3.8]
+[2] = l_submembrane = 2.5 in [1,10]
+[3] = l_lipid1 = 11.8 in [10,15]
+[4] = l_lipid2 = 12.4 in [10,15]
+[5] = vf_bilayer = 0.95 in [0.9,1]
+[6] = rho_solv_0 = -0.5 in [-1.04,-0.44]
+[7] = global_rough = 3 in [2,5]
+[8] = sigma = 2.5 in [2,5]
+[9] = background_0 = -8 in [-9,-5]
+
+[chisq=264.32(17), nllf=8854.56]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1               l_siox   19.6(58)   19.04   23.83 [   13.1    26.8] [   10.4    29.3]
+ 2             rho_siox   3.52(17)   3.529   3.717 [   3.32    3.73] [   3.22    3.79]
+ 3        l_submembrane    6.0(25)   6.151   8.216 [   3.08    8.90] [   1.24    9.82]
+ 4             l_lipid1   12.3(14)  12.149  12.287 [  10.65   13.88] [  10.12   14.82]
+ 5             l_lipid2   12.6(15)  12.666  13.302 [  10.82   14.29] [  10.15   14.89]
+ 6           vf_bilayer  0.947(29)  0.9442  0.9433 [  0.915   0.978] [  0.901   0.998]
+ 7           rho_solv_0  -0.74(18)  -0.751  -0.764 [  -0.94   -0.52] [  -1.03   -0.46]
+ 8         global_rough   3.45(87)   3.354   4.739 [   2.46    4.51] [   2.04    4.93]
+ 9                sigma   3.30(82)   3.268   3.221 [   2.39    4.29] [   2.07    4.83]
+10         background_0   -6.9(11)  -6.931  -8.338 [  -8.02   -5.62] [  -8.88   -5.09]
+
+Statistics and plots based on 600 samples (50.0% of total samples drawn)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/parcoord.py:173: RuntimeWarning: invalid value encountered in true_divide
+  scaled = (x - low)/(high - low)
