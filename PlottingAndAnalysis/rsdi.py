@@ -889,6 +889,7 @@ class CGaReflInteractor(CRefl1DInteractor):
         call(["sync"])                                                      # synchronize file system
         sleep(1)                                                            # wait for system to clean up
         shutil.copy(self.spath + '/setup_bak.cc', self.spath + '/setup.cc')
+        call(["rm", "-f", self.spath + '/setup_bak.cc'])
 
         i = 0
         while path.isfile('fit' + str(i) + '.dat'):
