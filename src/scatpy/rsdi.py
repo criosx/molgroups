@@ -299,6 +299,20 @@ class CBumpsInteractor(CDataInteractor):
             self.state = self.fnRestoreState() if state is None else state
         self.problem = self.fnRestoreFitProblem() if problem is None else problem
 
+    def fnBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if not path.isdir(target):
+            os.mkdir(target)
+        for file in glob.glob(origin + r'/*.dat'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.py'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.pyc'):
+            shutil.copy(file, target)
+
     def fnLoadMCMCResults(self):
         # load Parameter
         if self.diParameters == {}:
@@ -407,6 +421,26 @@ class CBumpsInteractor(CDataInteractor):
 
         return diStatRawData
 
+    # deletes the backup directory after restoring it
+    def fnRemoveBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            self.fnRestoreBackup(origin, target)
+            shutil.rmtree(target)
+
+    # copies all files from the backup directory (target) to origin
+    def fnRestoreBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            for file in glob.glob(target + r'/*.*'):
+                shutil.copy(file, origin)
+
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
 
@@ -462,10 +496,69 @@ class CRefl1DInteractor(CBumpsInteractor):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
         super().__init__(spath, mcmcpath, runfile, load_state=load_state)
 
+    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
+        """
+        scans self.runfile file for parameter with name sname and replaces the
+        lower and upper fit limits by the given values
+        currently expects the parameter to be defined using the Parameter() method and not just .range()
+        on any object variable
+        """
+
+        file = open(self.spath+'/'+self.runfile+'.py', 'r+')
+        data = file.readlines()
+        file.close()
+        smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        newdata = []
+        for line in data:
+            newdata.append(smatch.sub(r'\1 ' + str(flowerlimit) + r'\2 '
+                                      + str(fupperlimit) + r'\3', line))
+
+        file = open(self.spath+'/'+self.runfile+'.py', 'w')
+        file.writelines(newdata)
+        file.close()
+
     @staticmethod
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
+
+    def fnSimulateData(self, diNewPars):
+        liParameters = list(self.diParameters.keys())
+        # sort by number of appereance in runfile
+        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+        bConsistency = True
+        for element in liParameters:
+            if element not in list(diNewPars.keys()):
+                bConsistency = False
+                print('Parameter '+element+' not specified.')
+        if bConsistency:
+            p = [diNewPars[parameter] for parameter in liParameters]
+            self.problem.setp(p)
+            self.problem.model_update()
+            # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better
+
+            i = 0
+            if 'models' in dir(self.problem):
+                for M in self.problem.models:
+                    M.chisq()
+                    qvec, refl = M.fitness.reflectivity()
+                    simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', header=None,
+                                              names=['Q', 'dQ', 'R', 'dR', 'fit'],
+                                              skip_blank_lines=True, comment='#')
+                    simdata['R'] = refl
+                    simdata['Q'] = qvec
+                    simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+                    i += 1
+            else:
+                self.problem.chisq()
+                qvec, refl = self.problem.fitness.reflectivity()
+                simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', header=None,
+                                          names=['Q', 'dQ', 'R', 'dR', 'fit'],
+                                          skip_blank_lines=True, comment='#')
+                simdata['R'] = refl
+                simdata['Q'] = qvec
+                simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+                i += 1
 
     @staticmethod
     def fnSimulateErrorBars(simpar, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
@@ -836,26 +929,6 @@ class CGaReflInteractor(CRefl1DInteractor):
             problem = None
         return problem
 
-    # deletes the backup directory after restoring it
-    def fnRemoveBackup(self, origin=None, target=None):
-        if origin is None:
-            origin = self.spath
-        if target is None:
-            target = self.spath + '/rsbackup'
-        if path.isdir(target):
-            self.fnRestoreBackup(origin, target)
-            shutil.rmtree(target)
-
-    # copies all files from the backup directory (target) to origin
-    def fnRestoreBackup(self, origin=None, target=None):
-        if origin is None:
-            origin = self.spath
-        if target is None:
-            target = self.spath + '/rsbackup'
-        if path.isdir(target):
-            for file in glob.glob(target + r'/*.*'):
-                shutil.copy(file, origin)
-
     def fnRestoreMolgroups(self, problem):
         problem.active_model.fitness.output_model()
         diMolgroups = self.fnLoadMolgroups()
@@ -880,27 +953,33 @@ class CGaReflInteractor(CRefl1DInteractor):
         # TODO: Needs testing
         problem.active_model.fitness.output_model()
 
-    def fnSimulateData(self, liExpression):
+    def fnSimulateData(self, diAddition):
+        # change dir of parname:parvalue into list of expressions to be inserted into setup.cc
+        liExpression = []
+        for parameter in diAddition:
+            liExpression.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], diAddition[parameter])))
+
         shutil.copy(self.spath + '/setup.cc', self.spath + '/setup_bak.cc')
         self.fnWriteConstraint2Runfile(liExpression)                        # change runfile to quasi-fix all parameters
         self.fnMake()                                                       # compile changed setup.c
         call(["rm", "-f", self.spath + "/mol.dat"])
         call([self.spath + "/fit", "-g"])                                   # write out profile.dat and fit.dat
         call(["sync"])                                                      # synchronize file system
-        sleep(1)                                                            # wait for system to clean up
+        sleep(1)
+        # restore setup file without quasi-fixed parameters
         shutil.copy(self.spath + '/setup_bak.cc', self.spath + '/setup.cc')
         call(["rm", "-f", self.spath + '/setup_bak.cc'])
 
         i = 0
-        while path.isfile('fit' + str(i) + '.dat'):
-            simdata = pandas.read_csv('fit' + str(i) + '.dat', sep=' ', header=None,
+        while path.isfile(self.spath+'/fit' + str(i) + '.dat'):
+            simdata = pandas.read_csv(self.spath+'/fit' + str(i) + '.dat', sep=' ', header=None,
                                       names=['Q', 'dQ', 'R', 'dR', 'fit'],
                                       skip_blank_lines=True, comment='#')
             del simdata['dQ']
             del simdata['R']
             simdata = simdata.rename(columns={'fit': 'R'})
             simdata = simdata[['Q', 'R', 'dR']]
-            simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None)
             i += 1
 
     @staticmethod

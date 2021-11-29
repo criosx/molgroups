@@ -1903,7 +1903,7 @@ class CMolStat:
             simpar = pandas.read_csv(self.spath+'/simpar.dat', sep=' ', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
 
-            liAddition = []
+            diAddition = {}
             for parameter in liParameters:
                 parvalue = simpar[simpar.par == parameter].iloc[0][1]
                 strchange = ''
@@ -1919,8 +1919,8 @@ class CMolStat:
                     parvaluefinal = parvalue * 1E-6
                     strchange = ' => changed to ' + str(parvaluefinal)
 
+                diAddition[parameter] = parvaluefinal
                 print(str(parameter) + ' ' + str(parvalue) + strchange)
-                liAddition.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], parvaluefinal)))
 
             # if q-range is changing, back up original sim dat or reload previously backed up data
             # to always work with the same set of original data
@@ -1943,7 +1943,7 @@ class CMolStat:
                 i += 1
 
             # simulate data, works on sim.dat files
-            self.Interactor.fnSimulateData(liAddition)
+            self.Interactor.fnSimulateData(diAddition)
             # simulate error bars, works on sim.dat files
             self.Interactor.fnSimulateErrorBars(simpar, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max, s2min=s2min,
                                                 s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin, rhomin=rhomin,
