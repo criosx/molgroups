@@ -2,21 +2,45 @@
 # -*- coding: utf-8 -*-
 # general purpose for 16-Sep-09 F.H.
 
-import math, os, string
+import os
 import numpy
 import scipy.special, scipy.optimize, scipy.stats
-import matplotlib.pyplot as plt
 import pandas
 import random
 import copy
 
 
-#-------------------------------------------------------------------------------
-#General usefull routines
+def add_comments_to_start_of_file(filename, comments):
+    """
+    adds comment lines to the beginning of a file
+    """
+    file = open(filename, "r")
+    content = file.readlines()
+    file.close()
 
-#appends column to a container and adds reference axis as well if not present
-def fnAppend(data,container,columnname,referenceaxis):
+    file = open(filename, "w")
+    file.writelines(comments)
+    file.writelines(content)
+    file.close()
 
+    return
+
+
+def extract_comments_from_file(filename, commentstr="#"):
+    """
+    extracts all comment lines starting with 'commentstr' from a file and returns them
+    """
+    file = open(filename, "r")
+    content = file.readlines()
+    file.close()
+
+    return [line for line in content if line.startswith(commentstr)]
+
+
+def fnAppend(data, container, columnname, referenceaxis):
+    """
+    appends column to a container and adds reference axis as well if not present
+    """
     if referenceaxis not in container:
         container[referenceaxis]=data[referenceaxis][:]
 
@@ -24,18 +48,23 @@ def fnAppend(data,container,columnname,referenceaxis):
     container[containercolumnname]=data[columnname][:]
 
 
-#converts 4 column data to three column data and overwrites the file
-#deletes all '#' comment lines
 def fnConvert4to3(filename):
+    """
+    converts 4 column data to three column data and overwrites the file
+    deletes all '#' comment lines
 
-    df = pandas.read_csv(filename, sep=' ', header=None, names=['1', '2', '3', '4'], skip_blank_lines=True, comment='#')
+    """
+    df = pandas.read_csv(filename, sep='\s+', header=None, names=['1', '2', '3', '4'], skip_blank_lines=True,
+                         comment='#')
     df.to_csv(filename, sep=' ', header=None, index=None, columns=['1', '2', '3'])
 
-#Deletes leading and trailing zeros from entries in data while leaving the
-#referenceaxis untouched. This will lead to non-uniform lengths of the lists
-#contained in the dictionary
-def fnCutZeros(data,referenceaxis):
 
+def fnCutZeros(data, referenceaxis):
+    """
+    Deletes leading and trailing zeros from entries in data while leaving the
+    referenceaxis untouched. This will lead to non-uniform lengths of the lists
+    contained in the dictionary
+    """
     for element in data:
         if element != referenceaxis:
             while True:
@@ -50,66 +79,68 @@ def fnCutZeros(data,referenceaxis):
                     break
 
 
-
-#Integrates columnname in data and returns the integral in data2
+# Integrates columnname in data and returns the integral in data2
 def fnIntegrate(data,columnname,referenceaxis):
 
-    data2= {referenceaxis: data[referenceaxis][:], columnname: []}
-
-    sum=0
+    data2 = {referenceaxis: data[referenceaxis][:], columnname: []}
+    sum = 0
     for i in range(len(data[columnname])):
-        sum+=data[columnname][i]
+        sum += data[columnname][i]
         data2[columnname].append(sum)
 
     return data2
 
 
-
-#Loads single column data into a dictionary {"columnname",[data]}
-#it appends the data found in the file to the provided dictionary 'data'
-#it will skip columns with names which are either in the exception list
-#or appends data with name extension "_2nd" that are already present in the data list
-
 def fnLoadSingleColumns(sFileName, data={}, exceptions=[], header=True, headerline=[], LoadList=[]):
+    """
+    Loads single column data into a dictionary {"columnname",[data]}
+    it appends the data found in the file to the provided dictionary 'data'
+    it will skip columns with names which are either in the exception list
+    or appends data with name extension "_2nd" that are already present in the data list
 
-    file  = open(sFileName,"r")
-    content=file.readlines()
+    """
+    file = open(sFileName,"r")
+    content = file.readlines()
     file.close()
 
-    if header==True:                                                            #if headerline in file, read it from there
+    # if headerline in file, read it from there
+    if header:
         splitheaderline=content[0].split()
         content=content[1:]
-    else:                                                                       #else use the one given as an attribute
-        splitheaderline=headerline
+    else:
+        # else use the one given as an attribute
+        splitheaderline = headerline
 
     for i,columnname in enumerate(splitheaderline):
-        if LoadList==[] or (columnname in LoadList):
-            data[columnname]=[]
+        if LoadList == [] or (columnname in LoadList):
+            data[columnname] = []
 
     for line in content:
-        splitline=line.split()
-        if splitline!=[]:
+        splitline = line.split()
+        if splitline:
             for i,column in enumerate(splitline):
-                if LoadList==[] or (splitheaderline[i] in LoadList):
+                if LoadList == [] or (splitheaderline[i] in LoadList):
                     data[splitheaderline[i]].append(float(splitline[i]))
 
     return data
 
-#Loads single row data into a dictionary ["rowname",[data]]
-#it appends the data found in the file to the provided list 'data'
-#it will skip rows with names which are either in the exception list
-#or appends data with name extension "_2nd" that are already present in the data list
 
 def fnLoadSingleRows(sFileName, data={}, exceptions=[]):
+    """
+    Loads single row data into a dictionary ["rowname",[data]]
+    it appends the data found in the file to the provided list 'data'
+    it will skip rows with names which are either in the exception list
+    or appends data with name extension "_2nd" that are already present in the data list
 
-    file  = open(sFileName,"r")
-    content=file.readlines()
+    """
+    file = open(sFileName, "r")
+    content = file.readlines()
     file.close()
 
     for line in content:
-        splitline=line.split()
+        splitline = line.split()
         if splitline[0] not in exceptions:
-            data[splitline[0]]=[]
+            data[splitline[0]] = []
             for entry in range(1, len(splitline)):
                 data[splitline[0]].append(splitline[entry])
 

@@ -11,6 +11,7 @@ import pandas
 import shutil
 import glob
 import os
+import general
 
 
 class CDataInteractor:
@@ -498,20 +499,20 @@ class CRefl1DInteractor(CBumpsInteractor):
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
         """
-        scans self.runfile file for parameter with name sname and replaces the
-        lower and upper fit limits by the given values
-        currently expects the parameter to be defined using the Parameter() method and not just .range()
-        on any object variable
+        Scans self.runfile file for parameter with name sname and replaces the
+        lower and upper fit limits by the given values.
+        Currently expects the parameter to be defined using the Parameter() method and not just .range()
+        on any object variable.
         """
 
         file = open(self.spath+'/'+self.runfile+'.py', 'r+')
         data = file.readlines()
         file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
-            newdata.append(smatch.sub(r'\1 ' + str(flowerlimit) + r'\2 '
-                                      + str(fupperlimit) + r'\3', line))
+            newdata.append(smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 '
+                                      + str(fupperlimit) + r'\4', line))
 
         file = open(self.spath+'/'+self.runfile+'.py', 'w')
         file.writelines(newdata)
@@ -522,6 +523,15 @@ class CRefl1DInteractor(CBumpsInteractor):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
+    def fnRunMCMC(self, burn, steps, batch=False):
+        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+            lCommand.append('--batch')
+        lCommand.append('--store=' + self.spath+'/save')
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        call(lCommand)
+
     def fnSimulateData(self, diNewPars):
         liParameters = list(self.diParameters.keys())
         # sort by number of appereance in runfile
@@ -531,6 +541,9 @@ class CRefl1DInteractor(CBumpsInteractor):
             if element not in list(diNewPars.keys()):
                 bConsistency = False
                 print('Parameter '+element+' not specified.')
+            else:
+                print(element + ' ' + str(diNewPars[element]))
+
         if bConsistency:
             p = [diNewPars[parameter] for parameter in liParameters]
             self.problem.setp(p)
@@ -542,33 +555,35 @@ class CRefl1DInteractor(CBumpsInteractor):
                 for M in self.problem.models:
                     M.chisq()
                     qvec, refl = M.fitness.reflectivity()
-                    simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', header=None,
-                                              names=['Q', 'dQ', 'R', 'dR', 'fit'],
+                    comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
+                    simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
+                                              names=['Q', 'R', 'dR', 'dQ'],
                                               skip_blank_lines=True, comment='#')
                     simdata['R'] = refl
                     simdata['Q'] = qvec
-                    simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+                    simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
+                    general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
                     i += 1
+
             else:
                 self.problem.chisq()
                 qvec, refl = self.problem.fitness.reflectivity()
-                simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', header=None,
-                                          names=['Q', 'dQ', 'R', 'dR', 'fit'],
+                comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
+                simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
+                                          names=['Q', 'R', 'dR', 'dQ'],
                                           skip_blank_lines=True, comment='#')
                 simdata['R'] = refl
                 simdata['Q'] = qvec
-                simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+                simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
+                general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
                 i += 1
 
-    @staticmethod
-    def fnSimulateErrorBars(simpar, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
+    def fnSimulateErrorBars(self, simpar, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
                             tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
                             cbmatmax=1.25e-6, mode='water', pre=1):
         i = 0
         last_defined_rho_solv = 0
-        while path.isfile('sim' + str(i) + '.dat'):
-            simdata = pandas.read_csv('sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True, comment='#')
-
+        while path.isfile(self.spath+'/sim' + str(i) + '.dat'):
             # add error bars
             c1 = s1max / qmax
             c2 = s2max / qmax
@@ -592,19 +607,28 @@ class CRefl1DInteractor(CBumpsInteractor):
 
                 cbmat = (rhosolv - rhomin) / (rhomax - rhomin) * (cbmatmax - cbmatmin) + cbmatmin
 
+            comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
+            simdata = pandas.read_csv(self.spath+'/sim' + str(i) + '.dat', sep='\s+', skip_blank_lines=True,
+                                      comment='#', header=None)
+
+            if len(simdata.columns) == 3:
+                simdata.columns = ['Q', 'R', 'dR']
+            elif len(simdata.columns) == 4:
+                simdata.columns = ['Q', 'R', 'dR', 'dQ']
             simdata['dR'] = 0.0
 
             for index in simdata.index:
-                ns = I * simdata.iloc[index, 1] * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (
-                            c3 + c4 * (simdata.iloc[index, 0]) ** 2)
-                nb = I * cbmat * c1 * c2 * (simdata.iloc[index, 0]) ** 2 * (c3 + c4 * (simdata.iloc[index, 0]) ** 2)
+                ns = I * simdata['R'][index] * c1 * c2 * (simdata['Q'][index]) ** 2 * (
+                            c3 + c4 * (simdata['Q'][index]) ** 2)
+                nb = I * cbmat * c1 * c2 * (simdata['Q'][index]) ** 2 * (c3 + c4 * (simdata['Q'][index]) ** 2)
                 dRoR = sqrt(ns + 2 * nb) / ns
                 dR = simdata.iloc[index, 1] * dRoR  # see manuscript for details on calculation
-                simdata.iat[index, 2] = dR
+                simdata['dR'][index] = dR
                 # modify reflectivity within error bars
-                simdata.iat[index, 1] = simdata.iloc[index, 1] + normalvariate(0, 1) * dR
+                simdata['R'][index] = simdata['R'][index] + normalvariate(0, 1) * dR
 
-            simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None)
+            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None, header=None)
+            general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
             i += 1
 
 
@@ -939,7 +963,9 @@ class CGaReflInteractor(CRefl1DInteractor):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
-    def fnRunMCMC(self, burn, steps, batch=False):
+    def fnRunMCMC(self, burn, steps, batch=False, compile_setup=True):
+        if compile_setup:
+            self.fnMake()
         lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             lCommand.append('--batch')
@@ -957,7 +983,22 @@ class CGaReflInteractor(CRefl1DInteractor):
         # change dir of parname:parvalue into list of expressions to be inserted into setup.cc
         liExpression = []
         for parameter in diAddition:
-            liExpression.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], diAddition[parameter])))
+            parvalue = diAddition[parameter]
+            strchange = ''
+            parvaluefinal = parvalue
+            if ('rho' in parameter) and fabs(parvalue) > 1E-4:
+                parvaluefinal = parvalue * 1E-6
+                strchange = ' => changed to ' + str(parvaluefinal)
+            elif ('background' in parameter) and parvalue > 1E-4:
+                # The issue with the background is two different uses
+                # some setup.cc use negative numbers as parameter values and then
+                # compute background=10^value, others use positive values and then
+                # compute background=value *1E-6. This should catch it all
+                parvaluefinal = parvalue * 1E-6
+                strchange = ' => changed to ' + str(parvaluefinal)
+
+            print(str(parameter) + ' ' + str(parvalue) + strchange)
+            liExpression.append(('%s = %s;\n' % (self.diParameters[parameter]['variable'], parvaluefinal)))
 
         shutil.copy(self.spath + '/setup.cc', self.spath + '/setup_bak.cc')
         self.fnWriteConstraint2Runfile(liExpression)                        # change runfile to quasi-fix all parameters
@@ -972,7 +1013,7 @@ class CGaReflInteractor(CRefl1DInteractor):
 
         i = 0
         while path.isfile(self.spath+'/fit' + str(i) + '.dat'):
-            simdata = pandas.read_csv(self.spath+'/fit' + str(i) + '.dat', sep=' ', header=None,
+            simdata = pandas.read_csv(self.spath+'/fit' + str(i) + '.dat', sep='\s+', header=None,
                                       names=['Q', 'dQ', 'R', 'dR', 'fit'],
                                       skip_blank_lines=True, comment='#')
             del simdata['dQ']

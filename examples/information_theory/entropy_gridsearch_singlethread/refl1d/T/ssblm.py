@@ -1,6 +1,7 @@
 ## === Import section ===
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
+sys.path.append("../../../../../src/molgroups")
 sys.path.append("../../../../src/molgroups")
 import numpy as np
 import molgroups as mol
@@ -71,6 +72,27 @@ layer_tiox = Slab(material=tiox, thickness=l_tiox - (blm.substrate.z + 0.5 * blm
 layer_siox = Slab(material=siox, thickness=7.5804, interface=10.000)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=0.0000)
 
+## Set sample parameter ranges and constraints between layer properties
+# layer roughness parameters
+###################################################################
+## the 'interface' associated with layer0 is the boundary between #
+## layer0 and layer1, and similarly for layer(N) and layer(N+1)   #
+###################################################################
+layer_siox.interface = siox_interface = Parameter(name='siox_interface', value=5.0).range(2.0000, 9.000)
+
+# Si and SiOx roughnesses are the same
+layer_silicon.interface = layer_siox.interface
+
+# nSLD parameters
+d2o.rho = rho_d2o = Parameter(name='rho_solv_0', value=6.34).range(5.3000, 6.5000)
+h2o.rho = rho_h2o = Parameter(name='rho_solv_1', value=-0.56).range(-0.6, 0.6)
+tiox.rho = rho_tiox = Parameter(name='rho_tiox', value=2).range(1.1630, 3.1630)
+siox.rho = rho_siox = Parameter(name='rho_siox', value=3.5).range(3.1000, 5.1000)
+
+# layer thickness parameters
+layer_tiox.thickness = tiox_thickness = Parameter(name='tiox_thickness', value=100.).range(66.379, 266.38)
+layer_siox.thickness = siox_thickness = Parameter(name='siox_thickness', value=30.).range(5, 40)
+
 ## Use the bilayer definition function to generate the bilayer SLD profile, passing in the relevant parameters.
 ## Note that substrate and bulk SLDs are linked to their respective materials.
 mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
@@ -89,31 +111,9 @@ mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigm
 sample = layer_silicon | layer_siox | layer_tiox | mollayer | layer_d2o
 sampleh = layer_silicon | layer_siox | layer_tiox | mollayerh | layer_h2o
 
-## Set sample parameter ranges and constraints between layer properties
-
-# nSLD parameters
-d2o.rho = rho_d2o = Parameter(name='rho_solv_0', value=6.34).range(5.3000, 6.5000)
-h2o.rho = rho_h2o = Parameter(name='rho_solv_1', value=-0.56).range(-0.6, 0.6)
-tiox.rho = rho_tiox = Parameter(name='rho_tiox', value=2).range(1.1630, 3.1630)
-siox.rho = rho_siox = Parameter(name='rho_siox', value=3.5).range(3.1000, 5.1000)
-
-# layer thickness parameters
-layer_tiox.thickness = tiox_thickness = Parameter(name='tiox_thickness', value=100.).range(66.379, 266.38)
-layer_siox.thickness = siox_thickness = Parameter(name='siox_thickness', value=30.).range(5, 40)
-
-# layer roughness parameters
-###################################################################
-## the 'interface' associated with layer0 is the boundary between #
-## layer0 and layer1, and similarly for layer(N) and layer(N+1)   #
-###################################################################
-layer_siox.interface = siox_interface = Parameter(name='siox_interface', value=5.0).range(2.0000, 9.000)
-
-# Si and SiOx roughnesses are the same
-layer_silicon.interface = layer_siox.interface
-
 ## === Data files ===
-probe = load4('sim1.dat', back_reflectivity=True)
-probeh = load4('sim0.dat', back_reflectivity=True)
+probe = load4('sim0.dat', back_reflectivity=True)
+probeh = load4('sim1.dat', back_reflectivity=True)
 
 # Set instrumental (probe) parameters
 probe.background = background_0 = Parameter(name='background_0', value=0.).range(-1e-7, 1e-5)
@@ -126,7 +126,7 @@ probe.sample_broadening = sample_broadening = Parameter(name='sample_broadening'
 probeh.sample_broadening = probe.sample_broadening
 
 # Define critical edge oversampling for samples that require it
-probe.critical_edge(substrate=silicon, surface=d2o)
+# probe.critical_edge(substrate=silicon, surface=d2o)
 
 ## === Problem definition ===
 ## a model object consists of a sample and a probe.

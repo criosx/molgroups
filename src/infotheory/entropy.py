@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas
 import itertools
-import zipfile
 from numpy import mean, std, exp, log, sqrt, log2, pi, e, ndarray
 from numpy.random import permutation
 from sklearn.mixture import BayesianGaussianMixture as GMM
@@ -16,7 +15,7 @@ from os import path, mkdir
 from math import fabs, pow, floor, ceil
 from subprocess import call, Popen
 from time import sleep
-from shutil import make_archive
+import shutil
 from sys import argv
 LN2 = log(2)
 
@@ -235,7 +234,7 @@ class Entropy:
 
         # all parameters from entropypar.dat
         header_names = ['type', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim', 'step_sim']
-        self.allpar = pandas.read_csv('entropypar.dat', sep=' ', header=None, names=header_names,
+        self.allpar = pandas.read_csv('entropypar.dat', sep='\s+', header=None, names=header_names,
                                       skip_blank_lines=True, comment='#')
 
         # identify dependent (a), independent (b), and non-parameters in simpar.dat for the calculation of p(a|b,y)
@@ -399,7 +398,6 @@ class Entropy:
             self.waitforjob()
 
         # run MCMC either cluster or local
-        molstat_instance.Interactor.fnMake()
         if self.bClusterMode:
             # write runscript
             mcmc_iteration = str(iteration)
@@ -429,7 +427,7 @@ class Entropy:
 
         if self.plotlimits_filename != '':
             plotlimits = True
-            plotlim = pandas.read_csv(self.plotlimits_filename, sep=" ", header=None)
+            plotlim = pandas.read_csv(self.plotlimits_filename, sep="\s+", header=None)
             plotlim.columns = ['name', 'value']
 
             if not plotlim.loc[plotlim['name'] == 'info'].empty:
@@ -644,8 +642,8 @@ class Entropy:
                         # wait 2 minutes to allow all output files to be written
                         sleep(180)
                         # zip up finished job
-                        make_archive('iteration_' + str(job), 'zip', 'iteration_' + str(job))
-                        call(['rm', '-r', 'iteration_' + str(job)])
+                        # shutil.make_archive('iteration_' + str(job), 'zip', 'iteration_' + str(job))
+                        # call(['rm', '-r', 'iteration_' + str(job)])
                         self.joblist.remove(job)
                         repeat = False
                         break
@@ -796,7 +794,8 @@ class Entropy:
                 pre, qrange = set_sim_pars_for_index(it)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
                 self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
-                call(['rm', '-r', fulldirname + '/save'])
+                if path.isdir(fulldirname+'/save'):
+                    shutil.rmtree(fulldirname + '/save')
                 self.molstat.Interactor.fnRemoveBackup(target=self.spath + '/' 'simbackup')
                 self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
 

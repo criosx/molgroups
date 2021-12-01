@@ -10,6 +10,7 @@ from shutil import rmtree
 from sys import argv, exit, stdout
 from subprocess import call, Popen
 from time import time, gmtime, sleep, ctime
+import general
 import numpy
 import pandas
 import rsdi
@@ -235,8 +236,8 @@ class CMolStat:
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
-            pdf_frac1 = pandas.read_csv(self.mcmcpath + '/envelopefrac1.dat', sep=' ')
-            pdf_frac2 = pandas.read_csv(self.mcmcpath + '/envelopefrac2.dat', sep=' ')
+            pdf_frac1 = pandas.read_csv(self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
+            pdf_frac2 = pandas.read_csv(self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
 
             for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
                 striter = 'iter' + str(mcmc_iter)
@@ -1900,27 +1901,12 @@ class CMolStat:
 
             # simpar contains the parameter values to be simulated
             # this could be done fileless
-            simpar = pandas.read_csv(self.spath+'/simpar.dat', sep=' ', header=None, names=['par', 'value'],
+            simpar = pandas.read_csv(self.spath+'/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
 
             diAddition = {}
             for parameter in liParameters:
-                parvalue = simpar[simpar.par == parameter].iloc[0][1]
-                strchange = ''
-                parvaluefinal = parvalue
-                if ('rho' in parameter) and fabs(parvalue) > 1E-4:
-                    parvaluefinal = parvalue * 1E-6
-                    strchange = ' => changed to ' + str(parvaluefinal)
-                elif ('background' in parameter) and parvalue > 1E-4:
-                    # The issue with the background is two different uses
-                    # some setup.cc use negative numbers as parameter values and then
-                    # compute background=10^value, others use positive values and then
-                    # compute background=value *1E-6. This should catch it all
-                    parvaluefinal = parvalue * 1E-6
-                    strchange = ' => changed to ' + str(parvaluefinal)
-
-                diAddition[parameter] = parvaluefinal
-                print(str(parameter) + ' ' + str(parvalue) + strchange)
+                diAddition[parameter] = simpar[simpar.par == parameter].iloc[0][1]
 
             # if q-range is changing, back up original sim dat or reload previously backed up data
             # to always work with the same set of original data
@@ -1929,8 +1915,9 @@ class CMolStat:
 
             # extend simulated data to q-range as defined
             i = 0
-            while path.isfile(self.spath + 'sim' + str(i) + '.dat') and qrange != 0:
-                simdata = pandas.read_csv(self.spath + 'sim' + str(i) + '.dat', sep=' ', skip_blank_lines=True,
+            while path.isfile(self.spath + '/sim' + str(i) + '.dat') and qrange != 0:
+                comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
+                simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', skip_blank_lines=True,
                                           comment='#')
                 # first cut data at qrange
                 simdata = simdata[(simdata.Q <= qrange)]
@@ -1939,7 +1926,8 @@ class CMolStat:
                     newframe = pandas.DataFrame(simdata[-1:], columns=simdata.columns)
                     newframe['Q'].iloc[-1] = 2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2]
                     simdata = simdata.append(newframe)
-                simdata.to_csv(self.spath + 'sim' + str(i) + '.dat', sep=' ', index=None)
+                simdata.to_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', index=None)
+                general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
                 i += 1
 
             # simulate data, works on sim.dat files

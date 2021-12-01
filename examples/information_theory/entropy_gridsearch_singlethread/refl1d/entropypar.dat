@@ -1,7 +1,7 @@
 i background_0 1.03489e-06 -1e-07 1e-05
-i intensity 0.921995 0.9 1.05
-i sample_broadening 0.0162513 -0.005 0.02
-i theta_offset 0.00465333 -0.015 0.005
+i intensity 1.0 0.9 1.05
+i sample_broadening 0 -0.005 0.02
+i theta_offset 0.0 -0.015 0.005
 i siox_interface 6.85069 2 9
 i rho_siox 3.39556 3.1 5.1
 i siox_thickness 14.9832 5 40
