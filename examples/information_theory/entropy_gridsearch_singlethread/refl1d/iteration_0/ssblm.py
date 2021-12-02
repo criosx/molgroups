@@ -148,3 +148,5 @@ problem.name = "DOPC bilayer on TiOx substrate"
 problem.bilayers = [blm]
 problem.dimension = dimension
 problem.stepsize = stepsize
+
+

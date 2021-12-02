@@ -562,8 +562,8 @@ class Entropy:
                              filename=self.spath+'/plots/KDN_n_marginal_' + str(slice), zmin=0)
 
     def save_results(self, dirname):
-        if not path.isdir('results'):
-            mkdir('results')
+        if not path.isdir(dirname+'/results'):
+            mkdir(dirname+'/results')
         np.save(dirname+'/results/KDN_entropy', self.results_kdn, allow_pickle=False)
         np.save(dirname+'/results/MVN_entropy', self.results_mvn, allow_pickle=False)
         np.save(dirname+'/results/KDN_entropy_marginal', self.results_kdn_marginal, allow_pickle=False)
@@ -587,49 +587,53 @@ class Entropy:
 
         # save to txt when not more than two-dimensional array
         if len(self.steplist) <= 2:
-            np.savetxt('results/MVN_entropy.txt', self.results_mvn)
-            np.savetxt('results/KDN_entropy.txt', self.results_kdn)
-            np.savetxt('results/MVN_entropy_marginal.txt', self.results_mvn_marginal)
-            np.savetxt('results/KDN_entropy_marginal.txt', self.results_kdn_marginal)
-            np.savetxt('results/MVN_infocontent.txt', self.priorentropy - self.results_mvn)
-            np.savetxt('results/KDN_infocontent.txt', self.priorentropy - self.results_kdn)
-            np.savetxt('results/MVN_infocontent_marginal.txt', self.priorentropy_marginal - self.results_mvn_marginal)
-            np.savetxt('results/KDN_infocontent_marginal.txt', self.priorentropy_marginal - self.results_kdn_marginal)
-            np.savetxt('results/MVN_sqstd.txt', self.sqstd_mvn)
-            np.savetxt('results/KDN_sqstd.txt', self.sqstd_kdn)
-            np.savetxt('results/MVN_sqstd_marginal.txt', self.sqstd_mvn_marginal)
-            np.savetxt('results/KDN_sqstd_marginal.txt', self.sqstd_kdn_marginal)
-            np.savetxt('results/MVN_n.txt', self.n_mvn)
-            np.savetxt('results/KDN_n.txt', self.n_kdn)
-            np.savetxt('results/MVN_n_marginal.txt', self.n_mvn_marginal)
-            np.savetxt('results/KDN_n_marginal.txt', self.n_kdn_marginal)
+            np.savetxt(dirname+'/results/MVN_entropy.txt', self.results_mvn)
+            np.savetxt(dirname+'/results/KDN_entropy.txt', self.results_kdn)
+            np.savetxt(dirname+'/results/MVN_entropy_marginal.txt', self.results_mvn_marginal)
+            np.savetxt(dirname+'/results/KDN_entropy_marginal.txt', self.results_kdn_marginal)
+            np.savetxt(dirname+'/results/MVN_infocontent.txt', self.priorentropy - self.results_mvn)
+            np.savetxt(dirname+'/results/KDN_infocontent.txt', self.priorentropy - self.results_kdn)
+            np.savetxt(dirname+'/results/MVN_infocontent_marginal.txt', self.priorentropy_marginal -
+                       self.results_mvn_marginal)
+            np.savetxt(dirname+'/results/KDN_infocontent_marginal.txt', self.priorentropy_marginal -
+                       self.results_kdn_marginal)
+            np.savetxt(dirname+'/results/MVN_sqstd.txt', self.sqstd_mvn)
+            np.savetxt(dirname+'/results/KDN_sqstd.txt', self.sqstd_kdn)
+            np.savetxt(dirname+'/results/MVN_sqstd_marginal.txt', self.sqstd_mvn_marginal)
+            np.savetxt(dirname+'/results/KDN_sqstd_marginal.txt', self.sqstd_kdn_marginal)
+            np.savetxt(dirname+'/results/MVN_n.txt', self.n_mvn)
+            np.savetxt(dirname+'/results/KDN_n.txt', self.n_kdn)
+            np.savetxt(dirname+'/results/MVN_n_marginal.txt', self.n_mvn_marginal)
+            np.savetxt(dirname+'/results/KDN_n_marginal.txt', self.n_kdn_marginal)
             i = 0
             for parname in self.parlist:
-                np.savetxt('results/Par_' + parname + '_median.txt', self.par_median[i])
-                np.savetxt('results/Par_' + parname + '_std.txt', self.par_std[i])
+                np.savetxt(dirname+'/results/Par_' + parname + '_median.txt', self.par_median[i])
+                np.savetxt(dirname+'/results/Par_' + parname + '_std.txt', self.par_std[i])
                 i += 1
 
         # save three-dimensional array in slices of the first parameter
         if len(self.steplist) == 3:
             for slice in range(self.results_kdn.shape[0]):
-                np.savetxt('results/MVN_entropy_' + str(slice) + '.txt', self.results_mvn[slice])
-                np.savetxt('results/KDN_entropy_' + str(slice) + '.txt', self.results_kdn[slice])
-                np.savetxt('results/MVN_entropy_marginal_' + str(slice) + '.txt', self.results_mvn_marginal[slice])
-                np.savetxt('results/KDN_entropy_marginal_' + str(slice) + '.txt', self.results_kdn_marginal[slice])
-                np.savetxt('results/MVN_infocontent_' + str(slice) + '.txt', self.priorentropy - self.results_mvn[slice])
-                np.savetxt('results/KDN_infocontent_' + str(slice) + '.txt', self.priorentropy - self.results_kdn[slice])
-                np.savetxt('results/MVN_infocontent_marginal_' + str(slice) + '.txt', self.priorentropy_marginal
-                              - self.results_mvn_marginal[slice])
-                np.savetxt('results/KDN_infocontent_marginal_' + str(slice) + '.txt', self.priorentropy_marginal
-                              - self.results_kdn_marginal[slice])
-                np.savetxt('results/MVN_sqstd_' + str(slice) + '.txt', self.sqstd_mvn[slice])
-                np.savetxt('results/KDN_sqstd_' + str(slice) + '.txt', self.sqstd_kdn[slice])
-                np.savetxt('results/MVN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_mvn_marginal[slice])
-                np.savetxt('results/KDN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_kdn_marginal[slice])
-                np.savetxt('results/MVN_n_' + str(slice) + '.txt', self.n_mvn[slice])
-                np.savetxt('results/KDN_n_' + str(slice) + '.txt', self.n_kdn[slice])
-                np.savetxt('results/MVN_n_marginal_' + str(slice) + '.txt', self.n_mvn_marginal[slice])
-                np.savetxt('results/KDN_n_marginal_' + str(slice) + '.txt', self.n_kdn_marginal[slice])
+                np.savetxt(dirname+'/results/MVN_entropy_' + str(slice) + '.txt', self.results_mvn[slice])
+                np.savetxt(dirname+'/results/KDN_entropy_' + str(slice) + '.txt', self.results_kdn[slice])
+                np.savetxt(dirname+'/results/MVN_entropy_marginal_' + str(slice) + '.txt', self.results_mvn_marginal[slice])
+                np.savetxt(dirname+'/results/KDN_entropy_marginal_' + str(slice) + '.txt', self.results_kdn_marginal[slice])
+                np.savetxt(dirname+'/results/MVN_infocontent_' + str(slice) + '.txt', self.priorentropy -
+                           self.results_mvn[slice])
+                np.savetxt(dirname+'/results/KDN_infocontent_' + str(slice) + '.txt', self.priorentropy -
+                           self.results_kdn[slice])
+                np.savetxt(dirname+'/results/MVN_infocontent_marginal_' + str(slice) + '.txt',
+                           self.priorentropy_marginal - self.results_mvn_marginal[slice])
+                np.savetxt(dirname+'/results/KDN_infocontent_marginal_' + str(slice) + '.txt',
+                           self.priorentropy_marginal - self.results_kdn_marginal[slice])
+                np.savetxt(dirname+'/results/MVN_sqstd_' + str(slice) + '.txt', self.sqstd_mvn[slice])
+                np.savetxt(dirname+'/results/KDN_sqstd_' + str(slice) + '.txt', self.sqstd_kdn[slice])
+                np.savetxt(dirname+'/results/MVN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_mvn_marginal[slice])
+                np.savetxt(dirname+'/results/KDN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_kdn_marginal[slice])
+                np.savetxt(dirname+'/results/MVN_n_' + str(slice) + '.txt', self.n_mvn[slice])
+                np.savetxt(dirname+'/results/KDN_n_' + str(slice) + '.txt', self.n_kdn[slice])
+                np.savetxt(dirname+'/results/MVN_n_marginal_' + str(slice) + '.txt', self.n_mvn_marginal[slice])
+                np.savetxt(dirname+'/results/KDN_n_marginal_' + str(slice) + '.txt', self.n_kdn_marginal[slice])
 
     def waitforjob(self, bFinish=False):
         # finish flag means that parent is waiting for all jobs to finish and not because of a too long
@@ -638,7 +642,7 @@ class Entropy:
             repeat = True
             while repeat:
                 for job in self.joblist:
-                    if path.isfile('iteration_' + str(job) + '/save/run-chain.mc'):
+                    if path.isfile(self.spath+'/iteration_' + str(job) + '/save/'+self.runfile+'-chain.mc'):
                         # wait 2 minutes to allow all output files to be written
                         sleep(180)
                         # zip up finished job
@@ -781,7 +785,7 @@ class Entropy:
         def work_on_index(iteration, it, itindex):
             dirname = 'iteration_' + str(iteration)
             fulldirname = self.spath + '/' + dirname
-            chainname = fulldirname + '/save/run-chain.mc'
+            chainname = fulldirname + '/save/'+self.runfile+'-chain.mc'
 
             # fetch mode and cluster mode are exclusive
             if not self.bFetchMode:
@@ -794,6 +798,7 @@ class Entropy:
                 pre, qrange = set_sim_pars_for_index(it)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
                 self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                # previous save needs to be removed as output serves as flag for HPC job termination
                 if path.isdir(fulldirname+'/save'):
                     shutil.rmtree(fulldirname + '/save')
                 self.molstat.Interactor.fnRemoveBackup(target=self.spath + '/' 'simbackup')
@@ -808,12 +813,12 @@ class Entropy:
 
             # delete big files except in Cluster mode. They are needed there for future fetching
             if self.deldir and not self.bClusterMode:
-                call(['rm', fulldirname + '/save/run-point.mc'])
-                call(['rm', fulldirname + '/save/run-chain.mc'])
-                call(['rm', fulldirname + '/save/run-stats.mc'])
-                call(['rm', fulldirname + '/save/run-point.mc.gz'])
-                call(['rm', fulldirname + '/save/run-chain.mc.gz'])
-                call(['rm', fulldirname + '/save/run-stats.mc.gz'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-point.mc'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-chain.mc'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-stats.mc'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-point.mc.gz'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-chain.mc.gz'])
+                call(['rm', fulldirname + '/save/'+self.runfile+'-stats.mc.gz'])
 
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False
