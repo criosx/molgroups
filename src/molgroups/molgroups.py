@@ -514,13 +514,24 @@ class PCm(PC):
         return rdict
 
 class BLM(CompositenSLDObj):
-    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids, outer_lipid_nf, xray_wavelength=None, **kwargs):
+    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids=None, outer_lipid_nf=None, lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
         """ Free bilayer object. Requires:
             o inner_lipids, outer_lipids: a list of components.Lipid objects
             o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
                         equal length to 'lipids'
+
+            If outer_lipids is not specified, use inner_lipids for the whole bilayer.
             
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
+        
+        # provides backward compatibility
+        if lipids is not None:
+            inner_lipids = lipids
+            inner_lipid_nf = lipid_nf
+        # check for a complete set of inputs
+        if outer_lipids is None:
+            outer_lipids = inner_lipids
+            outer_lipid_nf = inner_lipid_nf
 
         def _unpack_lipids(lipids, hgprefix):
             """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
@@ -842,7 +853,7 @@ class ssBLM(BLM):
     """
     Solid supported lipid bilayer
     """
-    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids, outer_lipid_nf, xray_wavelength=None, **kwargs):
+    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids=None, outer_lipid_nf=None, xray_wavelength=None, **kwargs):
         """ Solid supported bilayer object. Requires:
             o inner_lipids, outer_lipids: a list of components.Lipid objects
             o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
@@ -868,7 +879,7 @@ class ssBLM(BLM):
         self.l_submembrane = 10.
         self.global_rough = 2.0
 
-        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids, outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
+        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
         
@@ -933,7 +944,7 @@ class tBLM(BLM):
     """
     Tethered lipid bilayer
     """
-    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids, outer_lipid_nf, tether, filler, xray_wavelength=None, **kwargs):
+    def __init__(self, inner_lipids, inner_lipid_nf, tether, filler, outer_lipids=None, outer_lipid_nf=None, xray_wavelength=None, **kwargs):
         """
         Tethered lipid bilayer. Requires:
 
@@ -983,7 +994,7 @@ class tBLM(BLM):
 
         self.initial_bME_l = self.bME.l
 
-        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids, outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
+        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
         
