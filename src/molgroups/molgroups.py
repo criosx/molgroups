@@ -520,7 +520,7 @@ class BLM(CompositenSLDObj):
             o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
                         equal length to 'lipids'
 
-            If outer_lipids is not specified, use inner_lipids for the whole bilayer.
+            If outer_lipids is not specified, inner_lipids is used for both leaflets.
             
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
         
@@ -858,6 +858,8 @@ class ssBLM(BLM):
             o inner_lipids, outer_lipids: a list of components.Lipid objects
             o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
                         equal length to 'lipids'
+
+            If outer_lipids is not specified, inner_lipids is used for both leaflets.
             
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
         """
@@ -948,11 +950,13 @@ class tBLM(BLM):
         """
         Tethered lipid bilayer. Requires:
 
-        o tether: a components.Tether object
-        o inner_lipids, outer_lipids: a list of components.Lipid objects
+        o inner_lipids, outer_lipids: a list of components.Lipid objects. See BLM documentation.
         o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
                         equal length to 'lipids'
+        o tether: a components.Tether object
         o filler: a components.Component object describing the filler molecule, including its length
+
+        If outer_lipids is not specified, inner_lipids is used for both leaflets.
 
         To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
         """
