@@ -514,26 +514,28 @@ class PCm(PC):
         return rdict
 
 class BLM(CompositenSLDObj):
-    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids=None, outer_lipid_nf=None, lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
+    def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
         """ Free bilayer object. Requires:
-            o inner_lipids, outer_lipids: a list of components.Lipid objects
-            o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
-                        equal length to 'lipids'
+            o lipids definition:
+                - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides inner_lipids and outer_lipids.
+                          If not set, both inner_lipids and outer_lipids are required.
+                - inner_lipids: list of components.Lipid objects. Ignored if lipids is set, required if outer_lipids is set.
+                - outer_lipids: list of components.Lipid objects. Ignored if lipids is set, required if inner_lipids is set.
+            o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
+                        equal length to 'lipids', 'inner_lipids', or 'outer_lipids', respectively.
 
-            If outer_lipids is not specified, inner_lipids is used for both leaflets.
-            
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
         
         # provides backward compatibility
         if lipids is not None:
             inner_lipids = lipids
             inner_lipid_nf = lipid_nf
-        # check for a complete set of inputs
-        if outer_lipids is None:
-            outer_lipids = inner_lipids
-            outer_lipid_nf = inner_lipid_nf
+            outer_lipids = lipids
+            outer_lipid_nf = lipid_nf
 
-        def _unpack_lipids(lipids, hgprefix):
+        assert ((inner_lipids is not None) & (outer_lipids is not None)), 'Both inner and outer leaflet lipids must be set.'
+
+        def _unpack_lipids(_lipids, hgprefix):
             """ Helper function for BLM classes that unpacks a lipid list into headgroup objects
                 and lists of acyl chain and methyl volumes and nSLs. Creates the following attributes:
                 o headgroups1: a list of inner leaflet headgroup objects
@@ -549,7 +551,7 @@ class BLM(CompositenSLDObj):
 
             # create objects for each lipid headgroup and a composite tail object
             # TODO: create separate lipid objects so methyl sigmas can be different for different species
-            n_lipids = len(lipids)
+            n_lipids = len(_lipids)
             null_hg = numpy.zeros(n_lipids)
             vol_acyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain volumes
             nsl_acyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain nsls
@@ -557,7 +559,7 @@ class BLM(CompositenSLDObj):
             nsl_methyl_lipids = numpy.zeros(n_lipids)  # list of acyl chain methyl nsls
             headgroups = []
 
-            for i, lipid in enumerate(lipids):
+            for i, lipid in enumerate(_lipids):
                 hg_name = hgprefix + '_%i' % (i + 1)
 
                 if isinstance(lipid.headgroup, cmp.Component):
@@ -803,7 +805,7 @@ class BLM(CompositenSLDObj):
         return max([hg.fnGetUpperLimit() for hg in self.headgroups2])
 
     def fnSet(self, sigma, bulknsld, startz, l_lipid1, l_lipid2, vf_bilayer,
-              nf_inner_lipids=None, nf_outer_lipids=None, hc_substitution_1=0.,
+              nf_inner_lipids=None, nf_outer_lipids=None, nf_lipids=None, hc_substitution_1=0.,
               hc_substitution_2=0., radius_defect=100.):
         self.sigma = sigma
         self.fnSetBulknSLD(bulknsld)
@@ -811,6 +813,8 @@ class BLM(CompositenSLDObj):
         self.l_lipid1 = l_lipid1
         self.l_lipid2 = l_lipid2
         self.vf_bilayer = vf_bilayer
+        if nf_lipids is not None:
+            nf_inner_lipids = nf_outer_lipids = nf_lipids
         if nf_inner_lipids is not None:   # pass None to keep lipid_nf unchanged
             assert len(nf_inner_lipids) == len(self.inner_lipids), \
                 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(nf_inner_lipids),
@@ -853,14 +857,16 @@ class ssBLM(BLM):
     """
     Solid supported lipid bilayer
     """
-    def __init__(self, inner_lipids, inner_lipid_nf, outer_lipids=None, outer_lipid_nf=None, xray_wavelength=None, **kwargs):
+    def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
         """ Solid supported bilayer object. Requires:
-            o inner_lipids, outer_lipids: a list of components.Lipid objects
-            o inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
-                        equal length to 'lipids'
+            o lipids definition:
+                - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides inner_lipids and outer_lipids.
+                          If not set, both inner_lipids and outer_lipids are required.
+                - inner_lipids: list of components.Lipid objects. Ignored if lipids is set, required if outer_lipids is set.
+                - outer_lipids: list of components.Lipid objects. Ignored if lipids is set, required if inner_lipids is set.
+            o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
+                        equal length to 'lipids', 'inner_lipids', or 'outer_lipids', respectively.
 
-            If outer_lipids is not specified, inner_lipids is used for both leaflets.
-            
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
         """
         # add ssBLM-specific subgroups
@@ -881,7 +887,7 @@ class ssBLM(BLM):
         self.l_submembrane = 10.
         self.global_rough = 2.0
 
-        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
+        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
         
@@ -910,7 +916,7 @@ class ssBLM(BLM):
         # does this make sense since this goes to negative z and isn't intended to be used?
 
     def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _rho_siox, _l_siox, _l_submembrane, _l_lipid1,
-              _l_lipid2, _vf_bilayer, _nf_inner_lipids=None, _nf_outer_lipids=None, _hc_substitution_1=0.,
+              _l_lipid2, _vf_bilayer, _nf_inner_lipids=None, _nf_outer_lipids=None, _nf_lipids=None, _hc_substitution_1=0.,
               _hc_substitution_2=0., _radius_defect=100.):
         self.sigma = _sigma
         self.fnSetBulknSLD(_bulknsld)
@@ -922,6 +928,8 @@ class ssBLM(BLM):
         self.l_lipid1 = _l_lipid1
         self.l_lipid2 = _l_lipid2
         self.vf_bilayer = _vf_bilayer
+        if _nf_lipids is not None:
+            _nf_inner_lipids = _nf_outer_lipids = _nf_lipids
         if _nf_inner_lipids is not None:   # pass None to keep lipid_nf unchanged
             assert len(_nf_inner_lipids) == len(self.inner_lipids), \
                 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_inner_lipids),
@@ -946,7 +954,7 @@ class tBLM(BLM):
     """
     Tethered lipid bilayer
     """
-    def __init__(self, inner_lipids, inner_lipid_nf, tether, filler, outer_lipids=None, outer_lipid_nf=None, xray_wavelength=None, **kwargs):
+    def __init__(self, tether, filler, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
         """
         Tethered lipid bilayer. Requires:
 
@@ -998,7 +1006,7 @@ class tBLM(BLM):
 
         self.initial_bME_l = self.bME.l
 
-        super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
+        super().__init__(inner_lipids=inner_lipids, inner_lipid_nf=inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf, lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
 
     def fnAdjustParameters(self):
         
@@ -1361,7 +1369,7 @@ class tBLM(BLM):
         # does this make sense since this goes to negative z and isn't intended to be used?
 
     def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_tether, _l_lipid1,
-              _l_lipid2, _vf_bilayer, _nf_inner_lipids=None, _nf_outer_lipids=None, _hc_substitution_1=0.,
+              _l_lipid2, _vf_bilayer, _nf_inner_lipids=None, _nf_outer_lipids=None, _nf_lipids=None, _hc_substitution_1=0.,
               _hc_substitution_2=0., _radius_defect=100.):
         self.sigma = _sigma
         self.fnSetBulknSLD(_bulknsld)
@@ -1373,6 +1381,8 @@ class tBLM(BLM):
         self.l_lipid1 = _l_lipid1
         self.l_lipid2 = _l_lipid2
         self.vf_bilayer = _vf_bilayer
+        if _nf_lipids is not None:
+            _nf_inner_lipids = _nf_outer_lipids = _nf_lipids
         if _nf_inner_lipids is not None:   # pass None to keep lipid_nf unchanged
             assert len(_nf_inner_lipids) == len(self.inner_lipids), \
                 'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_inner_lipids),
