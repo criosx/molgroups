@@ -575,7 +575,6 @@ class CMolStat:
         File.close()
 
     def fnCalcConfidenceLimits(self, data, method=1):
-
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
         # the shortest confidence interval
 
@@ -609,8 +608,6 @@ class CMolStat:
                 idx = numpy.argmin(width)
                 return x[idx], x[idx + size]
 
-        # ------main function starting here------
-
         # traditional method, taking percentiles of the entire distribution
         if method == 1:
             return [stats.scoreatpercentile(data, percentile) for percentile in [2.3, 15.9, 50, 84.1, 97.7]]
@@ -638,7 +635,7 @@ class CMolStat:
             maxindexsmooth = maxindexsmooth / (histo[a] + histo[maxindex] + histo[c])
             maxvaluesmooth = low_range + (maxindexsmooth + 0.5) * bin_size
 
-            a = maxindex;
+            a = maxindex
             c = maxindex
             confidence = histo[maxindex]
             while confidence < 0.6827:
@@ -661,9 +658,6 @@ class CMolStat:
 
             twosigmam = low_range + (a + 0.5) * bin_size
             twosigmap = low_range + (c + 0.5) * bin_size
-
-            # print data
-            # print histo, twosigmam, onesigmam, maxvaluesmooth, onesigmap, twosigmap, low_range, bin_size
 
             return [twosigmam, onesigmam, maxvaluesmooth, onesigmap, twosigmap]
 
@@ -893,10 +887,8 @@ class CMolStat:
     # -------------------------------------------------------------------------------
 
     def fnCreateBilayerPlotData(self):
-
         # integrate over 1D array
         def fnIntegrate(axis, array, start, stop):
-
             startaxis = float(axis[0])
             incaxis = float(axis[1] - axis[0])
             startindex = int((start - startaxis) / incaxis + 0.5)
@@ -905,33 +897,30 @@ class CMolStat:
             if startindex > stopindex:
                 startindex, stopindex = stopindex, startindex
 
-            sum = 0.5 * (array[startindex] + array[stopindex])
-
+            fsum = 0.5 * (array[startindex] + array[stopindex])
             for i in range(startindex + 1, stopindex):
-                sum += array[i]
+                fsum += array[i]
 
-            return sum
+            return fsum
 
         # find maximum values and indizees of half-height points assuming unique solution and steady functions
         def fnMaximumHalfPoint(data):
-
-            max = numpy.amax(data)
-
+            fmax = numpy.amax(data)
             point1 = False
             point2 = False
             hm1 = 0
             hm2 = 0
 
             for i in range(len(data)):
-                if data[i] > (max / 2) and not point1:
+                if data[i] > (fmax / 2) and not point1:
                     point1 = True
                     hm1 = i
-                if data[i] < (max / 2) and point1 and not point2:
+                if data[i] < (fmax / 2) and point1 and not point2:
                     point2 = True
                     hm2 = i - 1
                     break
 
-            return max, hm1, hm2
+            return fmax, hm1, hm2
 
         def fnStat(diarea, name, diStat):
             for i in range(len(diarea[list(diarea.keys())[0]])):
@@ -1768,7 +1757,35 @@ class CMolStat:
         Saves results to file
         """
         diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse, verbose=verbose)
-        diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
+        diStat = dict(zaxis=[], m2sigma_area=[], msigma_area=[], median_area=[], psigma_area=[], p2sigma_area=[],
+                      m2sigma_nsl=[], msigma_nsl=[], median_nsl=[], psigma_nsl=[], p2sigma_nsl=[],
+                      m2sigma_nsld=[], msigma_nsld=[], median_nsld=[], psigma_nsld=[], p2sigma_nsld=[])
+
+        for i in range(len(diarea[list(diarea.keys())[0]])):
+            liOnePosition = [iteration[i] for key, iteration in diarea.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['zaxis'].append(str(diarea['zaxis'][i]))
+            diStat['m2sigma_area'].append(stat[0])
+            diStat['msigma_area'].append(stat[1])
+            diStat['median_area'].append(stat[2])
+            diStat['psigma_area'].append(stat[3])
+            diStat['p2sigma_area'].append(stat[4])
+
+            liOnePosition = [iteration[i] for key, iteration in dinsl.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['m2sigma_nsl'].append(stat[0])
+            diStat['msigma_nsl'].append(stat[1])
+            diStat['median_nsl'].append(stat[2])
+            diStat['psigma_nsl'].append(stat[3])
+            diStat['p2sigma_nsl'].append(stat[4])
+
+            liOnePosition = [iteration[i] for key, iteration in dinsld.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['m2sigma_nsld'].append(stat[0])
+            diStat['msigma_nsld'].append(stat[1])
+            diStat['median_nsld'].append(stat[2])
+            diStat['psigma_nsld'].append(stat[3])
+            diStat['p2sigma_nsld'].append(stat[4])
 
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_area.dat', diarea)
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsl.dat', dinsl)
@@ -1822,47 +1839,6 @@ class CMolStat:
                         dinsld['iter%i' % i].append(0.0)
 
         return diarea, dinsl, dinsld
-
-    def fnPullMolgroupWorker(self, diarea, dinsl, dinsld):
-        """
-        Function recreates statistical data and extracts only area and nSL profiles for
-        submolecular groups whose names are given in liMolgroupNames. Those groups
-        are added for each iteration and a file pulledmolgroups.dat is created.
-        A statistical analysis area profile containing the median, sigma, and
-        2 sigma intervals are put out in pulledmolgroupsstat.dat.
-        """
-
-        # do a statistics over every z-position
-        diStat = dict(zaxis=[], m2sigma_area=[], msigma_area=[], median_area=[], psigma_area=[], p2sigma_area=[],
-                      m2sigma_nsl=[], msigma_nsl=[], median_nsl=[], psigma_nsl=[], p2sigma_nsl=[],
-                      m2sigma_nsld=[], msigma_nsld=[], median_nsld=[], psigma_nsld=[], p2sigma_nsld=[])
-        for i in range(len(diarea[list(diarea.keys())[0]])):
-            liOnePosition = [iteration[i] for key, iteration in diarea.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['zaxis'].append(str(diarea['zaxis'][i]))
-            diStat['m2sigma_area'].append(stat[0])
-            diStat['msigma_area'].append(stat[1])
-            diStat['median_area'].append(stat[2])
-            diStat['psigma_area'].append(stat[3])
-            diStat['p2sigma_area'].append(stat[4])
-
-            liOnePosition = [iteration[i] for key, iteration in dinsl.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['m2sigma_nsl'].append(stat[0])
-            diStat['msigma_nsl'].append(stat[1])
-            diStat['median_nsl'].append(stat[2])
-            diStat['psigma_nsl'].append(stat[3])
-            diStat['p2sigma_nsl'].append(stat[4])
-
-            liOnePosition = [iteration[i] for key, iteration in dinsld.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['m2sigma_nsld'].append(stat[0])
-            diStat['msigma_nsld'].append(stat[1])
-            diStat['median_nsld'].append(stat[2])
-            diStat['psigma_nsld'].append(stat[3])
-            diStat['p2sigma_nsld'].append(stat[4])
-
-        return diStat
 
     def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0, verbose=True):
 
