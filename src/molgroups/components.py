@@ -7,10 +7,10 @@ from periodictable.fasta import Molecule, xray_sld
 class Component(Molecule):
     # Subclasses Molecule to automatically store a component length for use later
     # and calculate total neutron scattering lengths
-    def __init__(self, length=9.575, **kwargs):
+    def __init__(self, length=9.575, xray_wavelength=None, **kwargs):
         super().__init__(**kwargs)
         self.length = length
-        self.nSLs = self.fnGetnSL()
+        self.nSLs = self.fnGetnSL(xray_wavelength)
 
     def fnGetnSL(self, xray_wavelength=None):
         if xray_wavelength is None:
