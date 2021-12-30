@@ -216,7 +216,6 @@ class CompositenSLDObj(nSLDObj):
             area += newarea
             nsl += newnsl
 
-        nsld = numpy.zeros_like(z)
         pos = (area > 0)
         nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
 
@@ -324,7 +323,7 @@ class Box2Err(nSLDObj):
             self.fnSetZ(position)
         if nSL is not None:
             nSL2 = None
-            if isinstance(nSL, list):
+            if isinstance(nSL, (list, tuple, numpy.ndarray)):
                 nSL1 = nSL[0]
                 if len(nSL) == 2:
                     nSL2 = nSL[1]
@@ -333,7 +332,7 @@ class Box2Err(nSLDObj):
             self.fnSetnSL(nSL1, nSL2)
         if sigma is not None:
             sigma2 = None
-            if isinstance(sigma, list):
+            if isinstance(sigma, (list, tuple, numpy.ndarray)):
                 sigma1 = sigma[0]
                 if len(sigma) == 2:
                     sigma2 = sigma[1]
@@ -379,9 +378,9 @@ class ComponentBox(Box2Err):
     of elements must be given each. If given as a list, an average length is calculated.
     """
     def __init__(self, components=None, diffcomponents=None, xray_wavelength=None, **kwargs):
-        if not isinstance(components, list):
+        if not isinstance(components, (list, tuple, numpy.ndarray)):
             components = [components]
-        if diffcomponents is not None and not isinstance(diffcomponents, list):
+        if diffcomponents is not None and not isinstance(diffcomponents, (list, tuple, numpy.ndarray)):
             diffcomponents = [diffcomponents]
 
         dvolume = sum(m.cell_volume for m in components)
@@ -731,14 +730,15 @@ class BLM(CompositenSLDObj):
         self.av_hg2_l = numpy.sum(numpy.array([hg.l for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) *
                                   self.outer_lipid_nf[~self.null_hg2]) / numpy.sum(self.outer_lipid_nf[~self.null_hg2])
 
-    def _unpack_component_pars(self, components):
+    @staticmethod
+    def _unpack_component_pars(components):
         n_components = len(components)
         vol_components = numpy.zeros(n_components)
         nsl_components = numpy.zeros(n_components)
 
         for i, component in enumerate(components):
             vol_components[i] = component.vol
-            nsl_components[i] = component.fnGetnSL(xray_wavelength=self.xray_wavelength)
+            nsl_components[i] = component.fnGetnSL()
 
         return vol_components, nsl_components
 
@@ -755,7 +755,6 @@ class BLM(CompositenSLDObj):
             o nsl_acyl_lipids: a numpy array of acyl chain nSL
             o nsl_methyl_lipids: a numpy array of methyl nSL
             """
-
         # create objects for each lipid headgroup and a composite tail object
         headgroups = []
         methylenes = []
@@ -820,6 +819,7 @@ class BLM(CompositenSLDObj):
         self.l_lipid1 = l_lipid1
         self.l_lipid2 = l_lipid2
         self.vf_bilayer = vf_bilayer
+
         if nf_lipids is not None:
             nf_inner_lipids = nf_outer_lipids = nf_lipids
         if nf_inner_lipids is not None:  # pass None to keep lipid_nf unchanged
@@ -840,6 +840,7 @@ class BLM(CompositenSLDObj):
         self.fnAdjustParameters()
 
     def fnSetSigma(self, sigma):
+        self.sigma = sigma
         for hg1, hg2 in zip(self.headgroups1, self.headgroups2):
             hg1.fnSetSigma(sigma)
             hg2.fnSetSigma(sigma)
@@ -871,13 +872,15 @@ class ssBLM(BLM):
                  lipid_nf=None, xray_wavelength=None, **kwargs):
         """ Solid supported bilayer object. Requires:
             o lipids definition:
-                - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides inner_lipids and outer_lipids.
-                          If not set, both inner_lipids and outer_lipids are required.
-                - inner_lipids: list of components.Lipid objects. Ignored if lipids is set, required if outer_lipids is set.
-                - outer_lipids: list of components.Lipid objects. Ignored if lipids is set, required if inner_lipids is set.
-            o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions (not necessarily normalized) of 
-                        equal length to 'lipids', 'inner_lipids', or 'outer_lipids', respectively.
-
+                - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
+                    inner_lipids and outer_lipids. If not set, both inner_lipids and outer_lipids are required.
+                - inner_lipids: list of components.Lipid objects. Ignored if lipids is set, required if outer_lipids
+                    is set.
+                - outer_lipids: list of components.Lipid objects. Ignored if lipids is set, required if inner_lipids
+                    is set.
+            o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions
+                (not necessarily normalized) of equal length to 'lipids', 'inner_lipids', or 'outer_lipids',
+                respectively.
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
         """
         # add ssBLM-specific subgroups
@@ -926,13 +929,12 @@ class ssBLM(BLM):
         # does this make sense since this goes to negative z and isn't intended to be used?
 
     def fnSet(self, global_rough=2.0, rho_substrate=2.07e-6, rho_siox=3.55e-6, l_siox=20, l_submembrane=10, ** kwargs):
-        super().fnSet(** kwargs)
         self.global_rough = global_rough
         self.rho_substrate = rho_substrate
         self.rho_siox = rho_siox
         self.l_siox = l_siox
         self.l_submembrane = l_submembrane
-        self.fnAdjustParameters()
+        super().fnSet(** kwargs)
 
 
 class tBLM(BLM):
@@ -961,6 +963,7 @@ class tBLM(BLM):
         self.nf_tether = 0.3
         self.l_tether = 8.0
         self.mult_tether = 7.0 / 3.0
+        self.tether_methyl_sigma = 2.0
         self.bME = ComponentBox(name='bME', components=filler, xray_wavelength=xray_wavelength)
         self.initial_bME_l = self.bME.l
         self.tether_bme = Box2Err(name='tether_bme')
@@ -1144,6 +1147,10 @@ class tBLM(BLM):
         A_bme, min_A_tether_bme = _adjust_mult_tether()
         l_tether_free = self.l_tether - (self.initial_bME_l + self.av_hg1_l)
 
+        # TODO: Currently bMe and headgroups are squished to a maximum such that no hydration water remains in either
+        #   group. This is unrealistic. Also, composite PC headgroups do not have a homogeneous space filling, and the
+        #   current algorithm leads to an overfilling of the available volume in regions where the composite PC area
+        #   is above average.
         if l_tether_free < 0:
             # squish headgroups and bME proportionately to their existing size.
             d1s = self.l_tether - (self.initial_bME_l + self.initial_hg1_lengths)
@@ -1154,7 +1161,6 @@ class tBLM(BLM):
                 hg1.l = initial_length + min(d1, 0.0)
             self._calc_av_hg()
             A_bme, min_A_tether_bme = _adjust_mult_tether()
-            # TODO: Double-check that this comes out as zero every time
             l_tether_free = 0
 
         # Calculate minimum area that has to reside in the headgroup region
@@ -1180,7 +1186,7 @@ class tBLM(BLM):
         self.tether_bme.fnSet(volume=V_tether_bme, length=self.bME.l, position=0.5 * self.bME.l + self.substrate.z +
                               self.substrate.l * 0.5, nSL=self.tether.nSLs / self.tether.cell_volume * V_tether_bme)
         self.tether_free.fnSet(volume=V_tether_free, length=l_tether_free, position=self.tether_bme.z + 0.5 *
-                               self.tether_bme.l + 0.5 * self.av_hg1_l, nSL=self.tether.nSLs /
+                               self.tether_bme.l + 0.5 * l_tether_free, nSL=self.tether.nSLs /
                                self.tether.cell_volume * V_tether_free)
         frac_tether = 1 - self.tetherg.cell_volume / V_tether_hg
         self.tether_hg.fnSet(volume=V_tether_hg, length=self.av_hg1_l, position=self.tether_free.z + 0.5 *
@@ -1192,6 +1198,28 @@ class tBLM(BLM):
         self.substrate.vol = self.normarea * self.substrate.l
         self.substrate.nSL = self.rho_substrate * self.substrate.vol
 
+    def _adjust_z(self, startz):
+        # startz is the position of the hg1/lipid1 interface.
+        self.z_ihc = self.substrate.l * 0.5 + self.l_tether + 0.5 * self.l_ihc
+        self.z_im = self.z_ihc + 0.5 * (self.l_ihc + self.l_im)
+        self.z_om = self.z_im + 0.5 * (self.l_im + self.l_om)
+        self.z_ohc = self.z_om + 0.5 * (self.l_om + self.l_ohc)
+
+        for m1, m2 in zip(self.methylenes1, self.methylenes2):
+            m1.fnSetZ(self.z_ihc)
+            m2.fnSetZ(self.z_ohc)
+
+        for m1, m2 in zip(self.methyls1, self.methyls2):
+            m1.fnSetZ(self.z_im)
+            m2.fnSetZ(self.z_om)
+
+        for hg1, hg2 in zip(self.headgroups1, self.headgroups2):
+            hg1.fnSetZ(self.z_ihc - 0.5 * self.l_ihc - 0.5 * hg1.l)
+            hg2.fnSetZ(self.z_ohc + 0.5 * self.l_ohc + 0.5 * hg2.l)
+
+        self.tether_methylenes.fnSetZ(self.z_ihc)
+        self.tether_methyls.fnSetZ(self.z_im)
+
     def fnAdjustParameters(self):
         self._adjust_outer_lipids()
         self._adjust_inner_lipids()
@@ -1202,9 +1230,10 @@ class tBLM(BLM):
         self.fnSetSigma(self.sigma)
 
     def fnSetHeadgroupLength(self, hg, value):
-        """ Sets specific headgroup to length 'value'.
-            
-            Does not recalculate values using fnAdjustParameters."""
+        """
+            Sets specific headgroup to length 'value'.
+            Does not recalculate values using fnAdjustParameters.
+        """
         hg.l = value
         # only for inner leaflets
         if hg in self.headgroups1:
@@ -1212,6 +1241,11 @@ class tBLM(BLM):
 
     def fnSetSigma(self, sigma):
         super().fnSetSigma(sigma)
+
+        tether_methyl_sigma = numpy.sqrt(self.sigma ** 2 + self.tether_methyl_sigma ** 2)
+        self.tether_methylenes.fnSetSigma(self.sigma, tether_methyl_sigma)
+        self.tether_methyls.fnSetSigma(tether_methyl_sigma, tether_methyl_sigma)
+
         self.substrate.fnSetSigma(self.global_rough)
         if self.tether_free.vol > 0:
             self.bME.fnSetSigma(self.global_rough)
@@ -1227,43 +1261,18 @@ class tBLM(BLM):
         return self.substrate.fnGetLowerLimit()
         # does this make sense since this goes to negative z and isn't intended to be used?
 
-    def fnSet(self, _sigma, _bulknsld, _global_rough, _rho_substrate, _nf_tether, _mult_tether, _l_tether, _l_lipid1,
-              _l_lipid2, _vf_bilayer, _nf_inner_lipids=None, _nf_outer_lipids=None, _nf_lipids=None,
-              _hc_substitution_1=0.,
-              _hc_substitution_2=0., _radius_defect=100.):
-        self.sigma = _sigma
-        self.fnSetBulknSLD(_bulknsld)
-        self.global_rough = _global_rough
-        self.rho_substrate = _rho_substrate
-        self.nf_tether = _nf_tether
-        self.mult_tether = _mult_tether
-        self.l_tether = _l_tether
-        self.l_lipid1 = _l_lipid1
-        self.l_lipid2 = _l_lipid2
-        self.vf_bilayer = _vf_bilayer
-        if _nf_lipids is not None:
-            _nf_inner_lipids = _nf_outer_lipids = _nf_lipids
-        if _nf_inner_lipids is not None:  # pass None to keep lipid_nf unchanged
-            assert len(_nf_inner_lipids) == len(self.inner_lipids), \
-                'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_inner_lipids),
-                                                                                                 len(self.inner_lipids))
-            self.inner_lipid_nf = numpy.array(_nf_inner_lipids)
-        if _nf_outer_lipids is not None:  # pass None to keep lipid_nf unchanged
-            assert len(_nf_outer_lipids) == len(self.outer_lipids), \
-                'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(_nf_outer_lipids),
-                                                                                                 len(self.outer_lipids))
-            self.outer_lipid_nf = numpy.array(_nf_outer_lipids)
-        self.hc_substitution_1 = _hc_substitution_1
-        self.hc_substitution_2 = _hc_substitution_2
-        self.radius_defect = _radius_defect
-
-        self.fnAdjustParameters()
+    def fnSet(self, global_rough=2.0, rho_substrate=4.55e-6, nf_tether=0.5, mult_tether=3., l_tether=20.,  **kwargs):
+        self.global_rough = global_rough
+        self.rho_substrate = rho_substrate
+        self.nf_tether = nf_tether
+        self.mult_tether = mult_tether
+        self.l_tether = l_tether
+        super().fnSet(**kwargs)
 
 
 # ------------------------------------------------------------------------------------------------------
 # Hermite Spline
 # ------------------------------------------------------------------------------------------------------
-
 """
 Notes on usage:
 1. Instantiate the spline object, e.g. h = SLDHermite()
@@ -1307,17 +1316,20 @@ class Hermite(nSLDObj):
         self.vf = numpy.zeros(self.numberofcontrolpoints)
         self.damp = numpy.zeros(self.numberofcontrolpoints)
 
-        # TODO: get the interface with a previous layer correct by defining an erf function at the first control point or between the first two control points.
+        # TODO: get the interface with a previous layer correct by defining an erf function at the first control
+        #  point or between the first two control points.
 
     def _apply_damping(self):
         """ only called from _set_area_spline, which is called from fnSetRelative """
         dampfactor = numpy.ones_like(self.vf)
         if self.damping:
-            above_damptrigger = numpy.where(self.vf > self.damptrigger)[
-                0]  # find index of first point beyond damping trigger
-            if len(above_damptrigger) > 0:  # if no points above trigger, damping doesn't apply
-                dampfactor[above_damptrigger[0] + 1:] = 1. / (1 + numpy.exp(-2.1 * (self.vf[above_damptrigger[
-                                                                                                0] + 1:] - self.dampthreshold) / self.dampFWHM))  # does nothing if peaked point is at the end
+            # find index of first point beyond damping trigger
+            above_damptrigger = numpy.where(self.vf > self.damptrigger)[0]
+            # if no points above trigger, damping doesn't apply
+            if len(above_damptrigger) > 0:
+                # does nothing if peaked point is at the end
+                dampfactor[above_damptrigger[0] + 1:] = 1. / (1 + numpy.exp(-2.1 * (self.vf[above_damptrigger[0] + 1:] -
+                    self.dampthreshold) / self.dampFWHM))
                 dampfactor = numpy.cumprod(dampfactor)
 
         self.damp = self.vf * dampfactor
@@ -1336,7 +1348,6 @@ class Hermite(nSLDObj):
         self.area_spline_integral = self.area_spline.antiderivative()
 
     def fnGetProfiles(self, z):
-
         vf = self.area_spline(z)
         vf[numpy.isnan(vf)] = 0.0
         vf[vf < 0] = 0.0
@@ -1347,7 +1358,6 @@ class Hermite(nSLDObj):
         return area, area * numpy.gradient(z) * sld, sld
 
     def fnGetnSLDProfile(self, z):
-
         return self.nSLD * numpy.ones_like(z)
 
     def fnGetnSLD(self, dz):
@@ -1411,15 +1421,12 @@ class SLDHermite(Hermite):
         #  point or between the first two control points.
 
     def _set_sld_spline(self):
-
         if self.monotonic:  # monotone interpolation
             self.sld_spline = PchipInterpolator(self.dp, self.sld, extrapolate=False)
-
         else:  # catmull-rom
             self.sld_spline = catmull_rom(self.dp, self.sld, extrapolate=False)
 
     def fnGetnSLDProfile(self, z):
-
         sld = self.sld_spline(z)
         # deal with out of range values
         sld[z < self.dp[0]] = self.sld[0]
@@ -1446,8 +1453,9 @@ class SLDHermite(Hermite):
 
 
 class ContinuousEuler(nSLDObj):
-    """ Uses scipy.spatial library to do Euler rotations in real time"""
-
+    """
+        Uses scipy.spatial library to do Euler rotations in real time
+    """
     def __init__(self, fn8col, rotcenter=None, xray=False, **kwargs):
         """ requires file name fn8col containing 8-column data, any header information commented with #:
             1. residue number
@@ -1487,11 +1495,10 @@ class ContinuousEuler(nSLDObj):
         self.fnSetBulknSLD(None)
         self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
 
-        # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept so that
-        # max(area) = volume_fraction * normarea
+        # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept
+        #  so that max(area) = volume_fraction * normarea
 
     def _apply_transform(self):
-
         self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
         self.rotcoords = self.R.apply(self.rescoords)
         self.rotcoords[:, 2] += self.z
@@ -1548,7 +1555,6 @@ class ContinuousEuler(nSLDObj):
         return volume * self.nf
 
     def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
-
         self.gamma = gamma
         self.beta = beta
         self.z = zpos
@@ -1582,9 +1588,11 @@ aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU'
 def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
               deuterated_residues=None,
               xray_wavelength=1.5418):
-    """ Creates an 8-column data file for use with ContinuousEuler from a pdb file\
+    """
+        Creates an 8-column data file for use with ContinuousEuler from a pdb file\
         with optional selection. "center_of_mass" is the position in space at which to position the
-        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values"""
+        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
+    """
 
     import MDAnalysis
     from MDAnalysis.lib.util import convert_aa_code
@@ -1641,16 +1649,18 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
 
 
 class DiscreteEuler(nSLDObj):
-    """ Uses precalculated Euler rotation densities"""
-
+    """
+        Uses precalculated Euler rotation densities
+    """
     def __init__(self, generic_filename, betas, gammas, betafmt='%i', gammafmt='%i', **kwargs):
-        """ requires precalculated 4-column files for each angle beta and gamma. These should not have any smoothing applied.
-            Each file must have same z vector and one header row. z can be negative.
-            generic_filename contains the path and a generic file name with positions for angles beta and gamma are marked with <beta> and <gamma>.
-            Format strings other than integer angles can be specified with betafmt and gammafmt keyword arguments.
-            "betas" and "gammas" are lists or numpy arrays containing the beta and gamma points to be loaded.
-
-        Example: DiscreteEuler('./dat/exou_beta<beta>_gamma<gamma>.txt', range(0, 190, 10), range(0, 370, 10))
+        """
+            requires precalculated 4-column files for each angle beta and gamma. These should not have any smoothing
+            applied. Each file must have same z vector and one header row. z can be negative.
+            generic_filename contains the path and a generic file name with positions for angles beta and gamma are
+            marked with <beta> and <gamma>. Format strings other than integer angles can be specified with betafmt and
+            gammafmt keyword arguments. "betas" and "gammas" are lists or numpy arrays containing the beta and gamma
+            points to be loaded.
+            Example: DiscreteEuler('./dat/exou_beta<beta>_gamma<gamma>.txt', range(0, 190, 10), range(0, 370, 10))
         """
         super().__init__(**kwargs)
         betas = numpy.array(betas, dtype=float)
@@ -1687,7 +1697,6 @@ class DiscreteEuler(nSLDObj):
         # concept so that max(area) = volume_fraction * normarea
 
     def fnGetProfiles(self, z):
-
         # perform interpolation
         self._set_interpolation_points(z)
         area = interpn((self.betas, self.gammas, self.zdata + self.z), self.areadata, self._interppoint,
@@ -1725,13 +1734,15 @@ class DiscreteEuler(nSLDObj):
         self._interppoint[:, -1] = z
 
     def fnGetVolume(self, z1, z2):
-        """ Calculates volume based on the number of residues of the rotated molecule located between
+        """
+            Calculates volume based on the number of residues of the rotated molecule located between
             z positions z1 and z2 (inclusive).
             
             Note: the result is (slightly) different from integrating the area, because the roughness has already
             been applied to the area. However, this remains more accurate than the roughened value because
             the integration limits  will typically correspond to the limits of a lipid Box2Err function
-            which are themselves defined before the roughness is applied."""
+            which are themselves defined before the roughness is applied.
+        """
 
         # For volume calculation, use intrinsic z vector, and no smoothing.
         zvol = self.zdata + self.z
@@ -1749,7 +1760,6 @@ class DiscreteEuler(nSLDObj):
         return volume * self.nf
 
     def fnSet(self, beta, gamma, zpos, sigma, nf, bulknsld=None):
-
         self.beta = beta
         self.gamma = gamma
         self.z = zpos
