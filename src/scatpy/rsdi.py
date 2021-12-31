@@ -530,6 +530,7 @@ class CRefl1DInteractor(CBumpsInteractor):
         lCommand.append('--store=' + self.spath+'/save')
         lCommand.append('--burn=' + str(burn))
         lCommand.append('--steps=' + str(steps))
+        lCommand.append('--overwrite')
         call(lCommand)
 
     def fnSimulateData(self, diNewPars):
