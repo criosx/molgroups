@@ -81,15 +81,15 @@ layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm
 
 ## Use the bilayer definition function to generate the bilayer SLD profile, passing in the relevant parameters.
 ## Note that substrate and bulk SLDs are linked to their respective materials.
-mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
-                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
-                                vf_bilayer=vf_bilayer)
+mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma, bulknsld=d2o.rho,
+                             global_rough=global_rough, rho_substrate=gold.rho, nf_tether = nf_tether,
+                             mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                             vf_bilayer=vf_bilayer)
 
-mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
-                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
-                                vf_bilayer=vf_bilayer)
+mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma, bulknsld=h2o.rho,
+                              global_rough=global_rough, rho_substrate=gold.rho, nf_tether = nf_tether,
+                              mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                              vf_bilayer=vf_bilayer)
 
 ## Stack the layers into individual samples, using common layer objects for layers that are unchanged between samples
 ## As a convention, always build the sample from the substrate up. If the neutron beam is incident from the substrate side,
@@ -144,4 +144,5 @@ problem.name = "HC18-tethered POPC bilayer"
 problem.bilayers = [blm]
 problem.dimension = dimension
 problem.stepsize = stepsize
+problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
 
