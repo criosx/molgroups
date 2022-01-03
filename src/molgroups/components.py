@@ -1,4 +1,5 @@
 import numpy
+import molgroups as mol
 from periodictable.fasta import Molecule, xray_sld
 # in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
 # to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
@@ -136,13 +137,11 @@ SAcEO6 = AddMolecules([SAc, EO6])
 bmeSAc = AddMolecules([SAc, ethanoyl], length=5.2)
 bme = AddMolecules([thiol, ethanoyl], length=5.2)
 
-# Combined lipids (deprecated): use objects from lipids.py
-DOPC = Lipid(name='DOPC', headgroup=pc, tails=2 * [oleoyl], methyls=[methyl])
-POPC = Lipid(name='POPC', headgroup=pc, tails=[palmitoyl, oleoyl], methyls=[methyl])
-DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl], methyls=[methyl])
-chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=[None])
+# Composite Headgroups
 
-# Combined tethers
-WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl], methyls=[methyl])
-HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=[methyl])
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=[methyl])
+PC = mol.CompositeHeadgroup(name='PC',
+                            components=[carbonyl_glycerol, phosphate, choline],
+                            sigma1=[2.53, 2.29, 2.02],
+                            sigma2=[2.29, 2.02, 2.26],
+                            rel_pos=[0., 0.58, 0.],
+                            length=9.575)
