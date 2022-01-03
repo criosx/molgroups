@@ -220,6 +220,12 @@ class CompositenSLDObj(nSLDObj):
 
         return area * self.nf, nsl * self.nf, nsld
 
+    def fnGetnSL(self):
+        nSL = 0.
+        for group in self.subgroups:
+            nSL += group.fnGetnSL()
+        return nSL
+
     def fnWritePar2File(self, f, cName, z):
         if not hasattr(self, 'subgroups'):
             self.fnFindSubgroups()
@@ -377,9 +383,9 @@ class ComponentBox(Box2Err):
     of elements must be given each. If given as a list, an average length is calculated.
     """
     def __init__(self, components=None, diffcomponents=None, xray_wavelength=None, **kwargs):
-        if not isinstance(components, (list, tuple, numpy.ndarray)):
+        if not isinstance(components, (list, tuple)):
             components = [components]
-        if diffcomponents is not None and not isinstance(diffcomponents, (list, tuple, numpy.ndarray)):
+        if diffcomponents is not None and not isinstance(diffcomponents, (list, tuple)):
             diffcomponents = [diffcomponents]
 
         dvolume = sum(m.cell_volume for m in components)
@@ -394,10 +400,129 @@ class ComponentBox(Box2Err):
         self.fnSetnSL(*nSL)
 
 
-# TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
-# is in the inner or outer leaflet. The profiles so obtained should be flipped. This should perhaps
-# be standardized, (1) by creating a CompositeHeadgroup class that has this flag already, and (2) by
-# finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
+class CompositeHeadgroup(CompositenSLDObj):
+    def __init__(self, name='headgroup', components=None, innerleaflet=False, xray_wavelength=None,
+                 sigma1=None, sigma2=None, rel_pos=None, length=None, position=None, num_frac=None, **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.innerleaflet = innerleaflet
+        self.xray_wavelength = xray_wavelength
+
+        if not isinstance(components, (list, tuple)):
+            components = [components]
+
+        self.components = []
+        for i, component in enumerate(components):
+            comp_name = component.name
+            # check if componnent is being used more than once, and update name
+            if components.count(component)>1:
+                comp_name += '_'+str(i)
+            comp_obj = ComponentBox(name=comp_name, components=[component], xray_wavelength=self.xray_wavelength)
+            self.__setattr__(comp_name, comp_obj)
+            self.components.append(comp_obj)
+
+        if length is None:
+            self.l = 10.0
+        else:
+            self.l = length
+        self.init_l = self.l
+
+        if position is None:
+            self.z = 0.
+        else:
+            self.z = position
+
+        if num_frac is None:
+            self.nf = 1.0
+        else:
+            self.nf = num_frac
+
+        # will be set in fnAdjustParameters()
+        self.vol = 0.
+
+        if sigma1 is None:
+            self.sigma1 = numpy.full(len(components), 2.0)
+        else:
+            self.sigma1 = numpy.array(sigma1)
+
+        if sigma2 is None:
+            self.sigma2 = numpy.full(len(components), 2.0)
+        else:
+            self.sigma2 = numpy.array(sigma2)
+
+        if rel_pos is None:
+            self.rel_pos = numpy.linspace(0, self.l, len(components))
+        else:
+            self.rel_pos = rel_pos
+
+        assert (self.sigma1.shape[0] == len(components)), 'Number of sigma1 values must equal number of components'
+        assert (self.sigma2.shape[0] == len(components)), 'Number of sigma2 values must equal number of components'
+        assert (self.rel_pos.shape[0] == len(components)), 'Number of rel_pos values must equal number of components'
+
+        self.fnFindSubgroups()
+        self.fnAdjustParameters()
+
+    def fnAdjustParameters(self):
+        # make sure no group is larger than the entire length of the headgroup
+        for g in self.subgroups:
+            g.l = min(self.init_l, g.l)
+
+        vol = 0.
+        for i, component in enumerate(self.components):
+            if i == 0:
+                component.z = self.z - 0.5 * self.l + 0.5 * component.l
+            elif i == len(self.components)-1:
+                component.z = self.z + 0.5 * self.l - 0.5 * component.l
+            else:
+                component.z = self.z - 0.5 * self.l + self.rel_pos[i] * self.l
+            component.nf = self.nf
+            vol += component.vol
+
+        self.vol = vol
+
+    def fnSet(self, length=None, rel_pos=None, position=None, num_frac=None):
+        if position is not None:
+            self.l = length
+        if rel_pos is not None:
+            self.rel_pos = rel_pos
+        if position is not None:
+            self.z = position
+        if num_frac is not None:
+            self.nf = num_frac
+        self.fnAdjustParameters()
+
+    def fnGetLowerLimit(self):
+        return self.z - 0.5 * self.l
+
+    def fnGetUpperLimit(self):
+        return self.z + 0.5 * self.l
+
+    def fnSetSigma(self, sigma):
+        self.sigma1.fill(sigma)
+        self.sigma2.fill(sigma)
+
+    def fnSetZ(self, dz):
+        self.z = dz
+        self.fnAdjustParameters()
+
+    def fnWritePar2File(self, fp, cName, z):
+        prefix = "m" if self.innerleaflet else ""
+        fp.write(prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " + str(self.vol) + " nf " +
+                 str(self.nf) + " \n")
+        self.fnWriteData2File(fp, cName, z)
+        super().fnWritePar2File(fp, cName, z)
+
+    def fnWritePar2Dict(self, rdict, cName, z):
+        prefix = "m" if self.innerleaflet else ""
+        rdict[cName] = {}
+        rdict[cName]['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
+        rdict[cName]['header'] += str(self.vol) + " nf " + str(self.nf)
+        rdict[cName]['z'] = self.z
+        rdict[cName]['l'] = self.l
+        rdict[cName]['vol'] = self.vol
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
+        rdict = super().fnWritePar2Dict(rdict, cName, z)
+        return rdict
 
 
 class PC(CompositenSLDObj):
@@ -410,7 +535,7 @@ class PC(CompositenSLDObj):
         self.phosphate = ComponentBox(name='phosphate', components=[cmp.phosphate], xray_wavelength=xray_wavelength)
         self.choline = ComponentBox(name='choline', components=[cmp.choline], xray_wavelength=xray_wavelength)
         self.innerleaflet = innerleaflet
-        self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
+        # self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
 
         if innerleaflet:
             self.cg.sigma2, self.cg.sigma1 = 2.53, 2.29
@@ -469,12 +594,6 @@ class PC(CompositenSLDObj):
 
     def fnGetUpperLimit(self):
         return self.cg.fnGetUpperLimit() if self.innerleaflet else self.choline.fnGetUpperLimit()
-
-    def fnGetnSL(self):
-        return self.cg.fnGetnSL() + self.phosphate.fnGetnSL() + self.choline.fnGetnSL()
-
-    def fnGetZ(self):
-        return self.z
 
     def fnSetSigma(self, sigma):
         self.cg.sigma1 = sigma
