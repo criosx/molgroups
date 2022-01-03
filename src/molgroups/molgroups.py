@@ -19,7 +19,6 @@ class nSLDObj:
         self.dSigmaConvolution = 1
         self.iNumberOfConvPoints = 7
         self.absorb = 0
-
         self.z = 0
         self.l = 0
         self.vol = 0
@@ -439,7 +438,6 @@ class PC(CompositenSLDObj):
         # make sure no group is larger than the entire length of the headgroup
         for g in self.subgroups:
             g.l = min(self.init_l, g.l)
-
         if self.innerleaflet:
             self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
             self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
