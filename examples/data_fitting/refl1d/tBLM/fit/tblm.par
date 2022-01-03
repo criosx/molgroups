@@ -1,22 +1,22 @@
-background os046_4column 9.34585813159606e-08
-intensity os046_4column 0.993225468883673
-sample_broadening os046_4column -0.00109171245090075
-theta_offset os046_4column -0.00487148971602744
-substrate roughness 3.93544132618532
-siox rho 4.39894979905353
-silicon oxide layer thickness 5.031579191305
-gold chromium roughness 14.3433190238418
-chromium rho 3.28023962190162
-chromium layer thickness 34.9759663210313
-gold rho 4.40040778092811
-d2o rho 5.98213705647565
-inner acyl chain thickness 10.5818516151098
-outer acyl chain thickness 12.9535016884898
-tether length 6.66274730063785
-bME to tether ratio 2.13685619054783
-number fraction tether 0.553438715898619
-bilayer roughness 3.72495094349508
-volume fraction bilayer 0.999019720026822
-background os047_4column 3.68831122435298e-06
-h2o rho -0.371618866566507
-gold layer thickness 177.551803427301
+background os046_4column 1.18610088532026e-07
+intensity os046_4column 0.998007338944789
+sample_broadening os046_4column -8.60423241503587e-05
+theta_offset os046_4column -0.0144907192233205
+substrate roughness 2.27198931745489
+siox rho 3.49327092912302
+silicon oxide layer thickness 9.17608618918401
+gold chromium roughness 23.1851710626274
+chromium rho 2.84454157133831
+chromium layer thickness 18.3787121254313
+gold rho 4.243948210792
+d2o rho 5.7686246454452
+inner acyl chain thickness 12.2230580005815
+outer acyl chain thickness 11.1142345482145
+tether length 3.06600041459687
+bME to tether ratio 2.13181518684195
+number fraction tether 0.406655891369611
+bilayer roughness 2.6434196972823
+volume fraction bilayer 0.998411356571327
+background os047_4column 3.81244391751044e-06
+h2o rho -0.515200156773039
+gold layer thickness 189.748440333284

@@ -331,6 +331,9 @@ class CBumpsInteractor(CDataInteractor):
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
     def fnLoadParameters(self):
+        if self.state is None:
+            self.state = self.fnRestoreState()
+
         p = self.state.best()[0]
         self.problem.setp(p)
 
@@ -385,15 +388,14 @@ class CBumpsInteractor(CDataInteractor):
         if skip_entries is None:
             skip_entries = []
 
-        if path.isfile(self.mcmcpath + "/sErr.dat") or path.isfile(self.mcmcpath + "/isErr.dat"):
+        if path.isfile(self.spath+'/'+self.mcmcpath+"/sErr.dat") or path.isfile(self.spath+'/'+self.mcmcpath+
+                                                                                "/isErr.dat"):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
-
             diStatRawData = {"Parameters": {}}
-            diStatRawData["Parameters"][
-                "Chisq"
-            ] = {}  # TODO: Work on better chisq handling
+            diStatRawData["Parameters"]["Chisq"] = {}
+            # TODO: Work on better chisq handling
             diStatRawData["Parameters"]["Chisq"]["Values"] = []
             for parname in lParName:
                 diStatRawData["Parameters"][parname] = {}
@@ -401,24 +403,17 @@ class CBumpsInteractor(CDataInteractor):
 
             seed()
             for j in range(len(points[:, 0])):
-                if (
-                    dSparse == 0
-                    or (dSparse > 1 and j < dSparse)
-                    or (1 > dSparse > random())
-                ):
+                if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
                     diStatRawData["Parameters"]["Chisq"]["Values"].append(logp[j])
                     for i, parname in enumerate(lParName):
                         # TODO: this is a hack because Paul does not scale down after scaling up
                         # Rescaling disabled for bumps/refl1d analysis to achieve consistency
                         # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
                         #     points[j, i] *= 1E-6
-                        diStatRawData["Parameters"][parname]["Values"].append(
-                            points[j, i]
-                        )
+                        diStatRawData["Parameters"][parname]["Values"].append(points[j, i])
 
-            self.fnSaveSingleColumnsFromStatDict(
-                self.mcmcpath + "/sErr.dat", diStatRawData["Parameters"], skip_entries
-            )
+            self.fnSaveSingleColumnsFromStatDict(self.spath+'/'+self.mcmcpath + "/sErr.dat",
+                                                 diStatRawData["Parameters"], skip_entries)
 
         return diStatRawData
 
@@ -527,7 +522,7 @@ class CRefl1DInteractor(CBumpsInteractor):
         lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             lCommand.append('--batch')
-        lCommand.append('--store=' + self.spath+'/save')
+        lCommand.append('--store=' + self.mcmcpath)
         lCommand.append('--burn=' + str(burn))
         lCommand.append('--steps=' + str(steps))
         lCommand.append('--overwrite')

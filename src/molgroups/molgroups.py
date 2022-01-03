@@ -975,10 +975,10 @@ class tBLM(BLM):
         self.tetherg = cmp.Component(name='tetherg', formula=tether.tetherg.formula,
                                      cell_volume=tether.tetherg.cell_volume, xray_wavelength=xray_wavelength,
                                      length=10.0)
-        self.tether_methylenes = ComponentBox(name='tether_methylenes', components=tether.tails,
-                                              diffcomponents=tether.methyls, xray_wavelength=xray_wavelength)
-        self.tether_methyls = ComponentBox(name='tether_methyls', components=tether.methyls,
-                                           xray_wavelength=xray_wavelength)
+        self.tether_methylene = ComponentBox(name='tether_methylene', components=tether.tails,
+                                             diffcomponents=tether.methyls, xray_wavelength=xray_wavelength)
+        self.tether_methyl = ComponentBox(name='tether_methyl', components=tether.methyls,
+                                          xray_wavelength=xray_wavelength)
 
         super().__init__(inner_lipids=inner_lipids, inner_lipid_nf=inner_lipid_nf, outer_lipids=outer_lipids,
                          outer_lipid_nf=outer_lipid_nf, lipids=lipids, lipid_nf=lipid_nf,
@@ -987,10 +987,10 @@ class tBLM(BLM):
     def _adjust_inner_lipids(self):
         self.vol_methylene_inner, self.nsl_methylene_inner = self._unpack_component_pars(self.methylenes1)
         self.vol_methyl_inner, self.nsl_methyl_inner = self._unpack_component_pars(self.methyls1)
-        self.vol_methylene_tether = self.tether_methylenes.vol
-        self.vol_methyl_tether = self.tether_methyls.vol
-        self.nsl_methylene_tether = self.tether_methylenes.fnGetnSL()
-        self.nsl_methyls_tether = self.tether_methyls.fnGetnSL()
+        self.vol_methylene_tether = self.tether_methylene.vol
+        self.vol_methyl_tether = self.tether_methyl.vol
+        self.nsl_methylene_tether = self.tether_methylene.fnGetnSL()
+        self.nsl_methyls_tether = self.tether_methyl.fnGetnSL()
 
         self.l_lipid1 = max(self.l_lipid1, 0.01)
         # make sure number fractions are zero or greater and normalize to one
@@ -1008,8 +1008,8 @@ class tBLM(BLM):
         c_s_ihc = self.vf_bilayer
         c_A_ihc = self.normarea * self.l_ihc / self.V_ihc
         c_V_ihc = 1
-        self.tether_methylenes.l = self.l_ihc
-        self.tether_methylenes.nf = self.nf_ihc_tether * c_s_ihc * c_A_ihc * c_V_ihc
+        self.tether_methylene.l = self.l_ihc
+        self.tether_methylene.nf = self.nf_ihc_tether * c_s_ihc * c_A_ihc * c_V_ihc
         for i, methylene in enumerate(self.methylenes1):
             methylene.l = self.l_ihc
             methylene.nf = self.nf_ihc_lipid[i] * c_s_ihc * c_A_ihc * c_V_ihc
@@ -1023,8 +1023,8 @@ class tBLM(BLM):
         c_s_im = c_s_ihc
         c_A_im = c_A_ihc
         c_V_im = 1
-        self.tether_methyls.l = self.l_im
-        self.tether_methyls.nf = self.nf_im_tether * c_s_im * c_A_im * c_V_im
+        self.tether_methyl.l = self.l_im
+        self.tether_methyl.nf = self.nf_im_tether * c_s_im * c_A_im * c_V_im
         for i, methyl in enumerate(self.methyls1):
             methyl.l = self.l_im
             methyl.nf = self.nf_im_lipid[i] * c_s_im * c_A_im * c_V_im
@@ -1141,7 +1141,7 @@ class tBLM(BLM):
         self._calc_av_hg()
 
         # If too much bME is present, adjust the mult_tether parameter
-        # TODO: I do not think that this is clever. Mult_tether is a parameter that is conserved across multiple
+        # TODO: I do not think that this is good. Mult_tether is a parameter that is conserved across multiple
         #  data sets that might vary in sub-membrane thickness. This approach breaks this link. We should think of
         #  a different way how the structure reacts to an overvilling of the bMe region. (F.H.)
         A_bme, min_A_tether_bme = _adjust_mult_tether()
@@ -1217,8 +1217,8 @@ class tBLM(BLM):
             hg1.fnSetZ(self.z_ihc - 0.5 * self.l_ihc - 0.5 * hg1.l)
             hg2.fnSetZ(self.z_ohc + 0.5 * self.l_ohc + 0.5 * hg2.l)
 
-        self.tether_methylenes.fnSetZ(self.z_ihc)
-        self.tether_methyls.fnSetZ(self.z_im)
+        self.tether_methylene.fnSetZ(self.z_ihc)
+        self.tether_methyl.fnSetZ(self.z_im)
 
     def fnAdjustParameters(self):
         self._adjust_outer_lipids()
@@ -1243,8 +1243,8 @@ class tBLM(BLM):
         super().fnSetSigma(sigma)
 
         tether_methyl_sigma = numpy.sqrt(self.sigma ** 2 + self.tether_methyl_sigma ** 2)
-        self.tether_methylenes.fnSetSigma(self.sigma, tether_methyl_sigma)
-        self.tether_methyls.fnSetSigma(tether_methyl_sigma, tether_methyl_sigma)
+        self.tether_methylene.fnSetSigma(self.sigma, tether_methyl_sigma)
+        self.tether_methyl.fnSetSigma(tether_methyl_sigma, tether_methyl_sigma)
 
         self.substrate.fnSetSigma(self.global_rough)
         if self.tether_free.vol > 0:

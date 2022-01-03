@@ -18,7 +18,7 @@ import rsdi
 
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None,
-                 load_state=True):
+                 load_state=True, save_stat_data=False):
         self.diParameters = {}
         # Dictionary with all the parameters
         # self.diParameters data structure:
@@ -77,6 +77,8 @@ class CMolStat:
             self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'SASView':
             self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile, load_state=load_state)
+
+        self.save_stat_data = save_stat_data
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
@@ -225,19 +227,13 @@ class CMolStat:
 
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
-        try:
-            self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
-            print('Loaded statistical data from StatDataPython.dat')
-        except IOError:
-            print('Failure to load StatDataPython.dat.')
-            print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical()
+        self.fnLoadStatData()
 
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
-            pdf_frac1 = pandas.read_csv(self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
-            pdf_frac2 = pandas.read_csv(self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
+            pdf_frac1 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
+            pdf_frac2 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
 
             for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
                 striter = 'iter' + str(mcmc_iter)
@@ -963,13 +959,15 @@ class CMolStat:
         print('  siox ...')
         diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer.siox'])
         print('  tether ...')
-        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether'])
+        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether',
+                                                                    'bilayer.tether_bme', 'bilayer.tether_free',
+                                                                    'bilayer.tether_hg'])
 
         print('  innerhg ...')
         grouplist = []
         i = 1
         while True:
-            if 'bilayer.headgroup1_' + str(i) in self.diMolgroups:
+            if 'bilayer.headgroup1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup1_' + str(i))
                 i += 1
             else:
@@ -984,18 +982,20 @@ class CMolStat:
         gl_methyl = []
         i = 1
         while True:
-            if 'bilayer.methylene1_' + str(i) in self.diMolgroups:
+            if 'bilayer.methylene1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methylene.append('bilayer.methylene1_' + str(i))
                 i += 1
             else:
                 break
+        gl_methylene.append('bilayer.tether_methylene')
         i = 1
         while True:
-            if 'bilayer.methyl1_' + str(i) in self.diMolgroups:
+            if 'bilayer.methyl1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methyl.append('bilayer.methyl1_' + str(i))
                 i += 1
             else:
                 break
+        gl_methyl.append('bilayer.tether_methyl')
         diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
         diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
         diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
@@ -1005,7 +1005,7 @@ class CMolStat:
         gl_methyl = []
         i = 1
         while True:
-            if 'bilayer.methylene2_' + str(i) in self.diMolgroups:
+            if 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methylene.append('bilayer.methylene2_' + str(i))
                 i += 1
             else:
@@ -1013,7 +1013,7 @@ class CMolStat:
         gl_methyl = []
         i = 1
         while True:
-            if 'bilayer.methyl2_' + str(i) in self.diMolgroups:
+            if 'bilayer.methyl2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methyl.append('bilayer.methyl2_' + str(i))
                 i += 1
             else:
@@ -1026,7 +1026,7 @@ class CMolStat:
         grouplist = []
         i = 1
         while True:
-            if 'bilayer.headgroup2_' + str(i) in self.diMolgroups:
+            if 'bilayer.headgroup2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup2_' + str(i))
                 i += 1
             else:
@@ -1209,22 +1209,27 @@ class CMolStat:
             self.diParameters, self.chisq = self.Interactor.fnLoadParameters()
 
     def fnLoadStatData(self, sparse=0):
-        self.diStatResults = self.Interactor.fnLoadStatData(sparse)
-        # cycle through all parameters
-        # determine length of longest parameter name for displaying
-        iMaxParameterNameLength = 0
-        for parname in list(self.diStatResults['Parameters'].keys()):
-            if len(parname) > iMaxParameterNameLength:
-                iMaxParameterNameLength = len(parname)
-        self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
-
-        self.diStatResults['NumberOfStatValues'] = \
-            len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-        # print('StatDataLength: ')
-        # print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
+        self.fnLoadParameters()
+        if self.diStatResults == {}:
+            try:
+                self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
+                print('Loaded statistical data from StatDataPython.dat')
+            except IOError:
+                print('No StatDataPython.dat.')
+                print('Recreate statistical data from sErr.dat.')
+                self.diStatResults = self.Interactor.fnLoadStatData(sparse)
+                # cycle through all parameters
+                # determine length of longest parameter name for displaying
+                iMaxParameterNameLength = 0
+                for parname in list(self.diStatResults['Parameters'].keys()):
+                    if len(parname) > iMaxParameterNameLength:
+                        iMaxParameterNameLength = len(parname)
+                self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
+                self.diStatResults['NumberOfStatValues'] = \
+                    len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
+                self.fnRecreateStatistical()
 
     def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
-
         def fnInterpolateData(xdata, ydata, fMin, fMax, fGrid):
 
             f = fMin  # target start
@@ -1445,7 +1450,6 @@ class CMolStat:
                             fMin, fMax, fGrid, fSigma)
 
     def fnPlotMolgroups(self):
-
         from matplotlib.font_manager import fontManager, FontProperties
 
         font = FontProperties(size='x-small')
@@ -1801,14 +1805,8 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         """
 
-        try:
-            self.diStatResults = self.fnLoadObject(self.mcmcpath+'/StatDataPython.dat')
-            print('Loaded statistical data from StatDataPython.dat')
-
-        except IOError:
-            print('Failure to load StatDataPython.dat.')
-            print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical(sparse=sparse, verbose=verbose)
+        if self.diStatResults != {}:
+            self.fnLoadStatData()
 
         zaxis = self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']
         diarea = {'zaxis': zaxis}
@@ -1840,13 +1838,11 @@ class CMolStat:
 
         return diarea, dinsl, dinsld
 
-    def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0, verbose=True):
-
-        # Recreates profile and fit data associated with stat file
-
-        self.fnLoadParameters()
-        self.fnLoadStatData(sparse)
-        if hasattr(self.Interactor, 'problem'):
+    def fnRecreateStatistical(self, bRecreateMolgroups=True, verbose=False):
+        """
+        Recreates profile and fit data associated with parameter stats
+        """
+        if self.Interactor.problem is not None:
             problem = self.Interactor.problem
         else:
             problem = self.Interactor.fnRestoreFitProblem()
@@ -1879,8 +1875,8 @@ class CMolStat:
                     problem.setp(p)
                     problem.model_update()
                     # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
-                    # way, also implement which contrast to use for pulling groups
-                    # garefl based code should save a mol.dat automatically on updating the model
+                    #   way, also implement which contrast to use for pulling groups garefl based code should save a
+                    #   mol.dat automatically on updating the model
                     if 'models' in dir(problem):
                         for M in problem.models:
                             M.chisq()
@@ -1914,7 +1910,9 @@ class CMolStat:
             finally:
                 j += 1
 
-        self.fnSaveObject(self.diStatResults, self.mcmcpath + '/StatDataPython.dat')  # save stat data to disk
+        # save stat data to disk, if flag is set
+        if self.save_stat_data:
+            self.fnSaveObject(self.diStatResults, self.spath+'/'+self.mcmcpath + '/StatDataPython.dat')
 
     @staticmethod
     def fnSaveObject(save_object, sFileName):

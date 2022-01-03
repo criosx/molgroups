@@ -6,6 +6,7 @@ sys.path.append('')
 import numpy as np
 import molgroups as mol
 import components as cmp
+import lipids
 from refl1d.names import load4, Parameter, SLD, Slab, Stack, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
@@ -15,18 +16,26 @@ from refl1d.flayer import FunctionalProfile
 
 def bilayer(z, sigma, bulknsld, global_rough, rho_substrate,nf_tether, mult_tether, l_tether, l_lipid1, l_lipid2, vf_bilayer):
     """ Generic tethered bilayer """
-    
-    # Scale all SLDs from Refl1D units (1e-6 Ang^-2) to molgroups units (Ang^-2)    
+
+    # Scale all SLDs from Refl1D units (1e-6 Ang^-2) to molgroups units (Ang^-2)
     bulknsld = bulknsld * 1e-6
     rho_substrate = rho_substrate * 1e-6
 
-    blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tether, l_tether, l_lipid1, l_lipid2, vf_bilayer)
-    
+    blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate,
+              nf_tether=nf_tether, mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+              vf_bilayer=vf_bilayer)
+
     # Calculate scattering properties of volume occupied by bilayer
     normarea, area, nsl = blm.fnWriteProfile(z)
 
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
+
+    # export objects for post analysis, needs to be from this function
+    problem.bilayers = [blm]
+    problem.dimension = dimension
+    problem.stepsize = stepsize
+    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
@@ -46,8 +55,7 @@ mult_tether =  Parameter(name='bME to tether ratio', value=2).range(0.1, 4) #rat
 l_tether =  Parameter(name='tether length', value=10).range(3, 18) #distance from substrate to inner headgroup/acyl chain interface
 
 ### Define bilayer object
-POPC = cmp.Lipid(name='POPC', headgroup=mol.PC, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=cmp.methyl)
-blm = mol.tBLM(tether=cmp.HC18SAc, filler=cmp.bmeSAc, lipids=[POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
+blm = mol.tBLM(tether=cmp.HC18SAc, filler=cmp.bmeSAc, lipids=[lipids.POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
 
 ### Define molgroups space.
 dimension=300       # Number of steps
@@ -79,15 +87,15 @@ layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm
 
 ## Use the bilayer definition function to generate the bilayer SLD profile, passing in the relevant parameters.
 ## Note that substrate and bulk SLDs are linked to their respective materials.
-mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=d2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
-                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
-                                vf_bilayer=vf_bilayer)
+mollayer = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma, bulknsld=d2o.rho,
+                             global_rough=global_rough, rho_substrate=gold.rho, nf_tether = nf_tether,
+                             mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                             vf_bilayer=vf_bilayer)
 
-mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma,
-                                bulknsld=h2o.rho, global_rough=global_rough, rho_substrate=gold.rho,
-                                nf_tether = nf_tether, mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
-                                vf_bilayer=vf_bilayer)
+mollayerh = FunctionalProfile(dimension*stepsize, 0, profile=bilayer, sigma=sigma, bulknsld=h2o.rho,
+                              global_rough=global_rough, rho_substrate=gold.rho, nf_tether = nf_tether,
+                              mult_tether = mult_tether, l_tether = l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
+                              vf_bilayer=vf_bilayer)
 
 ## Stack the layers into individual samples, using common layer objects for layers that are unchanged between samples
 ## As a convention, always build the sample from the substrate up. If the neutron beam is incident from the substrate side,
@@ -137,8 +145,3 @@ model = Experiment(sample=sample, probe=probe, dz=stepsize, step_interfaces = st
 modelh = Experiment(sample=sampleh, probe=probeh, dz=stepsize, step_interfaces = step)
 problem = FitProblem([model, modelh])
 
-## === Export objects for post analysis ===
-problem.name = "HC18-tethered POPC bilayer"
-problem.bilayers = [blm]
-problem.dimension = dimension
-problem.stepsize = stepsize
