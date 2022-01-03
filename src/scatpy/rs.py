@@ -18,7 +18,7 @@ import rsdi
 
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None,
-                 load_state=True):
+                 load_state=True, save_stat_data=False):
         self.diParameters = {}
         # Dictionary with all the parameters
         # self.diParameters data structure:
@@ -77,6 +77,8 @@ class CMolStat:
             self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'SASView':
             self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile, load_state=load_state)
+
+        self.save_stat_data = save_stat_data
 
     def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
 
@@ -225,19 +227,13 @@ class CMolStat:
 
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
-        try:
-            self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
-            print('Loaded statistical data from StatDataPython.dat')
-        except IOError:
-            print('Failure to load StatDataPython.dat.')
-            print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical()
+        self.fnLoadStatData()
 
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
-            pdf_frac1 = pandas.read_csv(self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
-            pdf_frac2 = pandas.read_csv(self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
+            pdf_frac1 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
+            pdf_frac2 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
 
             for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
                 striter = 'iter' + str(mcmc_iter)
@@ -294,8 +290,15 @@ class CMolStat:
                 diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
 
             # percentage water in sub-membrane space and other regions for tBLM and other bilayer
-            # get vf_bilayer from molecular group lipid2
-            vf_bilayer = float(mgdict['bilayer.lipid2']['headerdata']['nf'])
+            # get vf_bilayer from molecular group methylene2_x
+            vf_bilayer = 0
+            i = 1
+            while True:
+                if 'bilayer.methylene2_'+str(i) in mgdict:
+                    vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
+                    i += 1
+                else:
+                    break
 
             # prepare arrays for summing up molgroups
             total_components = numpy.zeros_like(mgdict['bilayer.normarea']['areaaxis'])
@@ -321,8 +324,10 @@ class CMolStat:
 
                     # sub membrane components
                     f_vol_components = float(mgdict['bilayer.bME']['headerdata']['vol']) * \
-                        float(mgdict['bilayer.bME']['headerdata']['nf']) + float(mgdict['bilayer.tether']['headerdata']['vol']) * \
-                        float(mgdict['bilayer.tether']['headerdata']['nf']) + float(mgdict['bilayer.tetherg']['headerdata']['vol']) * \
+                        float(mgdict['bilayer.bME']['headerdata']['nf']) + \
+                        float(mgdict['bilayer.tether']['headerdata']['vol']) * \
+                        float(mgdict['bilayer.tether']['headerdata']['nf']) + \
+                        float(mgdict['bilayer.tetherg']['headerdata']['vol']) * \
                         float(mgdict['bilayer.tetherg']['headerdata']['nf']) + f_vol_headgroup1
 
                     f_total_tether_length = float(mgdict['bilayer.tether']['headerdata']['l']) + \
@@ -331,41 +336,60 @@ class CMolStat:
                         diResults['fTotalTetherLength'] = []
                     diResults['fTotalTetherLength'].append(f_total_tether_length)
 
-                    f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / mgdict['bilayer.normarea']['areaaxis'][0]
+                    f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / \
+                        mgdict['bilayer.normarea']['areaaxis'][0]
                     if 'fTetherDensity' not in list(diResults.keys()):
                         diResults['fTetherDensity'] = []
                     diResults['fTetherDensity'].append(f_tether_density)
 
                     total_components += numpy.array(mgdict['bilayer.bME']['areaaxis']) + \
-                        numpy.array(mgdict['bilayer.tether']['areaaxis']) + numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
+                        numpy.array(mgdict['bilayer.tether']['areaaxis']) + \
+                        numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
 
-            if 'bilayer.lipid1' in l_molgroups and 'bilayer.methyl1' in l_molgroups:
-
-                f_total_lipid1_length = float(mgdict['bilayer.lipid1']['headerdata']['l']) + float(
-                    mgdict['bilayer.methyl1']['headerdata']['l'])
+            if 'bilayer.methylene1_1' in l_molgroups and 'bilayer.methyl1_1' in l_molgroups:
+                f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
+                    mgdict['bilayer.methyl1_1']['headerdata']['l'])
                 if 'fTotalLipid1Length' not in list(diResults.keys()):
                     diResults['fTotalLipid1Length'] = []
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
+                i = 1
+                while True:
+                    if 'bilayer.methylene1_' + str(i) in mgdict:
+                        total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
+                                            numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
+                        i += 1
+                    else:
+                        break
 
-                total_components += numpy.array(mgdict['bilayer.lipid1']['areaaxis']) + \
-                    numpy.array(mgdict['bilayer.methyl1']['areaaxis'])
-
-            if 'bilayer.lipid2' in l_molgroups and 'bilayer.methyl2' in l_molgroups:
-
-                f_total_lipid2_length = float(mgdict['bilayer.lipid2']['headerdata']['l']) + float(
-                    mgdict['bilayer.methyl2']['headerdata']['l'])
+            if 'bilayer.methylene2_1' in l_molgroups and 'bilayer.methyl2_1' in l_molgroups:
+                f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
+                    mgdict['bilayer.methyl2_1']['headerdata']['l'])
                 if 'fTotalLipid2Length' not in list(diResults.keys()):
                     diResults['fTotalLipid2Length'] = []
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
-                f_area_per_lipid2 = float(mgdict['bilayer.lipid2']['headerdata']['vol']) / float(
-                    mgdict['bilayer.lipid2']['headerdata']['l'])
+                f_area_per_lipid2 = 0
+                i = 1
+                while True:
+                    if 'bilayer.methylene2_' + str(i) in mgdict:
+                        f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
+                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
+                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
+                        i += 1
+                    else:
+                        break
                 if 'fAreaPerLipid2' not in list(diResults.keys()):
                     diResults['fAreaPerLipid2'] = []
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
-                total_components += numpy.array(mgdict['bilayer.lipid2']['areaaxis']) + \
-                    numpy.array(mgdict['bilayer.methyl2']['areaaxis'])
+                i = 1
+                while True:
+                    if 'bilayer.methylene2_' + str(i) in mgdict:
+                        total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
+                                            numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
+                        i += 1
+                    else:
+                        break
 
             if 'bilayer.headgroup2_1' in l_molgroups:
                 f_vol_headgroup2 = numpy.zeros_like(total_components)
@@ -374,14 +398,14 @@ class CMolStat:
                     if 'bilayer.headgroup2_' + str(j) in l_molgroups:
                         total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
                         f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
-                                          float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
+                            float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
                     else:
                         break
                     j += 1
 
             if 'bilayer.defect_hc' in l_molgroups:
                 total_components = total_components + mgdict['bilayer.defect_hc']['areaaxis']
-                
+
             if 'bilayer.defect_hg' in l_molgroups:
                 total_components = total_components + mgdict['bilayer.defect_hg']['areaaxis']
 
@@ -395,10 +419,10 @@ class CMolStat:
             if 'bilayer.headgroup1_1' in l_molgroups:
                 f_start_hg1 = float(mgdict['bilayer.headgroup1_1']['headerdata']['z']) - 0.5 * float(
                     mgdict['bilayer.headgroup1_1']['headerdata']['l'])
-                f_start_hc = float(mgdict['bilayer.lipid1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.lipid1']['headerdata']['l'])
-                f_start_methyl2 = float(mgdict['bilayer.methyl2']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.methyl2']['headerdata']['l'])
+                f_start_hc = float(mgdict['bilayer.methylene1_1']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer.methylene1_1']['headerdata']['l'])
+                f_start_methyl2 = float(mgdict['bilayer.methyl2_1']['headerdata']['z']) - 0.5 * float(
+                    mgdict['bilayer.methyl2_1']['headerdata']['l'])
                 f_start_hg2 = float(mgdict['bilayer.headgroup2_1']['headerdata']['z']) - 0.5 * float(
                     mgdict['bilayer.headgroup2_1']['headerdata']['l'])
                 f_startbulk = float(mgdict['bilayer.headgroup2_1']['headerdata']['z']) + 0.5 * float(
@@ -547,7 +571,6 @@ class CMolStat:
         File.close()
 
     def fnCalcConfidenceLimits(self, data, method=1):
-
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
         # the shortest confidence interval
 
@@ -581,8 +604,6 @@ class CMolStat:
                 idx = numpy.argmin(width)
                 return x[idx], x[idx + size]
 
-        # ------main function starting here------
-
         # traditional method, taking percentiles of the entire distribution
         if method == 1:
             return [stats.scoreatpercentile(data, percentile) for percentile in [2.3, 15.9, 50, 84.1, 97.7]]
@@ -610,7 +631,7 @@ class CMolStat:
             maxindexsmooth = maxindexsmooth / (histo[a] + histo[maxindex] + histo[c])
             maxvaluesmooth = low_range + (maxindexsmooth + 0.5) * bin_size
 
-            a = maxindex;
+            a = maxindex
             c = maxindex
             confidence = histo[maxindex]
             while confidence < 0.6827:
@@ -633,9 +654,6 @@ class CMolStat:
 
             twosigmam = low_range + (a + 0.5) * bin_size
             twosigmap = low_range + (c + 0.5) * bin_size
-
-            # print data
-            # print histo, twosigmam, onesigmam, maxvaluesmooth, onesigmap, twosigmap, low_range, bin_size
 
             return [twosigmam, onesigmam, maxvaluesmooth, onesigmap, twosigmap]
 
@@ -780,7 +798,7 @@ class CMolStat:
             dRho = dRhoMin  # write out y-dimension wave
             sFileName = 'Cont_nSLD_DimRho' + str(i) + '.dat'  # dimension wave has one point extra for Igor
             file = open(sFileName, "w")
-            while (dRho <= dRhoMax + dRhoStep):
+            while dRho <= dRhoMax + dRhoStep:
                 sLine = str(round(dRho / dRhoGrid) * dRhoGrid) + '\n'
                 file.write(sLine)
                 dRho = dRho + dRhoStep
@@ -798,8 +816,8 @@ class CMolStat:
                 # dimension format ymin, ymax, ystep, xmin, xmax, xstep
 
             for iteration in self.diStatResults['Molgroups']:  # cycle through all individual stat. results
-                i = 0;
-                dareaold = 0;
+                i = 0
+                dareaold = 0
                 dzold = 0
                 for molgroup in iteration:  # cycle through all molecular groups
                     for l in range(len(iteration[molgroup]['zaxis'])):  # extract area profile data point by point
@@ -865,10 +883,8 @@ class CMolStat:
     # -------------------------------------------------------------------------------
 
     def fnCreateBilayerPlotData(self):
-
         # integrate over 1D array
         def fnIntegrate(axis, array, start, stop):
-
             startaxis = float(axis[0])
             incaxis = float(axis[1] - axis[0])
             startindex = int((start - startaxis) / incaxis + 0.5)
@@ -877,33 +893,30 @@ class CMolStat:
             if startindex > stopindex:
                 startindex, stopindex = stopindex, startindex
 
-            sum = 0.5 * (array[startindex] + array[stopindex])
-
+            fsum = 0.5 * (array[startindex] + array[stopindex])
             for i in range(startindex + 1, stopindex):
-                sum += array[i]
+                fsum += array[i]
 
-            return sum
+            return fsum
 
         # find maximum values and indizees of half-height points assuming unique solution and steady functions
         def fnMaximumHalfPoint(data):
-
-            max = numpy.amax(data)
-
+            fmax = numpy.amax(data)
             point1 = False
             point2 = False
             hm1 = 0
             hm2 = 0
 
             for i in range(len(data)):
-                if data[i] > (max / 2) and not point1:
+                if data[i] > (fmax / 2) and not point1:
                     point1 = True
                     hm1 = i
-                if data[i] < (max / 2) and point1 and not point2:
+                if data[i] < (fmax / 2) and point1 and not point2:
                     point2 = True
                     hm2 = i - 1
                     break
 
-            return max, hm1, hm2
+            return fmax, hm1, hm2
 
         def fnStat(diarea, name, diStat):
             for i in range(len(diarea[list(diarea.keys())[0]])):
@@ -946,12 +959,15 @@ class CMolStat:
         print('  siox ...')
         diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer.siox'])
         print('  tether ...')
-        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether'])
+        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether',
+                                                                    'bilayer.tether_bme', 'bilayer.tether_free',
+                                                                    'bilayer.tether_hg'])
+
         print('  innerhg ...')
         grouplist = []
         i = 1
         while True:
-            if 'bilayer.headgroup1_' + str(i) in self.diMolgroups:
+            if 'bilayer.headgroup1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup1_' + str(i))
                 i += 1
             else:
@@ -960,19 +976,57 @@ class CMolStat:
         diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.cg'])
         diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
         diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.choline'])
+
         print('  innerhc ...')
-        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid1', 'bilayer.methyl1'])
-        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid1'])
-        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer.methyl1'])
+        gl_methylene = []
+        gl_methyl = []
+        i = 1
+        while True:
+            if 'bilayer.methylene1_' + str(i) in self.diStatResults['Molgroups'][0]:
+                gl_methylene.append('bilayer.methylene1_' + str(i))
+                i += 1
+            else:
+                break
+        gl_methylene.append('bilayer.tether_methylene')
+        i = 1
+        while True:
+            if 'bilayer.methyl1_' + str(i) in self.diStatResults['Molgroups'][0]:
+                gl_methyl.append('bilayer.methyl1_' + str(i))
+                i += 1
+            else:
+                break
+        gl_methyl.append('bilayer.tether_methyl')
+        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
+        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
+        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
+
         print('  outerhc ...')
-        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid2', 'bilayer.methyl2'])
-        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(['bilayer.lipid2'])
-        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(['bilayer.methyl2'])
+        gl_methylene = []
+        gl_methyl = []
+        i = 1
+        while True:
+            if 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
+                gl_methylene.append('bilayer.methylene2_' + str(i))
+                i += 1
+            else:
+                break
+        gl_methyl = []
+        i = 1
+        while True:
+            if 'bilayer.methyl2_' + str(i) in self.diStatResults['Molgroups'][0]:
+                gl_methyl.append('bilayer.methyl2_' + str(i))
+                i += 1
+            else:
+                break
+        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
+        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
+        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
+
         print('  outerhg ...')
         grouplist = []
         i = 1
         while True:
-            if 'bilayer.headgroup2_' + str(i) in self.diMolgroups:
+            if 'bilayer.headgroup2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup2_' + str(i))
                 i += 1
             else:
@@ -981,6 +1035,7 @@ class CMolStat:
         diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.cg'])
         diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.phosphate'])
         diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.choline'])
+
         print('  protein ...')
         diIterations['protein'], __, __ = self.fnPullMolgroupLoader(['protein'])
 
@@ -1081,7 +1136,6 @@ class CMolStat:
         self.Interactor.fnSaveSingleColumns(self.mcmcpath + '/bilayerplotdata.dat', diStat)
 
     def fnGetNumberOfModelsFromSetupC(self):
-
         file = open(self.setupfilename, "r")  # open setup.c
         data = file.readlines()
         file.close()
@@ -1155,22 +1209,27 @@ class CMolStat:
             self.diParameters, self.chisq = self.Interactor.fnLoadParameters()
 
     def fnLoadStatData(self, sparse=0):
-        self.diStatResults = self.Interactor.fnLoadStatData(sparse)
-        # cycle through all parameters
-        # determine length of longest parameter name for displaying
-        iMaxParameterNameLength = 0
-        for parname in list(self.diStatResults['Parameters'].keys()):
-            if len(parname) > iMaxParameterNameLength:
-                iMaxParameterNameLength = len(parname)
-        self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
-
-        self.diStatResults['NumberOfStatValues'] = \
-            len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-        # print('StatDataLength: ')
-        # print(len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values']))
+        self.fnLoadParameters()
+        if self.diStatResults == {}:
+            try:
+                self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
+                print('Loaded statistical data from StatDataPython.dat')
+            except IOError:
+                print('No StatDataPython.dat.')
+                print('Recreate statistical data from sErr.dat.')
+                self.diStatResults = self.Interactor.fnLoadStatData(sparse)
+                # cycle through all parameters
+                # determine length of longest parameter name for displaying
+                iMaxParameterNameLength = 0
+                for parname in list(self.diStatResults['Parameters'].keys()):
+                    if len(parname) > iMaxParameterNameLength:
+                        iMaxParameterNameLength = len(parname)
+                self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
+                self.diStatResults['NumberOfStatValues'] = \
+                    len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
+                self.fnRecreateStatistical()
 
     def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
-
         def fnInterpolateData(xdata, ydata, fMin, fMax, fGrid):
 
             f = fMin  # target start
@@ -1391,7 +1450,6 @@ class CMolStat:
                             fMin, fMax, fGrid, fSigma)
 
     def fnPlotMolgroups(self):
-
         from matplotlib.font_manager import fontManager, FontProperties
 
         font = FontProperties(size='x-small')
@@ -1703,7 +1761,35 @@ class CMolStat:
         Saves results to file
         """
         diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse, verbose=verbose)
-        diStat = self.fnPullMolgroupWorker(diarea, dinsl, dinsld)
+        diStat = dict(zaxis=[], m2sigma_area=[], msigma_area=[], median_area=[], psigma_area=[], p2sigma_area=[],
+                      m2sigma_nsl=[], msigma_nsl=[], median_nsl=[], psigma_nsl=[], p2sigma_nsl=[],
+                      m2sigma_nsld=[], msigma_nsld=[], median_nsld=[], psigma_nsld=[], p2sigma_nsld=[])
+
+        for i in range(len(diarea[list(diarea.keys())[0]])):
+            liOnePosition = [iteration[i] for key, iteration in diarea.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['zaxis'].append(str(diarea['zaxis'][i]))
+            diStat['m2sigma_area'].append(stat[0])
+            diStat['msigma_area'].append(stat[1])
+            diStat['median_area'].append(stat[2])
+            diStat['psigma_area'].append(stat[3])
+            diStat['p2sigma_area'].append(stat[4])
+
+            liOnePosition = [iteration[i] for key, iteration in dinsl.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['m2sigma_nsl'].append(stat[0])
+            diStat['msigma_nsl'].append(stat[1])
+            diStat['median_nsl'].append(stat[2])
+            diStat['psigma_nsl'].append(stat[3])
+            diStat['p2sigma_nsl'].append(stat[4])
+
+            liOnePosition = [iteration[i] for key, iteration in dinsld.items() if key != 'zaxis']
+            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
+            diStat['m2sigma_nsld'].append(stat[0])
+            diStat['msigma_nsld'].append(stat[1])
+            diStat['median_nsld'].append(stat[2])
+            diStat['psigma_nsld'].append(stat[3])
+            diStat['p2sigma_nsld'].append(stat[4])
 
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_area.dat', diarea)
         self.Interactor.fnSaveSingleColumns(self.mcmcpath+'/pulledmolgroups_nsl.dat', dinsl)
@@ -1719,14 +1805,8 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         """
 
-        try:
-            self.diStatResults = self.fnLoadObject(self.mcmcpath+'/StatDataPython.dat')
-            print('Loaded statistical data from StatDataPython.dat')
-
-        except IOError:
-            print('Failure to load StatDataPython.dat.')
-            print('Recreate statistical data from sErr.dat.')
-            self.fnRecreateStatistical(sparse=sparse, verbose=verbose)
+        if self.diStatResults != {}:
+            self.fnLoadStatData()
 
         zaxis = self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']
         diarea = {'zaxis': zaxis}
@@ -1758,54 +1838,11 @@ class CMolStat:
 
         return diarea, dinsl, dinsld
 
-    def fnPullMolgroupWorker(self, diarea, dinsl, dinsld):
+    def fnRecreateStatistical(self, bRecreateMolgroups=True, verbose=False):
         """
-        Function recreates statistical data and extracts only area and nSL profiles for
-        submolecular groups whose names are given in liMolgroupNames. Those groups
-        are added for each iteration and a file pulledmolgroups.dat is created.
-        A statistical analysis area profile containing the median, sigma, and
-        2 sigma intervals are put out in pulledmolgroupsstat.dat.
+        Recreates profile and fit data associated with parameter stats
         """
-
-        # do a statistics over every z-position
-        diStat = dict(zaxis=[], m2sigma_area=[], msigma_area=[], median_area=[], psigma_area=[], p2sigma_area=[],
-                      m2sigma_nsl=[], msigma_nsl=[], median_nsl=[], psigma_nsl=[], p2sigma_nsl=[],
-                      m2sigma_nsld=[], msigma_nsld=[], median_nsld=[], psigma_nsld=[], p2sigma_nsld=[])
-        for i in range(len(diarea[list(diarea.keys())[0]])):
-            liOnePosition = [iteration[i] for key, iteration in diarea.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['zaxis'].append(str(diarea['zaxis'][i]))
-            diStat['m2sigma_area'].append(stat[0])
-            diStat['msigma_area'].append(stat[1])
-            diStat['median_area'].append(stat[2])
-            diStat['psigma_area'].append(stat[3])
-            diStat['p2sigma_area'].append(stat[4])
-
-            liOnePosition = [iteration[i] for key, iteration in dinsl.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['m2sigma_nsl'].append(stat[0])
-            diStat['msigma_nsl'].append(stat[1])
-            diStat['median_nsl'].append(stat[2])
-            diStat['psigma_nsl'].append(stat[3])
-            diStat['p2sigma_nsl'].append(stat[4])
-
-            liOnePosition = [iteration[i] for key, iteration in dinsld.items() if key != 'zaxis']
-            stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-            diStat['m2sigma_nsld'].append(stat[0])
-            diStat['msigma_nsld'].append(stat[1])
-            diStat['median_nsld'].append(stat[2])
-            diStat['psigma_nsld'].append(stat[3])
-            diStat['p2sigma_nsld'].append(stat[4])
-
-        return diStat
-
-    def fnRecreateStatistical(self, bRecreateMolgroups=True, sparse=0, verbose=True):
-
-        # Recreates profile and fit data associated with stat file
-
-        self.fnLoadParameters()
-        self.fnLoadStatData(sparse)
-        if hasattr(self.Interactor, 'problem'):
+        if self.Interactor.problem is not None:
             problem = self.Interactor.problem
         else:
             problem = self.Interactor.fnRestoreFitProblem()
@@ -1838,8 +1875,8 @@ class CMolStat:
                     problem.setp(p)
                     problem.model_update()
                     # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
-                    # way, also implement which contrast to use for pulling groups
-                    # garefl based code should save a mol.dat automatically on updating the model
+                    #   way, also implement which contrast to use for pulling groups garefl based code should save a
+                    #   mol.dat automatically on updating the model
                     if 'models' in dir(problem):
                         for M in problem.models:
                             M.chisq()
@@ -1873,7 +1910,9 @@ class CMolStat:
             finally:
                 j += 1
 
-        self.fnSaveObject(self.diStatResults, self.mcmcpath + '/StatDataPython.dat')  # save stat data to disk
+        # save stat data to disk, if flag is set
+        if self.save_stat_data:
+            self.fnSaveObject(self.diStatResults, self.spath+'/'+self.mcmcpath + '/StatDataPython.dat')
 
     @staticmethod
     def fnSaveObject(save_object, sFileName):
