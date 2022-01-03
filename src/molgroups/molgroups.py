@@ -27,6 +27,9 @@ class nSLDObj:
         self.sigma = 0
         self.bulknsld = None
 
+        # allows to flip groups, eg. inner vs. outer leaflet, outer leaflet is default
+        self.flip = False
+
         if name is not None:
             self.name = name
 
@@ -86,6 +89,9 @@ class nSLDObj:
     def fnWriteData2File(self, f, cName, z):
         header = "z" + cName + " a" + cName + " nsl" + cName
         area, nsl, _ = self.fnGetProfiles(z)
+        if self.flip:
+            area = numpy.flip(area)
+            nsl = numpy.flip(nsl)
         A = numpy.vstack((z, area, nsl)).T
         numpy.savetxt(f, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
         f.write('\n')
@@ -93,6 +99,10 @@ class nSLDObj:
 
     def fnWriteData2Dict(self, rdict, z):
         area, nsl, nsld = self.fnGetProfiles(z)
+        if self.flip:
+            area = numpy.flip(area)
+            nsl = numpy.flip(nsl)
+            nsld = numpy.flip(nsld)
         rdict['zaxis'] = z
         rdict['area'] = area
         rdict['nsl'] = nsl
@@ -404,7 +414,7 @@ class CompositeHeadgroup(CompositenSLDObj):
     def __init__(self, name='headgroup', components=None, innerleaflet=False, xray_wavelength=None,
                  sigma1=None, sigma2=None, rel_pos=None, length=None, position=None, num_frac=None, **kwargs):
         super().__init__(name=name, **kwargs)
-        self.innerleaflet = innerleaflet
+        self.flip = innerleaflet
         self.xray_wavelength = xray_wavelength
 
         if not isinstance(components, (list, tuple)):
@@ -468,18 +478,25 @@ class CompositeHeadgroup(CompositenSLDObj):
 
         vol = 0.
         for i, component in enumerate(self.components):
-            if i == 0:
-                component.z = self.z - 0.5 * self.l + 0.5 * component.l
-            elif i == len(self.components)-1:
-                component.z = self.z + 0.5 * self.l - 0.5 * component.l
+            if i == 0 or self.rel_pos[i] * self.l < component.l * 0.5:
+                pos = 0.5 * component.l
+            elif i == len(self.components)-1 or self.rel_pos[i] * self.l > self.l - component.l * 0.5:
+                pos = self.l - 0.5 * component.l
             else:
-                component.z = self.z - 0.5 * self.l + self.rel_pos[i] * self.l
+                pos = self.rel_pos[i] * self.l
+            component.z = self.z - 0.5 * self.l + pos
             component.nf = self.nf
             vol += component.vol
 
         self.vol = vol
 
-    def fnSet(self, length=None, rel_pos=None, position=None, num_frac=None):
+    def fnGetLowerLimit(self):
+        return self.z - 0.5 * self.l
+
+    def fnGetUpperLimit(self):
+        return self.z + 0.5 * self.l
+
+    def fnSet(self, length=None, rel_pos=None, position=None, num_frac=None, bulknsld=None):
         if position is not None:
             self.l = length
         if rel_pos is not None:
@@ -488,13 +505,9 @@ class CompositeHeadgroup(CompositenSLDObj):
             self.z = position
         if num_frac is not None:
             self.nf = num_frac
+        if bulknsld is not None:
+            self.fnSetBulknSLD(bulknsld)
         self.fnAdjustParameters()
-
-    def fnGetLowerLimit(self):
-        return self.z - 0.5 * self.l
-
-    def fnGetUpperLimit(self):
-        return self.z + 0.5 * self.l
 
     def fnSetSigma(self, sigma):
         self.sigma1.fill(sigma)
@@ -505,14 +518,14 @@ class CompositeHeadgroup(CompositenSLDObj):
         self.fnAdjustParameters()
 
     def fnWritePar2File(self, fp, cName, z):
-        prefix = "m" if self.innerleaflet else ""
+        prefix = "m" if self.flip else ""
         fp.write(prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " + str(self.vol) + " nf " +
                  str(self.nf) + " \n")
         self.fnWriteData2File(fp, cName, z)
         super().fnWritePar2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        prefix = "m" if self.innerleaflet else ""
+        prefix = "m" if self.flip else ""
         rdict[cName] = {}
         rdict[cName]['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
         rdict[cName]['header'] += str(self.vol) + " nf " + str(self.nf)
