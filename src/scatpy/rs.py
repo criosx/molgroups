@@ -973,7 +973,7 @@ class CMolStat:
             else:
                 break
         diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
-        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.cg'])
+        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.carbonyl_glycerol'])
         diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
         diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.choline'])
 
@@ -1002,7 +1002,6 @@ class CMolStat:
 
         print('  outerhc ...')
         gl_methylene = []
-        gl_methyl = []
         i = 1
         while True:
             if 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
@@ -1032,7 +1031,7 @@ class CMolStat:
             else:
                 break
         diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
-        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.cg'])
+        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.carbonyl_glycerol'])
         diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.phosphate'])
         diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.choline'])
 
@@ -1069,7 +1068,8 @@ class CMolStat:
             areaperlipid, _, _ = fnMaximumHalfPoint(substrate)
             maxbilayerarea, _, _ = fnMaximumHalfPoint(hc)
             # vf_bilayer = maxbilayerarea/areaperlipid
-            if substrate.min() == substrate.max() and substrate.max() == 0: #if no substrate, use maximum bilayer area as area per lipid
+            # if no substrate, use maximum bilayer area as area per lipid
+            if substrate.min() == substrate.max() and substrate.max() == 0:
                 areaperlipid = maxbilayerarea
 
             # recuperate the non-corrected headgroup distributions that were not saved to file by the fit

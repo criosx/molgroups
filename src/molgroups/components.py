@@ -1,5 +1,4 @@
 import numpy
-import molgroups as mol
 from periodictable.fasta import Molecule, xray_sld
 # in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
 # to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
@@ -100,7 +99,7 @@ def AddMolecules(component_list, length=None):
 # PC headgroup pieces
 choline = Component(name='choline', formula='C5 H13 N', cell_volume=120., length=5.1)
 phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3.86)
-carbonyl_glycerol = Component(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
+carbonyl_glycerol = Component(name='carbonyl_glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
 
 # standard headgroups
 pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
@@ -136,12 +135,3 @@ SAcEO6 = AddMolecules([SAc, EO6])
 # Filler molecules. Note that by including length= these return Components as required by molgroups.tBLM
 bmeSAc = AddMolecules([SAc, ethanoyl], length=5.2)
 bme = AddMolecules([thiol, ethanoyl], length=5.2)
-
-# Composite Headgroups
-
-PC = mol.CompositeHeadgroup(name='PC',
-                            components=[carbonyl_glycerol, phosphate, choline],
-                            sigma1=[2.53, 2.29, 2.02],
-                            sigma2=[2.29, 2.02, 2.26],
-                            rel_pos=[0., 0.58, 0.],
-                            length=9.575)

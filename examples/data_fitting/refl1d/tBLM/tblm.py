@@ -55,7 +55,7 @@ mult_tether =  Parameter(name='bME to tether ratio', value=2).range(0.1, 4) #rat
 l_tether =  Parameter(name='tether length', value=10).range(3, 18) #distance from substrate to inner headgroup/acyl chain interface
 
 ### Define bilayer object
-blm = mol.tBLM(tether=cmp.HC18SAc, filler=cmp.bmeSAc, lipids=[lipids.POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
+blm = mol.tBLM(tether=lipids.HC18SAc, filler=cmp.bmeSAc, lipids=[lipids.POPC], lipid_nf=[1.0])        # required to subtract the bilayer length in layer_tiox definition; only really necessary if using "global blm" in bilayer function
 
 ### Define molgroups space.
 dimension=300       # Number of steps

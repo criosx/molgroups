@@ -3,6 +3,8 @@ from scipy.special import erf
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.interpolation import shift
+from copy import deepcopy
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
 import components as cmp
@@ -89,9 +91,6 @@ class nSLDObj:
     def fnWriteData2File(self, f, cName, z):
         header = "z" + cName + " a" + cName + " nsl" + cName
         area, nsl, _ = self.fnGetProfiles(z)
-        if self.flip:
-            area = numpy.flip(area)
-            nsl = numpy.flip(nsl)
         A = numpy.vstack((z, area, nsl)).T
         numpy.savetxt(f, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
         f.write('\n')
@@ -99,10 +98,6 @@ class nSLDObj:
 
     def fnWriteData2Dict(self, rdict, z):
         area, nsl, nsld = self.fnGetProfiles(z)
-        if self.flip:
-            area = numpy.flip(area)
-            nsl = numpy.flip(nsl)
-            nsld = numpy.flip(nsld)
         rdict['zaxis'] = z
         rdict['area'] = area
         rdict['nsl'] = nsl
@@ -216,10 +211,6 @@ class CompositenSLDObj(nSLDObj):
         nsl = numpy.zeros_like(z)
         nsld = numpy.zeros_like(z)
 
-        # make sure FindSubGroups was called. TODO: speed tests whether this is too expensive to do every time
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
-
         for g in self.subgroups:
             newarea, newnsl, _ = g.fnGetProfiles(z)
             area += newarea
@@ -237,21 +228,14 @@ class CompositenSLDObj(nSLDObj):
         return nSL
 
     def fnWritePar2File(self, f, cName, z):
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
-
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
             g.fnWritePar2File(f, cName + '.' + g.name, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
-
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
             rdict = g.fnWritePar2Dict(rdict, cName + '.' + g.name, z)
-
         return rdict
 
 
@@ -267,6 +251,19 @@ class Box2Err(nSLDObj):
         self.nSL = dnSL
         self.nf = dnumberfraction
         self.nSL2 = None
+        self.flip = False
+        self.flipcenter = 0.
+
+    @staticmethod
+    def _flip_shift(arr, z, flipcenter):
+        """
+        Flips array and shifts it back that self.z is at same position. Used to invert groups from outer to inner
+        leaflet.
+        """
+        ret = numpy.flip(arr)
+        shiftvalue = -1 * (z[-1] - (flipcenter - z[0]) - flipcenter) / (z[1] - z[0])
+        ret = shift(ret, shiftvalue, mode='constant')
+        return ret
 
     def fnGetArea(self, z):
         area, _, _ = self.fnGetProfiles(z)
@@ -289,6 +286,11 @@ class Box2Err(nSLDObj):
         nsld = self.fnGetnSL() / self.vol * numpy.ones_like(z) if self.vol != 0 else numpy.zeros_like(z)
         # calculate nSL.
         nsl = area * nsld * numpy.gradient(z)
+
+        if self.flip:
+            area = self._flip_shift(area, z, self.flipcenter)
+            nsl = self._flip_shift(nsl, z, self.flipcenter)
+            nsld = self._flip_shift(nsld, z, self.flipcenter)
 
         return area, nsl, nsld
 
@@ -358,17 +360,25 @@ class Box2Err(nSLDObj):
             self.nf = nf
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + " sigma2 " + str(
-            self.sigma2) + " l "
-                 + str(self.l) + " vol " + str(self.vol) + " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf "
-                 + str(self.nf) + " \n")
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
+        fp.write("Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + " sigma2 " +
+                 str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + " nSL " + str(self.nSL) + " nSL2 "
+                 + str(self.nSL2) + " nf " + str(self.nf) + " flip " + str(self.flip) + "\n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
         rdict[cName] = {}
-        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + \
+        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + \
                                  " sigma2 " + str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + \
-                                 " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf)
+                                 " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf) + " flip " \
+                                 + str(self.flip)
         rdict[cName]['z'] = self.z
         rdict[cName]['sigma1'] = self.sigma1
         rdict[cName]['sigma2'] = self.sigma2
@@ -424,7 +434,7 @@ class CompositeHeadgroup(CompositenSLDObj):
         for i, component in enumerate(components):
             comp_name = component.name
             # check if componnent is being used more than once, and update name
-            if components.count(component)>1:
+            if components.count(component) > 1:
                 comp_name += '_'+str(i)
             comp_obj = ComponentBox(name=comp_name, components=[component], xray_wavelength=self.xray_wavelength)
             self.__setattr__(comp_name, comp_obj)
@@ -464,9 +474,9 @@ class CompositeHeadgroup(CompositenSLDObj):
         else:
             self.rel_pos = rel_pos
 
-        assert (self.sigma1.shape[0] == len(components)), 'Number of sigma1 values must equal number of components'
-        assert (self.sigma2.shape[0] == len(components)), 'Number of sigma2 values must equal number of components'
-        assert (self.rel_pos.shape[0] == len(components)), 'Number of rel_pos values must equal number of components'
+        assert (len(self.sigma1) == len(components)), 'Number of sigma1 values must equal number of components'
+        assert (len(self.sigma2) == len(components)), 'Number of sigma2 values must equal number of components'
+        assert (len(self.rel_pos) == len(components)), 'Number of rel_pos values must equal number of components'
 
         self.fnFindSubgroups()
         self.fnAdjustParameters()
@@ -478,15 +488,23 @@ class CompositeHeadgroup(CompositenSLDObj):
 
         vol = 0.
         for i, component in enumerate(self.components):
-            if i == 0 or self.rel_pos[i] * self.l < component.l * 0.5:
+            if i == 0:
                 pos = 0.5 * component.l
-            elif i == len(self.components)-1 or self.rel_pos[i] * self.l > self.l - component.l * 0.5:
+            elif i == len(self.components)-1:
+                pos = self.l - 0.5 * component.l
+            elif self.rel_pos[i] * self.l < component.l * 0.5:
+                pos = 0.5 * component.l
+            elif self.rel_pos[i] * self.l > self.l - component.l * 0.5:
                 pos = self.l - 0.5 * component.l
             else:
                 pos = self.rel_pos[i] * self.l
             component.z = self.z - 0.5 * self.l + pos
-            component.nf = self.nf
+            component.sigma1 = self.sigma1[i]
+            component.sigma2 = self.sigma2[i]
             vol += component.vol
+            if self.flip:
+                component.flip = True
+                component.flipcenter = self.z
 
         self.vol = vol
 
@@ -497,7 +515,7 @@ class CompositeHeadgroup(CompositenSLDObj):
         return self.z + 0.5 * self.l
 
     def fnSet(self, length=None, rel_pos=None, position=None, num_frac=None, bulknsld=None):
-        if position is not None:
+        if length is not None:
             self.l = length
         if rel_pos is not None:
             self.rel_pos = rel_pos
@@ -519,15 +537,16 @@ class CompositeHeadgroup(CompositenSLDObj):
 
     def fnWritePar2File(self, fp, cName, z):
         prefix = "m" if self.flip else ""
-        fp.write(prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " + str(self.vol) + " nf " +
-                 str(self.nf) + " \n")
+        fp.write(prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
+                 str(self.vol) + " nf " + str(self.nf) + " \n")
         self.fnWriteData2File(fp, cName, z)
         super().fnWritePar2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         prefix = "m" if self.flip else ""
         rdict[cName] = {}
-        rdict[cName]['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
+        rdict[cName]['header'] = prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + \
+                                 " vol "
         rdict[cName]['header'] += str(self.vol) + " nf " + str(self.nf)
         rdict[cName]['z'] = self.z
         rdict[cName]['l'] = self.l
@@ -612,6 +631,7 @@ class BLM(CompositenSLDObj):
 
         self._calc_av_hg()
         self.initial_hg1_l = self.av_hg1_l
+
         self.fnFindSubgroups()
         self.fnSetBulknSLD(-0.56e-6)
         self.fnAdjustParameters()
@@ -795,11 +815,9 @@ class BLM(CompositenSLDObj):
             if isinstance(lipid.headgroup, cmp.Component):
                 # populates nSL, nSL2, vol, and l
                 hg_obj = ComponentBox(name=hg_name, components=[lipid.headgroup], xray_wavelength=self.xray_wavelength)
-            elif issubclass(lipid.headgroup, CompositenSLDObj):
-                # TODO: Following crashes if the lipid headgroup is imported as "from molgroups import PC"
-                # instead of "import molgroups as mol; mol.PC". Perhaps a simple try/catch would work better here; if
-                # lipid.headgroup is not a class, then it will crash.
-                hg_obj = lipid.headgroup(name=hg_name, innerleaflet=innerleaflet, xray_wavelength=self.xray_wavelength)
+            elif isinstance(lipid.headgroup, list):
+                hg_obj = lipid.headgroup[0](name=hg_name, innerleaflet=innerleaflet,
+                                            xray_wavelength=self.xray_wavelength, **(lipid.headgroup[1]))
             else:
                 raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
 
