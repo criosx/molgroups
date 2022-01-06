@@ -3,6 +3,8 @@ from scipy.special import erf
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.interpolation import shift
+from copy import deepcopy
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
 import components as cmp
@@ -26,6 +28,9 @@ class nSLDObj:
         self.nf = 0
         self.sigma = 0
         self.bulknsld = None
+
+        # allows to flip groups, eg. inner vs. outer leaflet, outer leaflet is default
+        self.flip = False
 
         if name is not None:
             self.name = name
@@ -206,10 +211,6 @@ class CompositenSLDObj(nSLDObj):
         nsl = numpy.zeros_like(z)
         nsld = numpy.zeros_like(z)
 
-        # make sure FindSubGroups was called. TODO: speed tests whether this is too expensive to do every time
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
-
         for g in self.subgroups:
             newarea, newnsl, _ = g.fnGetProfiles(z)
             area += newarea
@@ -220,22 +221,21 @@ class CompositenSLDObj(nSLDObj):
 
         return area * self.nf, nsl * self.nf, nsld
 
-    def fnWritePar2File(self, f, cName, z):
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
+    def fnGetnSL(self):
+        nSL = 0.
+        for group in self.subgroups:
+            nSL += group.fnGetnSL()
+        return nSL
 
+    def fnWritePar2File(self, f, cName, z):
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
             g.fnWritePar2File(f, cName + '.' + g.name, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        if not hasattr(self, 'subgroups'):
-            self.fnFindSubgroups()
-
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
             rdict = g.fnWritePar2Dict(rdict, cName + '.' + g.name, z)
-
         return rdict
 
 
@@ -251,6 +251,19 @@ class Box2Err(nSLDObj):
         self.nSL = dnSL
         self.nf = dnumberfraction
         self.nSL2 = None
+        self.flip = False
+        self.flipcenter = 0.
+
+    @staticmethod
+    def _flip_shift(arr, z, flipcenter):
+        """
+        Flips array and shifts it back that self.z is at same position. Used to invert groups from outer to inner
+        leaflet.
+        """
+        ret = numpy.flip(arr)
+        shiftvalue = -1 * (z[-1] - (flipcenter - z[0]) - flipcenter) / (z[1] - z[0])
+        ret = shift(ret, shiftvalue, mode='constant')
+        return ret
 
     def fnGetArea(self, z):
         area, _, _ = self.fnGetProfiles(z)
@@ -273,6 +286,11 @@ class Box2Err(nSLDObj):
         nsld = self.fnGetnSL() / self.vol * numpy.ones_like(z) if self.vol != 0 else numpy.zeros_like(z)
         # calculate nSL.
         nsl = area * nsld * numpy.gradient(z)
+
+        if self.flip:
+            area = self._flip_shift(area, z, self.flipcenter)
+            nsl = self._flip_shift(nsl, z, self.flipcenter)
+            nsld = self._flip_shift(nsld, z, self.flipcenter)
 
         return area, nsl, nsld
 
@@ -342,17 +360,25 @@ class Box2Err(nSLDObj):
             self.nf = nf
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + " sigma2 " + str(
-            self.sigma2) + " l "
-                 + str(self.l) + " vol " + str(self.vol) + " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf "
-                 + str(self.nf) + " \n")
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
+        fp.write("Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + " sigma2 " +
+                 str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + " nSL " + str(self.nSL) + " nSL2 "
+                 + str(self.nSL2) + " nf " + str(self.nf) + " flip " + str(self.flip) + "\n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
         rdict[cName] = {}
-        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(self.z) + " sigma1 " + str(self.sigma1) + \
+        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + \
                                  " sigma2 " + str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + \
-                                 " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf)
+                                 " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf) + " flip " \
+                                 + str(self.flip)
         rdict[cName]['z'] = self.z
         rdict[cName]['sigma1'] = self.sigma1
         rdict[cName]['sigma2'] = self.sigma2
@@ -377,9 +403,9 @@ class ComponentBox(Box2Err):
     of elements must be given each. If given as a list, an average length is calculated.
     """
     def __init__(self, components=None, diffcomponents=None, xray_wavelength=None, **kwargs):
-        if not isinstance(components, (list, tuple, numpy.ndarray)):
+        if not isinstance(components, (list, tuple)):
             components = [components]
-        if diffcomponents is not None and not isinstance(diffcomponents, (list, tuple, numpy.ndarray)):
+        if diffcomponents is not None and not isinstance(diffcomponents, (list, tuple)):
             diffcomponents = [diffcomponents]
 
         dvolume = sum(m.cell_volume for m in components)
@@ -394,43 +420,64 @@ class ComponentBox(Box2Err):
         self.fnSetnSL(*nSL)
 
 
-# TODO: A headgroup class must contain an "innerleaflet" flag that determines whether the headgroup
-# is in the inner or outer leaflet. The profiles so obtained should be flipped. This should perhaps
-# be standardized, (1) by creating a CompositeHeadgroup class that has this flag already, and (2) by
-# finding a reasonable way of flipping the profile after calculating it (removes lots of if statements)
-
-
-class PC(CompositenSLDObj):
-    def __init__(self, name='PC', innerleaflet=False, xray_wavelength=None, **kwargs):
-        # innerleaflet flag locates it in the inner leaflet and flips the order of cg, phosphate,
-        # and choline groups. If False, it's the outer leaflet
+class CompositeHeadgroup(CompositenSLDObj):
+    def __init__(self, name='headgroup', components=None, innerleaflet=False, xray_wavelength=None,
+                 sigma1=None, sigma2=None, rel_pos=None, length=None, position=None, num_frac=None, **kwargs):
         super().__init__(name=name, **kwargs)
+        self.flip = innerleaflet
+        self.xray_wavelength = xray_wavelength
 
-        self.cg = ComponentBox(name='cg', components=[cmp.carbonyl_glycerol], xray_wavelength=xray_wavelength)
-        self.phosphate = ComponentBox(name='phosphate', components=[cmp.phosphate], xray_wavelength=xray_wavelength)
-        self.choline = ComponentBox(name='choline', components=[cmp.choline], xray_wavelength=xray_wavelength)
-        self.innerleaflet = innerleaflet
-        self.groups = {"cg": self.cg, "phosphate": self.phosphate, "choline": self.choline}
+        if not isinstance(components, (list, tuple)):
+            components = [components]
 
-        if innerleaflet:
-            self.cg.sigma2, self.cg.sigma1 = 2.53, 2.29
-            self.phosphate.sigma2, self.phosphate.sigma1 = 2.29, 2.02
-            self.choline.sigma2, self.choline.sigma1 = 2.02, 2.26
+        self.components = []
+        for i, component in enumerate(components):
+            comp_name = component.name
+            # check if componnent is being used more than once, and update name
+            if components.count(component) > 1:
+                comp_name += '_'+str(i)
+            comp_obj = ComponentBox(name=comp_name, components=[component], xray_wavelength=self.xray_wavelength)
+            self.__setattr__(comp_name, comp_obj)
+            self.components.append(comp_obj)
+
+        if length is None:
+            self.l = 10.0
         else:
-            self.cg.sigma1, self.cg.sigma2 = 2.53, 2.29
-            self.phosphate.sigma1, self.phosphate.sigma2 = 2.29, 2.02
-            self.choline.sigma1, self.choline.sigma2 = 2.02, 2.26
-
-        self.cg.nf = 1
-        self.phosphate.nf = 1
-        self.choline.nf = 1
-
-        self.l = 9.575
+            self.l = length
         self.init_l = self.l
-        self.vol = self.cg.vol + self.phosphate.vol + self.choline.vol
-        self.nSL = self.cg.nSL + self.phosphate.nSL + self.choline.nSL
-        self.ph_relative_pos = .58
-        self.nf = 1.
+
+        if position is None:
+            self.z = 0.
+        else:
+            self.z = position
+
+        if num_frac is None:
+            self.nf = 1.0
+        else:
+            self.nf = num_frac
+
+        # will be set in fnAdjustParameters()
+        self.vol = 0.
+
+        if sigma1 is None:
+            self.sigma1 = numpy.full(len(components), 2.0)
+        else:
+            self.sigma1 = numpy.array(sigma1)
+
+        if sigma2 is None:
+            self.sigma2 = numpy.full(len(components), 2.0)
+        else:
+            self.sigma2 = numpy.array(sigma2)
+
+        if rel_pos is None:
+            self.rel_pos = numpy.linspace(0, self.l, len(components))
+        else:
+            self.rel_pos = rel_pos
+
+        assert (len(self.sigma1) == len(components)), 'Number of sigma1 values must equal number of components'
+        assert (len(self.sigma2) == len(components)), 'Number of sigma2 values must equal number of components'
+        assert (len(self.rel_pos) == len(components)), 'Number of rel_pos values must equal number of components'
+
         self.fnFindSubgroups()
         self.fnAdjustParameters()
 
@@ -438,71 +485,72 @@ class PC(CompositenSLDObj):
         # make sure no group is larger than the entire length of the headgroup
         for g in self.subgroups:
             g.l = min(self.init_l, g.l)
-        if self.innerleaflet:
-            self.cg.z = self.z + 0.5 * self.l - 0.5 * self.cg.l
-            self.choline.z = self.z - 0.5 * self.l + 0.5 * self.choline.l
-            z0 = self.z - 0.5 * self.l + 0.5 * self.phosphate.l
-            z1 = self.z + 0.5 * self.l - 0.5 * self.phosphate.l
-            self.phosphate.z = z0 + (z1 - z0) * (1 - self.ph_relative_pos)
-        else:
-            self.cg.z = self.z - 0.5 * self.l + 0.5 * self.cg.l
-            self.choline.z = self.z + 0.5 * self.l - 0.5 * self.choline.l
-            z0 = self.z - 0.5 * self.l + 0.5 * self.phosphate.l
-            z1 = self.z + 0.5 * self.l - 0.5 * self.phosphate.l
-            self.phosphate.z = z0 + (z1 - z0) * self.ph_relative_pos
 
-    def fnSet(self, l=None, ph_relative_pos=None, cg_nSL=None, ch_nSL=None, ph_nSL=None):
-        if cg_nSL is not None:
-            self.cg.nSL = cg_nSL
-        if ch_nSL is not None:
-            self.choline.nSL = ch_nSL
-        if ph_nSL is not None:
-            self.phosphate.nSL = ph_nSL
-        if l is not None:
-            self.l = l
-        if ph_relative_pos is not None:
-            self.ph_relative_pos = ph_relative_pos
-        self.fnAdjustParameters()
+        vol = 0.
+        for i, component in enumerate(self.components):
+            if i == 0:
+                pos = 0.5 * component.l
+            elif i == len(self.components)-1:
+                pos = self.l - 0.5 * component.l
+            elif self.rel_pos[i] * self.l < component.l * 0.5:
+                pos = 0.5 * component.l
+            elif self.rel_pos[i] * self.l > self.l - component.l * 0.5:
+                pos = self.l - 0.5 * component.l
+            else:
+                pos = self.rel_pos[i] * self.l
+            component.z = self.z - 0.5 * self.l + pos
+            component.sigma1 = self.sigma1[i]
+            component.sigma2 = self.sigma2[i]
+            vol += component.vol
+            if self.flip:
+                component.flip = True
+                component.flipcenter = self.z
+
+        self.vol = vol
 
     def fnGetLowerLimit(self):
-        return self.choline.fnGetLowerLimit() if self.innerleaflet else self.cg.fnGetLowerLimit()
+        return self.z - 0.5 * self.l
 
     def fnGetUpperLimit(self):
-        return self.cg.fnGetUpperLimit() if self.innerleaflet else self.choline.fnGetUpperLimit()
+        return self.z + 0.5 * self.l
 
-    def fnGetnSL(self):
-        return self.cg.fnGetnSL() + self.phosphate.fnGetnSL() + self.choline.fnGetnSL()
-
-    def fnGetZ(self):
-        return self.z
+    def fnSet(self, length=None, rel_pos=None, position=None, num_frac=None, bulknsld=None):
+        if length is not None:
+            self.l = length
+        if rel_pos is not None:
+            self.rel_pos = rel_pos
+        if position is not None:
+            self.z = position
+        if num_frac is not None:
+            self.nf = num_frac
+        if bulknsld is not None:
+            self.fnSetBulknSLD(bulknsld)
+        self.fnAdjustParameters()
 
     def fnSetSigma(self, sigma):
-        self.cg.sigma1 = sigma
-        self.cg.sigma2 = sigma
-        self.phosphate.sigma1 = sigma
-        self.phosphate.sigma2 = sigma
-        self.choline.sigma1 = sigma
-        self.choline.sigma2 = sigma
+        self.sigma1.fill(sigma)
+        self.sigma2.fill(sigma)
 
     def fnSetZ(self, dz):
         self.z = dz
         self.fnAdjustParameters()
 
     def fnWritePar2File(self, fp, cName, z):
-        prefix = "PCm" if self.innerleaflet else "PC"
-        fp.write(prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
-                 str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf) + " \n")
+        prefix = "m" if self.flip else ""
+        fp.write(prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
+                 str(self.vol) + " nf " + str(self.nf) + " \n")
         self.fnWriteData2File(fp, cName, z)
         super().fnWritePar2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
-        prefix = "PCm" if self.innerleaflet else "PC"
+        prefix = "m" if self.flip else ""
         rdict[cName] = {}
-        rdict[cName]['header'] = prefix + " " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol "
-        rdict[cName]['header'] += str(self.cg.vol + self.phosphate.vol + self.choline.vol) + " nf " + str(self.nf)
+        rdict[cName]['header'] = prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + \
+                                 " vol "
+        rdict[cName]['header'] += str(self.vol) + " nf " + str(self.nf)
         rdict[cName]['z'] = self.z
         rdict[cName]['l'] = self.l
-        rdict[cName]['vol'] = self.cg.vol + self.phosphate.vol + self.choline.vol
+        rdict[cName]['vol'] = self.vol
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
         rdict = super().fnWritePar2Dict(rdict, cName, z)
@@ -583,6 +631,7 @@ class BLM(CompositenSLDObj):
 
         self._calc_av_hg()
         self.initial_hg1_l = self.av_hg1_l
+
         self.fnFindSubgroups()
         self.fnSetBulknSLD(-0.56e-6)
         self.fnAdjustParameters()
@@ -766,11 +815,9 @@ class BLM(CompositenSLDObj):
             if isinstance(lipid.headgroup, cmp.Component):
                 # populates nSL, nSL2, vol, and l
                 hg_obj = ComponentBox(name=hg_name, components=[lipid.headgroup], xray_wavelength=self.xray_wavelength)
-            elif issubclass(lipid.headgroup, CompositenSLDObj):
-                # TODO: Following crashes if the lipid headgroup is imported as "from molgroups import PC"
-                # instead of "import molgroups as mol; mol.PC". Perhaps a simple try/catch would work better here; if
-                # lipid.headgroup is not a class, then it will crash.
-                hg_obj = lipid.headgroup(name=hg_name, innerleaflet=innerleaflet, xray_wavelength=self.xray_wavelength)
+            elif isinstance(lipid.headgroup, list):
+                hg_obj = lipid.headgroup[0](name=hg_name, innerleaflet=innerleaflet,
+                                            xray_wavelength=self.xray_wavelength, **(lipid.headgroup[1]))
             else:
                 raise TypeError('Lipid.hg must be a Headgroup object or a subclass of CompositenSLDObj')
 

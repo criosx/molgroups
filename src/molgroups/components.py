@@ -99,7 +99,7 @@ def AddMolecules(component_list, length=None):
 # PC headgroup pieces
 choline = Component(name='choline', formula='C5 H13 N', cell_volume=120., length=5.1)
 phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3.86)
-carbonyl_glycerol = Component(name='carbonyl + glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
+carbonyl_glycerol = Component(name='carbonyl_glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
 
 # standard headgroups
 pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
@@ -135,14 +135,3 @@ SAcEO6 = AddMolecules([SAc, EO6])
 # Filler molecules. Note that by including length= these return Components as required by molgroups.tBLM
 bmeSAc = AddMolecules([SAc, ethanoyl], length=5.2)
 bme = AddMolecules([thiol, ethanoyl], length=5.2)
-
-# Combined lipids (deprecated): use objects from lipids.py
-DOPC = Lipid(name='DOPC', headgroup=pc, tails=2 * [oleoyl], methyls=[methyl])
-POPC = Lipid(name='POPC', headgroup=pc, tails=[palmitoyl, oleoyl], methyls=[methyl])
-DOPS = Lipid(name='DOPS', headgroup=ps, tails=2 * [oleoyl], methyls=[methyl])
-chol = Lipid(name='chol', headgroup=None, tails=[cholesterol], methyls=[None])
-
-# Combined tethers
-WC14 = Tether(name='WC14', tether=SEO6, tetherg=tetherg_ether, tails=[myristoyl, myristoyl], methyls=[methyl])
-HC18 = Tether(name='HC18', tether=SEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=[methyl])
-HC18SAc = Tether(name='HC18SAc', tether=SAcEO6, tetherg=tetherg_ether, tails=[oleoyl, oleoyl], methyls=[methyl])
