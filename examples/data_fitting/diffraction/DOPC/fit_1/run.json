@@ -1,9 +1,9 @@
 {
-  "hg1_thickness": {
+  "P0": {
     "best": 9.401171370407766,
     "index": 1,
     "integer": false,
-    "label": "hg1_thickness",
+    "label": "P0",
     "mean": 9.169557168084665,
     "median": 9.063283753288806,
     "p68": [
@@ -24,11 +24,11 @@
     ],
     "std": 0.48466633225099964
   },
-  "l_lipid": {
+  "P1": {
     "best": 11.00183183823642,
     "index": 2,
     "integer": false,
-    "label": "l_lipid",
+    "label": "P1",
     "mean": 11.00171871345897,
     "median": 11.00105843053727,
     "p68": [
@@ -49,11 +49,11 @@
     ],
     "std": 0.04413256616180789
   },
-  "methyl_sigma": {
+  "P2": {
     "best": 1.1999929873289255,
     "index": 3,
     "integer": false,
-    "label": "methyl_sigma",
+    "label": "P2",
     "mean": 1.1953679235540862,
     "median": 1.1932688495780461,
     "p68": [
@@ -74,11 +74,11 @@
     ],
     "std": 0.09560884740619119
   },
-  "rel_pos": {
+  "P3": {
     "best": 0.6942931611648633,
     "index": 4,
     "integer": false,
-    "label": "rel_pos",
+    "label": "P3",
     "mean": 0.7572574398813927,
     "median": 0.7266926810825557,
     "p68": [
@@ -99,11 +99,11 @@
     ],
     "std": 0.09928977937215247
   },
-  "sigma": {
+  "P4": {
     "best": 1.7004935668914762,
     "index": 5,
     "integer": false,
-    "label": "sigma",
+    "label": "P4",
     "mean": 1.6831679896826488,
     "median": 1.6929383482398732,
     "p68": [
