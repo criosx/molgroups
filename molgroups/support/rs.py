@@ -13,7 +13,7 @@ from time import time, gmtime, sleep, ctime
 import general
 import numpy
 import pandas
-import rsdi
+from molgroups.support import rsdi
 
 
 class CMolStat:

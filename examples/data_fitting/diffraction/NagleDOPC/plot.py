@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import molgroups as mol
+import mol as mol
 
 
 def graphBumpsResults(filename):
