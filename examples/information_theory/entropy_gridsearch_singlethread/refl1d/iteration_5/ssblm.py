@@ -1,8 +1,8 @@
 ## === Import section ===
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
-sys.path.append("../../../../../src/molgroups")
-sys.path.append("../../../../src/molgroups")
+sys.path.append("../../../../../molgroups/molgroups")
+sys.path.append("../../../../molgroups/molgroups")
 import numpy as np
 import molgroups as mol
 import components as cmp
