@@ -1,5 +1,6 @@
 from __future__ import print_function
 from math import fabs, pow, floor, ceil, sqrt, log10
+from collections import defaultdict
 from numpy import subtract, minimum, maximum, average, array
 from operator import itemgetter
 from os import getcwd, remove, rename, path, kill, devnull
@@ -246,12 +247,8 @@ class CMolStat:
         except IOError:
             print('Did not find any fractional envelopes ...')
 
-        diResults = {}
+        diResults = defaultdict(list)
         l_molgroups = list(self.diStatResults['Molgroups'][0].keys())
-        for s_molgroup in l_molgroups:  # create results for individual molgroups
-            diResults[s_molgroup + '_COM'] = []
-            diResults[s_molgroup + '_INT'] = []
-            diResults[s_molgroup + '_AVG'] = []
 
         for mcmc_iter in range(len(self.diStatResults['Molgroups'])):  # cycle over all MC iterations
             mgdict = self.diStatResults['Molgroups'][mcmc_iter]
@@ -282,10 +279,6 @@ class CMolStat:
 
             # calculate ratios between frac1 and frac2
             if ('frac1' in l_molgroups) and ('frac2' in l_molgroups):
-                if 'ratio_f1f2' not in list(diResults.keys()):
-                    diResults['ratio_f1f2'] = []
-                if 'ratio_f2f1' not in list(diResults.keys()):
-                    diResults['ratio_f2f1'] = []
                 diResults['ratio_f1f2'].append(diResults['frac1_INT'][-1] / diResults['frac2_INT'][-1])
                 diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
 
@@ -332,14 +325,10 @@ class CMolStat:
 
                     f_total_tether_length = float(mgdict['bilayer.tether']['headerdata']['l']) + \
                         float(mgdict['bilayer.tetherg']['headerdata']['l'])
-                    if 'fTotalTetherLength' not in list(diResults.keys()):
-                        diResults['fTotalTetherLength'] = []
                     diResults['fTotalTetherLength'].append(f_total_tether_length)
 
                     f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / \
                         mgdict['bilayer.normarea']['areaaxis'][0]
-                    if 'fTetherDensity' not in list(diResults.keys()):
-                        diResults['fTetherDensity'] = []
                     diResults['fTetherDensity'].append(f_tether_density)
 
                     total_components += numpy.array(mgdict['bilayer.bME']['areaaxis']) + \
@@ -349,8 +338,6 @@ class CMolStat:
             if 'bilayer.methylene1_1' in l_molgroups and 'bilayer.methyl1_1' in l_molgroups:
                 f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl1_1']['headerdata']['l'])
-                if 'fTotalLipid1Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid1Length'] = []
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
                 i = 1
                 while True:
@@ -364,8 +351,6 @@ class CMolStat:
             if 'bilayer.methylene2_1' in l_molgroups and 'bilayer.methyl2_1' in l_molgroups:
                 f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl2_1']['headerdata']['l'])
-                if 'fTotalLipid2Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid2Length'] = []
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
                 f_area_per_lipid2 = 0
@@ -378,8 +363,7 @@ class CMolStat:
                         i += 1
                     else:
                         break
-                if 'fAreaPerLipid2' not in list(diResults.keys()):
-                    diResults['fAreaPerLipid2'] = []
+                    
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
                 i = 1
@@ -438,28 +422,16 @@ class CMolStat:
 
                 ref = mgdict['bilayer.normarea']['areaaxis']
                 ratio = 1 - sum(total_components[0:i_start_hg1]) / sum(ref[0:i_start_hg1])
-                if 'WaterFracSubMembrane' not in list(diResults.keys()):
-                    diResults['WaterFracSubMembrane'] = []
                 diResults['WaterFracSubMembrane'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg1:i_start_hc]) / sum(ref[i_start_hg1:i_start_hc])
-                if 'WaterFracHeadgroup1' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup1'] = []
                 diResults['WaterFracHeadgroup1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_methyl2]) / sum(ref[i_start_hc:i_start_methyl2])
-                if 'WaterFracLipid1' not in list(diResults.keys()):
-                    diResults['WaterFracLipid1'] = []
                 diResults['WaterFracLipid1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_methyl2:i_start_hg2]) / sum(ref[i_start_methyl2:i_start_hg2])
-                if 'WaterFracLipid2' not in list(diResults.keys()):
-                    diResults['WaterFracLipid2'] = []
                 diResults['WaterFracLipid2'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_hg2]) / sum(ref[i_start_hc:i_start_hg2])
-                if 'WaterFracHydrocarbon' not in list(diResults.keys()):
-                    diResults['WaterFracHydrocarbon'] = []
                 diResults['WaterFracHydrocarbon'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg2:i_start_bulk]) / sum(ref[i_start_hg2:i_start_bulk])
-                if 'WaterFracHeadgroup2' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup2'] = []
                 diResults['WaterFracHeadgroup2'].append(ratio)
 
                 # fraction of protein in certain parts of the membrane
@@ -495,58 +467,27 @@ class CMolStat:
                             f_frac_inner_leaflet = f_frac_inner_headgroup + f_frac_inner_hydrocarbon
                             f_frac_outer_leaflet = f_frac_outer_headgroup + f_frac_outer_hydrocarbon
 
-                        if 'FracSubmembrane_' + group not in list(diResults.keys()):
-                            diResults['FracSubmembrane_' + group] = []
                         diResults['FracSubmembrane_' + group].append(f_frac_submembrane)
-                        if 'FracHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracHydrocarbon_' + group] = []
                         diResults['FracHydrocarbon_' + group].append(f_frac_hydrocarbon)
-                        if 'FracInnerHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHydrocarbon_' + group] = []
                         diResults['FracInnerHydrocarbon_' + group].append(f_frac_inner_hydrocarbon)
-                        if 'FracOuterHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHydrocarbon_' + group] = []
                         diResults['FracOuterHydrocarbon_' + group].append(f_frac_outer_hydrocarbon)
-                        if 'FracInnerHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHeadgroup_' + group] = []
                         diResults['FracInnerHeadgroup_' + group].append(f_frac_inner_headgroup)
-                        if 'FracOuterHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHeadgroup_' + group] = []
                         diResults['FracOuterHeadgroup_' + group].append(f_frac_outer_headgroup)
-                        if 'FracHeadgroups_' + group not in list(diResults.keys()):
-                            diResults['FracHeadgroups_' + group] = []
                         diResults['FracHeadgroups_' + group].append(f_frac_headgroups)
-                        if 'FracBulk_' + group not in list(diResults.keys()):
-                            diResults['FracBulk_' + group] = []
                         diResults['FracBulk_' + group].append(f_frac_bulk)
-                        if 'FracInnerLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracInnerLeaflet_' + group] = []
                         diResults['FracInnerLeaflet_' + group].append(f_frac_inner_leaflet)
-                        if 'FracOuterLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracOuterLeaflet_' + group] = []
                         diResults['FracOuterLeaflet_' + group].append(f_frac_outer_leaflet)
 
                         # calculate peak position and FWHM for spline profile
-                        imax, maxvalue, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
-                        if 'PeakPosition_' + group not in list(diResults.keys()):
-                            diResults['PeakPosition_' + group] = []
+                        imax, __, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
                         diResults['PeakPosition_' + group].append(mgdict[group]['zaxis'][imax] - f_startbulk)
-                        if 'PeakValue_' + group not in list(diResults.keys()):
-                            diResults['PeakValue_' + group] = []
                         diResults['PeakValue_' + group].append(mgdict[group]['areaaxis'][imax])
-                        if 'FWHMMinusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMMinusPosition_' + group] = []
                         diResults['FWHMMinusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmminus] - f_startbulk)
-                        if 'FWHMPlusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMPlusPosition_' + group] = []
                         diResults['FWHMPlusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmplus] - f_startbulk)
-                        if 'FWHM_' + group not in list(diResults.keys()):
-                            diResults['FWHM_' + group] = []
                         diResults['FWHM_' + group].append(
                             mgdict[group]['zaxis'][ifwhmplus] - mgdict[group]['zaxis'][ifwhmminus])
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(1, fConfidence)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
@@ -554,7 +495,7 @@ class CMolStat:
         fHigherPercentileMark = (100 - fLowerPercentileMark)
 
         File = open(self.mcmcpath + "/CalculationResults.dat", "w")
-        for element, value in sorted(diResults.items()):
+        for element, __ in sorted(diResults.items()):
             fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
             fMedian = stats.scoreatpercentile(diResults[element], 50.)
             fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
