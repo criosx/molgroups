@@ -470,15 +470,18 @@ class CMolStat:
 
         fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
         fHigherPercentileMark = (100 - fLowerPercentileMark)
-
+        
+        results = pandas.DataFrame()
         File = open(self.mcmcpath + "/CalculationResults.dat", "w")
         for element, __ in sorted(diResults.items()):
             fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
             fMedian = stats.scoreatpercentile(diResults[element], 50.)
             fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-
-            sPrintString = '%(el)s'
-            sPrintString += '  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
+            
+            interval = {'element': element, 'lower_conf': fLowPerc, 'median': fMedian, 'upper_conf': fHighPerc}
+            results = results.append(interval, ignore_index=True)
+            
+            sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
             soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
                                       'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
@@ -487,6 +490,7 @@ class CMolStat:
             File.write('\n')
 
         File.close()
+        return results
 
     def fnCalcConfidenceLimits(self, data, method=1):
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
@@ -1483,19 +1487,11 @@ class CMolStat:
         # plt.plot(zax,nSLDtVolFracSum,label='nSLDtVolFracSum')
 
         for j in range(4):  # loop over contrast mixtures
-            if j == 0:
-                fBulknSLD = 6.34
-            if j == 1:
-                fBulknSLD = 4.00
-            if j == 2:
-                fBulknSLD = 0.00
-            if j == 3:
-                fBulknSLD = -0.56
-
+            fBulknSLD = [6.34, 4.00, 0.00, -0.56]
             for i in range(length):  # calculate nSLD for several cases
-                nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD * (1 - (areasum[i] / normarea))
+                nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD[j] * (1 - (areasum[i] / normarea))
             plt.subplot(224)
-            plt.plot(zax, nSLDSum, label='nSLDsum CM' + str(fBulknSLD))
+            plt.plot(zax, nSLDSum, label='nSLDsum CM' + str(fBulknSLD[j]))
 
         plt.subplot(221)
         plt.ylabel('area / Ang+2')
