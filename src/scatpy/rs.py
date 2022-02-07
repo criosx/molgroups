@@ -86,8 +86,7 @@ class CMolStat:
         self.fnLoadParameters()                         # Load Parameters for limits
         self.fnLoadStatData(sparse)                     # Load data from file into list
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(fConfidence, 1)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
@@ -278,7 +277,7 @@ class CMolStat:
                 diResults[s_molgroup + '_AVG'].append(f_avg)
 
             # calculate ratios between frac1 and frac2
-            if ('frac1' in l_molgroups) and ('frac2' in l_molgroups):
+            if {'frac1','frac2'}.issubset(l_molgroups):
                 diResults['ratio_f1f2'].append(diResults['frac1_INT'][-1] / diResults['frac2_INT'][-1])
                 diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
 
@@ -286,31 +285,22 @@ class CMolStat:
             # get vf_bilayer from molecular group methylene2_x
             vf_bilayer = 0
             i = 1
-            while True:
-                if 'bilayer.methylene2_'+str(i) in mgdict:
-                    vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
-                    i += 1
-                else:
-                    break
-
+            while 'bilayer.methylene2_'+str(i) in mgdict:
+                vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
+                i +=1
             # prepare arrays for summing up molgroups
             total_components = numpy.zeros_like(mgdict['bilayer.normarea']['areaaxis'])
 
             if 'bilayer.headgroup1_1' in l_molgroups:
                 f_vol_headgroup1 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup1_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup1_' + str(j)]['areaaxis'])
-                        f_vol_headgroup1 += float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while 'bilayer.headgroup1_' + str(j) in l_molgroups:
+                    total_components += numpy.array(mgdict['bilayer.headgroup1_' + str(j)]['areaaxis'])
+                    f_vol_headgroup1 += float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['vol']) * \
+                        float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['nf'])
                     j += 1
 
-                if 'bilayer.tether' in l_molgroups and 'bilayer.tetherg' in l_molgroups \
-                        and 'bilayer.normarea' in l_molgroups and 'bilayer.bME' in l_molgroups:
-
+                if {'bilayer.tether','bilayer.tetherg','bilayer.normarea','bilayer.bME'}.issubset(l_molgroups):
                     f_vol_submembrane = mgdict['bilayer.normarea']['areaaxis'][0] * \
                         (float(mgdict['bilayer.tether']['headerdata']['l']) +
                          float(mgdict['bilayer.tetherg']['headerdata']['l'])) * vf_bilayer
@@ -335,56 +325,44 @@ class CMolStat:
                         numpy.array(mgdict['bilayer.tether']['areaaxis']) + \
                         numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
 
-            if 'bilayer.methylene1_1' in l_molgroups and 'bilayer.methyl1_1' in l_molgroups:
+            if {'bilayer.methylene1_1', 'bilayer.methyl1_1'}.issubset(l_molgroups):
                 f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl1_1']['headerdata']['l'])
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
                 i = 1
-                while True:
-                    if 'bilayer.methylene1_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while 'bilayer.methylene1_' + str(i) in mgdict:
+                    total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
+                                        numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
+                    i += 1
 
-            if 'bilayer.methylene2_1' in l_molgroups and 'bilayer.methyl2_1' in l_molgroups:
+            if {'bilayer.methylene2_1','bilayer.methyl2_1'}.issubset(l_molgroups):
                 f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl2_1']['headerdata']['l'])
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
                 f_area_per_lipid2 = 0
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
-                        i += 1
-                    else:
-                        break
+                while 'bilayer.methylene2_' + str(i) in mgdict:
+                    f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
+                                            float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
+                                            float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
+                    i += 1
                     
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while 'bilayer.methylene2_' + str(i) in mgdict:
+                    total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
+                                        numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
+                    i += 1
 
             if 'bilayer.headgroup2_1' in l_molgroups:
                 f_vol_headgroup2 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup2_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
-                        f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while 'bilayer.headgroup2_' + str(j) in l_molgroups:
+                    total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
+                    f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
+                        float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
                     j += 1
 
             if 'bilayer.defect_hc' in l_molgroups:
@@ -437,7 +415,6 @@ class CMolStat:
                 # fraction of protein in certain parts of the membrane
                 for group in ['protein', 'frac1', 'frac2']:
                     if group in l_molgroups:
-
                         if sum(mgdict[group]['areaaxis']) == 0.0:
                             f_frac_submembrane = 0
                             f_frac_inner_headgroup = 0
@@ -789,12 +766,12 @@ class CMolStat:
                     file.write(sLine)
                 file.close()
 
-                dZMin = liContourArrayDimensions[i][3]
-                dZMax = liContourArrayDimensions[i][4]
-                dZStep = liContourArrayDimensions[i][5]
                 dAreaMin = liContourArrayDimensions[i][0]
                 dAreaMax = liContourArrayDimensions[i][1]
                 dAreaStep = liContourArrayDimensions[i][2]
+                dZMin = liContourArrayDimensions[i][3]
+                dZMax = liContourArrayDimensions[i][4]
+                dZStep = liContourArrayDimensions[i][5]
 
                 dZ = dZMin  # write out x-dimension wave
                 sFileName = 'Cont_' + molgroup + '_DimZ' + '.dat'  # dimension wave has one point extra for Igor
@@ -1309,10 +1286,8 @@ class CMolStat:
             profilelist = []  # extracting all profiles related to the actual
             for iteration in self.diStatResults['nSLDProfiles']:  # model
                 profilelist.append(iteration[iModel][:])
-                if fMin > profilelist[-1][0][0]:
-                    fMin = profilelist[-1][0][0]
-                if fMax < profilelist[-1][0][-1]:
-                    fMax = profilelist[-1][0][-1]
+                fMin = min(fMin, profilelist[-1][0][0])
+                fMax = max(fMax, profilelist[-1][0][-1])
             fMax = floor((fMax - fMin) / fGrid) * fGrid + fMin  # make fMax compatible with fGrid and fMin
 
             print('Rebinning data...')
@@ -1558,86 +1533,80 @@ class CMolStat:
         plt.figure(1, figsize=(14, 10))
 
         iCounter = 0
-        while 1:
+        sfilename = 'fit' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            file = open(sfilename, 'r')
+            data = file.readlines()
+            file.close()
+            data = data[1:]
+
+            k = 0
+            l = 0
+            qlist = []
+            dqlist = []
+            Rlist = []
+            dRlist = []
+            fitlist = []
+            fitRFlist = []
+            RFlist = []
+            dRFlist = []
+            reslist = []
+            resplus = []
+            resminus = []
+            for line in data:
+                splitline = line.split()
+                qlist.append(float(splitline[0]))
+                dqlist.append(float(splitline[1]))
+                Rlist.append(float(splitline[2]))
+                dRlist.append(float(splitline[3]))
+                fitlist.append(float(splitline[4]))
+                RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
+                dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
+                fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
+                reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
+                resplus.append(1)
+                resminus.append(-1)
+
+            plt.subplot(221)
+            plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
+
+            plt.subplot(222)
+            plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
+
+            plt.subplot(223)
+            plt.plot(qlist, reslist, label='fit' + str(iCounter))
+            plt.plot(qlist, resplus, 'r')
+            plt.plot(qlist, resminus, 'r')
+
+            iCounter += 1
             sfilename = 'fit' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
-                data = file.readlines()
-                file.close()
-                data = data[1:]
-
-                k = 0
-                l = 0
-                qlist = []
-                dqlist = []
-                Rlist = []
-                dRlist = []
-                fitlist = []
-                fitRFlist = []
-                RFlist = []
-                dRFlist = []
-                reslist = []
-                resplus = []
-                resminus = []
-                for line in data:
-                    splitline = line.split()
-                    qlist.append(float(splitline[0]))
-                    dqlist.append(float(splitline[1]))
-                    Rlist.append(float(splitline[2]))
-                    dRlist.append(float(splitline[3]))
-                    fitlist.append(float(splitline[4]))
-                    RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
-                    dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
-                    fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
-                    reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
-                    resplus.append(1)
-                    resminus.append(-1)
-
-                plt.subplot(221)
-                plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
-
-                plt.subplot(222)
-                plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
-
-                plt.subplot(223)
-                plt.plot(qlist, reslist, label='fit' + str(iCounter))
-                plt.plot(qlist, resplus, 'r')
-                plt.plot(qlist, resminus, 'r')
-
-                iCounter = iCounter + 1
-
-            else:
-                break
 
         iCounter = 0
-        while 1:
+        sfilename = 'profile' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            file = open(sfilename, 'r')
+            data = file.readlines()
+            file.close()
+            data = data[1:]
+
+            k = 0;
+            l = 0
+            zlist = [];
+            rholist = []
+            for line in data:
+                splitline = line.split()
+                zlist.append(float(splitline[0]))
+                rholist.append(float(splitline[1]) * 1e6)
+
+            plt.subplot(224)
+            plt.plot(zlist, rholist, label='profile' + str(iCounter))
+
+            iCounter = iCounter + 1
             sfilename = 'profile' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
-                data = file.readlines()
-                file.close()
-                data = data[1:]
-
-                k = 0;
-                l = 0
-                zlist = [];
-                rholist = []
-                for line in data:
-                    splitline = line.split()
-                    zlist.append(float(splitline[0]))
-                    rholist.append(float(splitline[1]) * 1e6)
-
-                plt.subplot(224)
-                plt.plot(zlist, rholist, label='profile' + str(iCounter))
-
-                iCounter = iCounter + 1
-
-            else:
-                break
 
         plt.subplot(221)
         plt.ylabel('Reflectivity / R')
@@ -1993,7 +1962,7 @@ def Auto(convergence=0.001):  # automatic fit
     ReflPar.fnLoadAndPrintPar()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # genetic runs until chisq<20 or not improving
+    while True:  # genetic runs until chisq<20 or not improving
         call(['nice', './fit', '-peS', '-n', '51'], stdout=open(devnull, "w"))
         call(['cp', 'pop_bak.dat', 'pop.dat'])
         print('Genetic run, approximate roughness')
@@ -2013,7 +1982,7 @@ def AutoFinish(convergence=0.001, sPath='./'):
     ReflPar.fnLoadParameters()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # Amoeba, approximate roughness
+    while True:  # Amoeba, approximate roughness
         call(['nice', './fit', '-peaS'], stdout=open(devnull, "w"))  # until chisq<10 or no improvement
         print('Amoeba, approximate roughness')
         ReflPar.fnLoadAndPrintPar()
