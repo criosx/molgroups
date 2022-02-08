@@ -11,7 +11,8 @@ import pandas
 import shutil
 import glob
 import os
-import general
+
+from . import general
 
 
 class CDataInteractor:
@@ -30,8 +31,6 @@ class CDataInteractor:
 
     def fnLoadMolgroups(self, problem=None):
         diMolgroups = {}
-        li = []
-
         moldict = problem.moldat
 
         for group in moldict:
@@ -464,9 +463,9 @@ class CBumpsInteractor(CDataInteractor):
         diMolgroups = self.fnLoadMolgroups(problem=problem)
         return diMolgroups
 
-    @staticmethod
-    def fnRestoreSmoothProfile(M):
+    def fnRestoreSmoothProfile(self, M):
         # TODO: Decide what and if to return SLD profile for Bumps fits
+        # Returns currently profile for zeroth model if multiproblem fit
         z, rho, irho = M.sld, [], []
         return z, rho, irho
 
