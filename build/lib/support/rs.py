@@ -1,5 +1,6 @@
 from __future__ import print_function
 from math import fabs, pow, floor, ceil, sqrt, log10
+from collections import defaultdict
 from numpy import subtract, minimum, maximum, average, array
 from operator import itemgetter
 from os import getcwd, remove, rename, path, kill, devnull
@@ -85,8 +86,7 @@ class CMolStat:
         self.fnLoadParameters()                         # Load Parameters for limits
         self.fnLoadStatData(sparse)                     # Load data from file into list
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(fConfidence, 1)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
@@ -246,12 +246,8 @@ class CMolStat:
         except IOError:
             print('Did not find any fractional envelopes ...')
 
-        diResults = {}
+        diResults = defaultdict(list)
         l_molgroups = list(self.diStatResults['Molgroups'][0].keys())
-        for s_molgroup in l_molgroups:  # create results for individual molgroups
-            diResults[s_molgroup + '_COM'] = []
-            diResults[s_molgroup + '_INT'] = []
-            diResults[s_molgroup + '_AVG'] = []
 
         for mcmc_iter in range(len(self.diStatResults['Molgroups'])):  # cycle over all MC iterations
             mgdict = self.diStatResults['Molgroups'][mcmc_iter]
@@ -281,11 +277,7 @@ class CMolStat:
                 diResults[s_molgroup + '_AVG'].append(f_avg)
 
             # calculate ratios between frac1 and frac2
-            if ('frac1' in l_molgroups) and ('frac2' in l_molgroups):
-                if 'ratio_f1f2' not in list(diResults.keys()):
-                    diResults['ratio_f1f2'] = []
-                if 'ratio_f2f1' not in list(diResults.keys()):
-                    diResults['ratio_f2f1'] = []
+            if {'frac1','frac2'}.issubset(l_molgroups):
                 diResults['ratio_f1f2'].append(diResults['frac1_INT'][-1] / diResults['frac2_INT'][-1])
                 diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
 
@@ -293,31 +285,22 @@ class CMolStat:
             # get vf_bilayer from molecular group methylene2_x
             vf_bilayer = 0
             i = 1
-            while True:
-                if 'bilayer.methylene2_'+str(i) in mgdict:
-                    vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
-                    i += 1
-                else:
-                    break
-
+            while 'bilayer.methylene2_'+str(i) in mgdict:
+                vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
+                i +=1
             # prepare arrays for summing up molgroups
             total_components = numpy.zeros_like(mgdict['bilayer.normarea']['areaaxis'])
 
             if 'bilayer.headgroup1_1' in l_molgroups:
                 f_vol_headgroup1 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup1_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup1_' + str(j)]['areaaxis'])
-                        f_vol_headgroup1 += float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while 'bilayer.headgroup1_' + str(j) in l_molgroups:
+                    total_components += numpy.array(mgdict['bilayer.headgroup1_' + str(j)]['areaaxis'])
+                    f_vol_headgroup1 += float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['vol']) * \
+                        float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['nf'])
                     j += 1
 
-                if 'bilayer.tether' in l_molgroups and 'bilayer.tetherg' in l_molgroups \
-                        and 'bilayer.normarea' in l_molgroups and 'bilayer.bME' in l_molgroups:
-
+                if {'bilayer.tether','bilayer.tetherg','bilayer.normarea','bilayer.bME'}.issubset(l_molgroups):
                     f_vol_submembrane = mgdict['bilayer.normarea']['areaaxis'][0] * \
                         (float(mgdict['bilayer.tether']['headerdata']['l']) +
                          float(mgdict['bilayer.tetherg']['headerdata']['l'])) * vf_bilayer
@@ -332,75 +315,54 @@ class CMolStat:
 
                     f_total_tether_length = float(mgdict['bilayer.tether']['headerdata']['l']) + \
                         float(mgdict['bilayer.tetherg']['headerdata']['l'])
-                    if 'fTotalTetherLength' not in list(diResults.keys()):
-                        diResults['fTotalTetherLength'] = []
                     diResults['fTotalTetherLength'].append(f_total_tether_length)
 
                     f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / \
                         mgdict['bilayer.normarea']['areaaxis'][0]
-                    if 'fTetherDensity' not in list(diResults.keys()):
-                        diResults['fTetherDensity'] = []
                     diResults['fTetherDensity'].append(f_tether_density)
 
                     total_components += numpy.array(mgdict['bilayer.bME']['areaaxis']) + \
                         numpy.array(mgdict['bilayer.tether']['areaaxis']) + \
                         numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
 
-            if 'bilayer.methylene1_1' in l_molgroups and 'bilayer.methyl1_1' in l_molgroups:
+            if {'bilayer.methylene1_1', 'bilayer.methyl1_1'}.issubset(l_molgroups):
                 f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl1_1']['headerdata']['l'])
-                if 'fTotalLipid1Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid1Length'] = []
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
                 i = 1
-                while True:
-                    if 'bilayer.methylene1_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while 'bilayer.methylene1_' + str(i) in mgdict:
+                    total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
+                                        numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
+                    i += 1
 
-            if 'bilayer.methylene2_1' in l_molgroups and 'bilayer.methyl2_1' in l_molgroups:
+            if {'bilayer.methylene2_1','bilayer.methyl2_1'}.issubset(l_molgroups):
                 f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl2_1']['headerdata']['l'])
-                if 'fTotalLipid2Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid2Length'] = []
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
                 f_area_per_lipid2 = 0
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
-                        i += 1
-                    else:
-                        break
-                if 'fAreaPerLipid2' not in list(diResults.keys()):
-                    diResults['fAreaPerLipid2'] = []
+                while 'bilayer.methylene2_' + str(i) in mgdict:
+                    f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
+                                            float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
+                                            float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
+                    i += 1
+                    
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while 'bilayer.methylene2_' + str(i) in mgdict:
+                    total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
+                                        numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
+                    i += 1
 
             if 'bilayer.headgroup2_1' in l_molgroups:
                 f_vol_headgroup2 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup2_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
-                        f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while 'bilayer.headgroup2_' + str(j) in l_molgroups:
+                    total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
+                    f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
+                        float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
                     j += 1
 
             if 'bilayer.defect_hc' in l_molgroups:
@@ -438,34 +400,21 @@ class CMolStat:
 
                 ref = mgdict['bilayer.normarea']['areaaxis']
                 ratio = 1 - sum(total_components[0:i_start_hg1]) / sum(ref[0:i_start_hg1])
-                if 'WaterFracSubMembrane' not in list(diResults.keys()):
-                    diResults['WaterFracSubMembrane'] = []
                 diResults['WaterFracSubMembrane'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg1:i_start_hc]) / sum(ref[i_start_hg1:i_start_hc])
-                if 'WaterFracHeadgroup1' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup1'] = []
                 diResults['WaterFracHeadgroup1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_methyl2]) / sum(ref[i_start_hc:i_start_methyl2])
-                if 'WaterFracLipid1' not in list(diResults.keys()):
-                    diResults['WaterFracLipid1'] = []
                 diResults['WaterFracLipid1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_methyl2:i_start_hg2]) / sum(ref[i_start_methyl2:i_start_hg2])
-                if 'WaterFracLipid2' not in list(diResults.keys()):
-                    diResults['WaterFracLipid2'] = []
                 diResults['WaterFracLipid2'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_hg2]) / sum(ref[i_start_hc:i_start_hg2])
-                if 'WaterFracHydrocarbon' not in list(diResults.keys()):
-                    diResults['WaterFracHydrocarbon'] = []
                 diResults['WaterFracHydrocarbon'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg2:i_start_bulk]) / sum(ref[i_start_hg2:i_start_bulk])
-                if 'WaterFracHeadgroup2' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup2'] = []
                 diResults['WaterFracHeadgroup2'].append(ratio)
 
                 # fraction of protein in certain parts of the membrane
                 for group in ['protein', 'frac1', 'frac2']:
                     if group in l_molgroups:
-
                         if sum(mgdict[group]['areaaxis']) == 0.0:
                             f_frac_submembrane = 0
                             f_frac_inner_headgroup = 0
@@ -495,72 +444,44 @@ class CMolStat:
                             f_frac_inner_leaflet = f_frac_inner_headgroup + f_frac_inner_hydrocarbon
                             f_frac_outer_leaflet = f_frac_outer_headgroup + f_frac_outer_hydrocarbon
 
-                        if 'FracSubmembrane_' + group not in list(diResults.keys()):
-                            diResults['FracSubmembrane_' + group] = []
                         diResults['FracSubmembrane_' + group].append(f_frac_submembrane)
-                        if 'FracHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracHydrocarbon_' + group] = []
                         diResults['FracHydrocarbon_' + group].append(f_frac_hydrocarbon)
-                        if 'FracInnerHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHydrocarbon_' + group] = []
                         diResults['FracInnerHydrocarbon_' + group].append(f_frac_inner_hydrocarbon)
-                        if 'FracOuterHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHydrocarbon_' + group] = []
                         diResults['FracOuterHydrocarbon_' + group].append(f_frac_outer_hydrocarbon)
-                        if 'FracInnerHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHeadgroup_' + group] = []
                         diResults['FracInnerHeadgroup_' + group].append(f_frac_inner_headgroup)
-                        if 'FracOuterHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHeadgroup_' + group] = []
                         diResults['FracOuterHeadgroup_' + group].append(f_frac_outer_headgroup)
-                        if 'FracHeadgroups_' + group not in list(diResults.keys()):
-                            diResults['FracHeadgroups_' + group] = []
                         diResults['FracHeadgroups_' + group].append(f_frac_headgroups)
-                        if 'FracBulk_' + group not in list(diResults.keys()):
-                            diResults['FracBulk_' + group] = []
                         diResults['FracBulk_' + group].append(f_frac_bulk)
-                        if 'FracInnerLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracInnerLeaflet_' + group] = []
                         diResults['FracInnerLeaflet_' + group].append(f_frac_inner_leaflet)
-                        if 'FracOuterLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracOuterLeaflet_' + group] = []
                         diResults['FracOuterLeaflet_' + group].append(f_frac_outer_leaflet)
 
                         # calculate peak position and FWHM for spline profile
-                        imax, maxvalue, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
-                        if 'PeakPosition_' + group not in list(diResults.keys()):
-                            diResults['PeakPosition_' + group] = []
+                        imax, __, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
                         diResults['PeakPosition_' + group].append(mgdict[group]['zaxis'][imax] - f_startbulk)
-                        if 'PeakValue_' + group not in list(diResults.keys()):
-                            diResults['PeakValue_' + group] = []
                         diResults['PeakValue_' + group].append(mgdict[group]['areaaxis'][imax])
-                        if 'FWHMMinusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMMinusPosition_' + group] = []
                         diResults['FWHMMinusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmminus] - f_startbulk)
-                        if 'FWHMPlusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMPlusPosition_' + group] = []
                         diResults['FWHMPlusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmplus] - f_startbulk)
-                        if 'FWHM_' + group not in list(diResults.keys()):
-                            diResults['FWHM_' + group] = []
                         diResults['FWHM_' + group].append(
                             mgdict[group]['zaxis'][ifwhmplus] - mgdict[group]['zaxis'][ifwhmminus])
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(1, fConfidence)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
         fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
         fHigherPercentileMark = (100 - fLowerPercentileMark)
-
+        
+        results = pandas.DataFrame()
         File = open(self.mcmcpath + "/CalculationResults.dat", "w")
-        for element, value in sorted(diResults.items()):
+        for element, __ in sorted(diResults.items()):
             fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
             fMedian = stats.scoreatpercentile(diResults[element], 50.)
             fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-
-            sPrintString = '%(el)s'
-            sPrintString += '  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
+            
+            interval = {'element': element, 'lower_conf': fLowPerc, 'median': fMedian, 'upper_conf': fHighPerc}
+            results = results.append(interval, ignore_index=True)
+            
+            sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
             soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
                                       'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
@@ -569,6 +490,7 @@ class CMolStat:
             File.write('\n')
 
         File.close()
+        return results
 
     def fnCalcConfidenceLimits(self, data, method=1):
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
@@ -848,12 +770,12 @@ class CMolStat:
                     file.write(sLine)
                 file.close()
 
-                dZMin = liContourArrayDimensions[i][3]
-                dZMax = liContourArrayDimensions[i][4]
-                dZStep = liContourArrayDimensions[i][5]
                 dAreaMin = liContourArrayDimensions[i][0]
                 dAreaMax = liContourArrayDimensions[i][1]
                 dAreaStep = liContourArrayDimensions[i][2]
+                dZMin = liContourArrayDimensions[i][3]
+                dZMax = liContourArrayDimensions[i][4]
+                dZStep = liContourArrayDimensions[i][5]
 
                 dZ = dZMin  # write out x-dimension wave
                 sFileName = 'Cont_' + molgroup + '_DimZ' + '.dat'  # dimension wave has one point extra for Igor
@@ -1368,10 +1290,8 @@ class CMolStat:
             profilelist = []  # extracting all profiles related to the actual
             for iteration in self.diStatResults['nSLDProfiles']:  # model
                 profilelist.append(iteration[iModel][:])
-                if fMin > profilelist[-1][0][0]:
-                    fMin = profilelist[-1][0][0]
-                if fMax < profilelist[-1][0][-1]:
-                    fMax = profilelist[-1][0][-1]
+                fMin = min(fMin, profilelist[-1][0][0])
+                fMax = max(fMax, profilelist[-1][0][-1])
             fMax = floor((fMax - fMin) / fGrid) * fGrid + fMin  # make fMax compatible with fGrid and fMin
 
             print('Rebinning data...')
@@ -1567,19 +1487,11 @@ class CMolStat:
         # plt.plot(zax,nSLDtVolFracSum,label='nSLDtVolFracSum')
 
         for j in range(4):  # loop over contrast mixtures
-            if j == 0:
-                fBulknSLD = 6.34
-            if j == 1:
-                fBulknSLD = 4.00
-            if j == 2:
-                fBulknSLD = 0.00
-            if j == 3:
-                fBulknSLD = -0.56
-
+            fBulknSLD = [6.34, 4.00, 0.00, -0.56]
             for i in range(length):  # calculate nSLD for several cases
-                nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD * (1 - (areasum[i] / normarea))
+                nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD[j] * (1 - (areasum[i] / normarea))
             plt.subplot(224)
-            plt.plot(zax, nSLDSum, label='nSLDsum CM' + str(fBulknSLD))
+            plt.plot(zax, nSLDSum, label='nSLDsum CM' + str(fBulknSLD[j]))
 
         plt.subplot(221)
         plt.ylabel('area / Ang+2')
@@ -1617,86 +1529,80 @@ class CMolStat:
         plt.figure(1, figsize=(14, 10))
 
         iCounter = 0
-        while 1:
+        sfilename = 'fit' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            file = open(sfilename, 'r')
+            data = file.readlines()
+            file.close()
+            data = data[1:]
+
+            k = 0
+            l = 0
+            qlist = []
+            dqlist = []
+            Rlist = []
+            dRlist = []
+            fitlist = []
+            fitRFlist = []
+            RFlist = []
+            dRFlist = []
+            reslist = []
+            resplus = []
+            resminus = []
+            for line in data:
+                splitline = line.split()
+                qlist.append(float(splitline[0]))
+                dqlist.append(float(splitline[1]))
+                Rlist.append(float(splitline[2]))
+                dRlist.append(float(splitline[3]))
+                fitlist.append(float(splitline[4]))
+                RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
+                dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
+                fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
+                reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
+                resplus.append(1)
+                resminus.append(-1)
+
+            plt.subplot(221)
+            plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
+
+            plt.subplot(222)
+            plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
+
+            plt.subplot(223)
+            plt.plot(qlist, reslist, label='fit' + str(iCounter))
+            plt.plot(qlist, resplus, 'r')
+            plt.plot(qlist, resminus, 'r')
+
+            iCounter += 1
             sfilename = 'fit' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
-                data = file.readlines()
-                file.close()
-                data = data[1:]
-
-                k = 0
-                l = 0
-                qlist = []
-                dqlist = []
-                Rlist = []
-                dRlist = []
-                fitlist = []
-                fitRFlist = []
-                RFlist = []
-                dRFlist = []
-                reslist = []
-                resplus = []
-                resminus = []
-                for line in data:
-                    splitline = line.split()
-                    qlist.append(float(splitline[0]))
-                    dqlist.append(float(splitline[1]))
-                    Rlist.append(float(splitline[2]))
-                    dRlist.append(float(splitline[3]))
-                    fitlist.append(float(splitline[4]))
-                    RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
-                    dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
-                    fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
-                    reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
-                    resplus.append(1)
-                    resminus.append(-1)
-
-                plt.subplot(221)
-                plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
-
-                plt.subplot(222)
-                plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
-
-                plt.subplot(223)
-                plt.plot(qlist, reslist, label='fit' + str(iCounter))
-                plt.plot(qlist, resplus, 'r')
-                plt.plot(qlist, resminus, 'r')
-
-                iCounter = iCounter + 1
-
-            else:
-                break
 
         iCounter = 0
-        while 1:
+        sfilename = 'profile' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            file = open(sfilename, 'r')
+            data = file.readlines()
+            file.close()
+            data = data[1:]
+
+            k = 0;
+            l = 0
+            zlist = [];
+            rholist = []
+            for line in data:
+                splitline = line.split()
+                zlist.append(float(splitline[0]))
+                rholist.append(float(splitline[1]) * 1e6)
+
+            plt.subplot(224)
+            plt.plot(zlist, rholist, label='profile' + str(iCounter))
+
+            iCounter = iCounter + 1
             sfilename = 'profile' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
-                data = file.readlines()
-                file.close()
-                data = data[1:]
-
-                k = 0;
-                l = 0
-                zlist = [];
-                rholist = []
-                for line in data:
-                    splitline = line.split()
-                    zlist.append(float(splitline[0]))
-                    rholist.append(float(splitline[1]) * 1e6)
-
-                plt.subplot(224)
-                plt.plot(zlist, rholist, label='profile' + str(iCounter))
-
-                iCounter = iCounter + 1
-
-            else:
-                break
 
         plt.subplot(221)
         plt.ylabel('Reflectivity / R')
@@ -2052,7 +1958,7 @@ def Auto(convergence=0.001):  # automatic fit
     ReflPar.fnLoadAndPrintPar()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # genetic runs until chisq<20 or not improving
+    while True:  # genetic runs until chisq<20 or not improving
         call(['nice', './fit', '-peS', '-n', '51'], stdout=open(devnull, "w"))
         call(['cp', 'pop_bak.dat', 'pop.dat'])
         print('Genetic run, approximate roughness')
@@ -2072,7 +1978,7 @@ def AutoFinish(convergence=0.001, sPath='./'):
     ReflPar.fnLoadParameters()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # Amoeba, approximate roughness
+    while True:  # Amoeba, approximate roughness
         call(['nice', './fit', '-peaS'], stdout=open(devnull, "w"))  # until chisq<10 or no improvement
         print('Amoeba, approximate roughness')
         ReflPar.fnLoadAndPrintPar()
