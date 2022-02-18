@@ -1,12 +1,12 @@
 ## === Import section ===
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
-sys.path.append("../../../../../src/molgroups")
-sys.path.append("../../../../src/molgroups")
+sys.path.append("../../../../../molgroups/molgroups")
+sys.path.append("../../../../molgroups/molgroups")
 import numpy as np
-import molgroups as mol
+import mol as mol
 import components as cmp
-from refl1d.names import load4, Parameter, SLD, Slab, Stack, Experiment, FitProblem
+from refl1d.names import load4, Parameter, SLD, Slab, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
 ## === Film structure definition section ===

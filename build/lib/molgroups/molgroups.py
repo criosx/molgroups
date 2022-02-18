@@ -4,7 +4,6 @@ from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
-from copy import deepcopy
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
 import components as cmp

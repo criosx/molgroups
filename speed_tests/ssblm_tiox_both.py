@@ -2,7 +2,7 @@ import sys
 # append path to your molgroups, or just link molgroups to your same directory
 #sys.path.append('G:\\My Drive\\software\\nr\\molgroups\\Diffraction\\Python\\Diffraction_fitting_fp')
 sys.path.append('..')
-import molgroups as mol
+import mol as mol
 from refl1d.names import *
 from refl1d.flayer import FunctionalProfile
 import importlib
