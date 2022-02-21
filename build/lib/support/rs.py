@@ -213,7 +213,7 @@ class CMolStat:
               {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
         print('Confidence level: %(fCL).4f' % {'fCL': fConfidence})
 
-    def fnCalculateMolgroupProperty(self, fConfidence):
+    def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
             maxvalue = max(lList)
             imax = lList.index(maxvalue)
@@ -485,9 +485,8 @@ class CMolStat:
 
             soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
                                       'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
-            File.write(soutput)
-            print(soutput)
-            File.write('\n')
+            File.write(soutput + '\n')
+            if verbose: print(soutput)
 
         File.close()
         return results
@@ -639,11 +638,7 @@ class CMolStat:
 
             diffX = iXEnd - iXStart  # how many indizes do go?
             diffY = iYEnd - iYStart
-
-            if abs(diffX) > abs(diffY):  # which direction more steps?
-                diff = abs(diffX)
-            else:
-                diff = abs(diffY)
+            diff = max(abs(diffX), abs(diffY)) # which direction more steps?
 
             if diff == 0:  # treat single point differently because
                 liArray[iYStart][iXStart] = liArray[iYStart][iXStart]  # of division by zero error -> do nothing!
@@ -663,16 +658,14 @@ class CMolStat:
 
         liContourArray = []  # initiate array
         liContourArrayDimensions = []  # array dimensions
-        i = 0  # result for contour plot of profiles
-        while i < iNumberOfModels:  # list of lists for each profile
+        # result for contour plot of profiles
+        for i in range(iNumberOfModels):  # list of lists for each profile
             liContourArray = liContourArray + [[]]
             liContourArrayDimensions = liContourArrayDimensions + [[0., 0., dRhoGrid, 0., 0., dZGrid]]
             # dimension format ymin, ymax, ystep, xmin, xmax, xstep
-            i = i + 1
 
         for iteration in self.diStatResults['nSLDProfiles']:  # cycle through all individual stat. results
-            i = 0
-            for model in iteration:  # cycle through all models
+            for i, model in enumerate(iteration):  # cycle through all models
                 for l in range(len(model[0])):  # extract nSLD profile data point by point
                     dz = round(model[0][l] / dZGrid) * dZGrid  # round to grid precision
                     drho = round(model[1][l] / dRhoGrid) * dRhoGrid  # round nSLD to grid precision
@@ -683,12 +676,9 @@ class CMolStat:
 
                     dzold = dz
                     drhoold = drho
-                i += 1
 
-        i = 0
         print('Processing data for output ...')
-        while i < iNumberOfModels:  # loop through all models
-
+        for i in range(iNumberOfModels):  # loop through all models
             print('Model %i: %i x %i' % (i, len(liContourArray[i][0]),
                                          len(liContourArray[i])))
             sFileName = 'Cont_nSLD_Array' + str(i) + '.dat'  # write out array
@@ -701,12 +691,12 @@ class CMolStat:
                 file.write(sLine)
             file.close()
 
-            dZMin = liContourArrayDimensions[i][3]
-            dZMax = liContourArrayDimensions[i][4]
-            dZStep = liContourArrayDimensions[i][5]
             dRhoMin = liContourArrayDimensions[i][0]
             dRhoMax = liContourArrayDimensions[i][1]
             dRhoStep = liContourArrayDimensions[i][2]
+            dZMin = liContourArrayDimensions[i][3]
+            dZMax = liContourArrayDimensions[i][4]
+            dZStep = liContourArrayDimensions[i][5]
 
             dZ = dZMin  # write out x-dimension wave
             sFileName = 'Cont_nSLD_DimZ' + str(i) + '.dat'  # dimension wave has one point extra for Igor
@@ -726,8 +716,6 @@ class CMolStat:
                 dRho = dRho + dRhoStep
             file.close()
 
-            i = i + 1
-
         if 'Molgroups' in self.diStatResults:
 
             liContourArray = []  # initiate array
@@ -738,10 +726,9 @@ class CMolStat:
                 # dimension format ymin, ymax, ystep, xmin, xmax, xstep
 
             for iteration in self.diStatResults['Molgroups']:  # cycle through all individual stat. results
-                i = 0
                 dareaold = 0
                 dzold = 0
-                for molgroup in iteration:  # cycle through all molecular groups
+                for i, molgroup in enumerate(iteration):  # cycle through all molecular groups
                     for l in range(len(iteration[molgroup]['zaxis'])):  # extract area profile data point by point
                         dz = round(iteration[molgroup]['zaxis'][l] / dZGrid) * dZGrid  # round to grid precision
                         darea = round(
@@ -753,10 +740,8 @@ class CMolStat:
 
                         dzold = dz
                         dareaold = darea
-                    i += 1
 
-            i = 0
-            for molgroup in self.diStatResults['Molgroups'][0]:  # loop through all models
+            for i, molgroup in enumerate(self.diStatResults['Molgroups'][0]):  # loop through all models
 
                 print('%s %i: %i x %i' % (molgroup, i, len(liContourArray[i][0]),
                                           len(liContourArray[i])))
@@ -795,7 +780,6 @@ class CMolStat:
                     dArea = dArea + dAreaStep
                 file.close()
 
-                i = i + 1
 
     # -------------------------------------------------------------------------------
 
@@ -888,12 +872,10 @@ class CMolStat:
         print('  innerhg ...')
         grouplist = []
         i = 1
-        while True:
-            if 'bilayer.headgroup1_' + str(i) in self.diStatResults['Molgroups'][0]:
+        while 'bilayer.headgroup1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup1_' + str(i))
                 i += 1
-            else:
-                break
+
         diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
         diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.carbonyl_glycerol'])
         diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
@@ -902,22 +884,19 @@ class CMolStat:
         print('  innerhc ...')
         gl_methylene = []
         gl_methyl = []
+        
         i = 1
-        while True:
-            if 'bilayer.methylene1_' + str(i) in self.diStatResults['Molgroups'][0]:
-                gl_methylene.append('bilayer.methylene1_' + str(i))
-                i += 1
-            else:
-                break
+        while 'bilayer.methylene1_' + str(i) in self.diStatResults['Molgroups'][0]:
+            gl_methylene.append('bilayer.methylene1_' + str(i))
+            i += 1
         gl_methylene.append('bilayer.tether_methylene')
+        
         i = 1
-        while True:
-            if 'bilayer.methyl1_' + str(i) in self.diStatResults['Molgroups'][0]:
+        while 'bilayer.methyl1_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methyl.append('bilayer.methyl1_' + str(i))
                 i += 1
-            else:
-                break
         gl_methyl.append('bilayer.tether_methyl')
+        
         diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
         diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
         diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
@@ -925,20 +904,16 @@ class CMolStat:
         print('  outerhc ...')
         gl_methylene = []
         i = 1
-        while True:
-            if 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
+        while 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methylene.append('bilayer.methylene2_' + str(i))
                 i += 1
-            else:
-                break
+
         gl_methyl = []
         i = 1
-        while True:
-            if 'bilayer.methyl2_' + str(i) in self.diStatResults['Molgroups'][0]:
+        while 'bilayer.methyl2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 gl_methyl.append('bilayer.methyl2_' + str(i))
                 i += 1
-            else:
-                break
+
         diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
         diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
         diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
@@ -946,12 +921,10 @@ class CMolStat:
         print('  outerhg ...')
         grouplist = []
         i = 1
-        while True:
-            if 'bilayer.headgroup2_' + str(i) in self.diStatResults['Molgroups'][0]:
+        while 'bilayer.headgroup2_' + str(i) in self.diStatResults['Molgroups'][0]:
                 grouplist.append('bilayer.headgroup2_' + str(i))
                 i += 1
-            else:
-                break
+                
         diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
         diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.carbonyl_glycerol'])
         diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.phosphate'])
@@ -991,7 +964,7 @@ class CMolStat:
             maxbilayerarea, _, _ = fnMaximumHalfPoint(hc)
             # vf_bilayer = maxbilayerarea/areaperlipid
             # if no substrate, use maximum bilayer area as area per lipid
-            if substrate.min() == substrate.max() and substrate.max() == 0:
+            if substrate.min() == substrate.max() == 0:
                 areaperlipid = maxbilayerarea
 
             # recuperate the non-corrected headgroup distributions that were not saved to file by the fit
@@ -1013,18 +986,10 @@ class CMolStat:
 
             # correct the hc profiles due to protein penetration
             for i in range(len(protein)):
-                if sum[i] + protein[i] > maxbilayerarea:
-                    if (innerhc[i] + outerhc[i]) > 0:
-                        excess = sum[i] + protein[i] - maxbilayerarea
-                        if excess > (innerhc[i] + outerhc[i]):
-                            excess = (innerhc[i] + outerhc[i])
-                        # print (innerhc[i]+outerhc[i]) > 0, i
-                        # print 'first' , innerhc_corr[i], excess, innerhc[i], outerhc[i],
-                        # excess*innerhc[i]/(innerhc[i]+outerhc[i])
-                        innerhc_corr[i] -= excess * innerhc[i] / (innerhc[i] + outerhc[i])
-                        # print 'second' , outerhc_corr[i], excess, innerhc[i], outerhc[i],
-                        # excess*outerhc[i]/(innerhc[i]+outerhc[i])
-                        outerhc_corr[i] -= excess * outerhc[i] / (innerhc[i] + outerhc[i])
+                excess = min(sum[i] + protein[i] - maxbilayerarea, (innerhc[i] + outerhc[i]))
+                if excess > 0:
+                    innerhc_corr[i] -= excess * innerhc[i] / (innerhc[i] + outerhc[i])
+                    outerhc_corr[i] -= excess * outerhc[i] / (innerhc[i] + outerhc[i])
 
             # update dictionary entries for later statistics
             diIterations['innerhc_corr'][key] = numpy.copy(innerhc_corr)
@@ -1198,19 +1163,15 @@ class CMolStat:
             file = open('Envelopes' + str(iModel) + '.dat', "w")
 
             if fSigma == 0:  # save all computed envelopes
-
                 liSaveEnvelopeHeaders = liStoredEnvelopeHeaders
                 liSaveEnvelopes = liStoredEnvelopes
 
-
             else:  # save only multiples of fSigma in Sigma
-
                 liSaveEnvelopeHeaders = []
                 liSaveEnvelopes = []
 
                 fmult = 0.
-                while 1:
-
+                while True:
                     fConfidence = special.erf(fmult / sqrt(2))  # upper and lower Percentiles for fmult*sigma
                     fLowerPerc = (1 - fConfidence) / 2
                     fUpperPerc = 1 - (1 - fConfidence) / 2
@@ -2034,7 +1995,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
             fTempChiSq = fBlockChiSq
 
         call(['cp', 'pop.dat', 'pop_rspy.dat'])
-        while 1:
+        while True:
             call(['nice', './fit', '-pea'], stdout=open(devnull, "w"))
             print('Amoeba, correct roughness')
             ReflPar.fnLoadAndPrintPar()
@@ -2052,7 +2013,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
             fTempChiSq = fBlockChiSq
 
         call(['cp', 'pop.dat', 'pop_rspy.dat'])
-        while 1:
+        while True:
             call(['nice', './fit', '-pel'], stdout=open(devnull, "w"))
             print('Levenberg-Marquardt, correct roughness')
             ReflPar.fnLoadAndPrintPar()
@@ -2083,7 +2044,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
 
 def AvgProfile():
     iCounter = 0
-    while 1:
+    while True:
         sfilename = 'ContDimRho' + str(iCounter) + '.dat'
         if path.isfile(sfilename):
             file = open(sfilename, 'r')
