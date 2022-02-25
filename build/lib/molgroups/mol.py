@@ -7,7 +7,6 @@ from scipy.ndimage.interpolation import shift
 from copy import deepcopy
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
-# from molgroups import components as cmp
 from . import components as cmp
 
 D2O_SLD *= 1e-6
@@ -90,7 +89,7 @@ class nSLDObj:
         self.iNumberOfConvPoints = iNumberOfConvPoints
 
     def fnWriteData2File(self, f, cName, z):
-        header = "z" + cName + " a" + cName + " nsl" + cName
+        header = f"z{cName} a{cName} nsl{cName}"
         area, nsl, _ = self.fnGetProfiles(z)
         A = numpy.vstack((z, area, nsl)).T
         numpy.savetxt(f, A, fmt='%0.6e', delimiter=' ', comments='', header=header)
@@ -114,8 +113,7 @@ class nSLDObj:
 
     @staticmethod
     def fnWriteConstant(fp, name, darea, dSLD, z):
-        header = "Constant " + name + " area " + str(darea) + " \n" + \
-                 "z_" + name + " a_" + name + " nsl_" + name
+        header = f"Constant {name} area {darea} \nz_{name} a_{name} nsl_{name}"
         area = darea * numpy.ones_like(z)
         nsl = dSLD * darea * numpy.gradient(z)
         A = numpy.vstack((z, area, nsl)).T
@@ -124,7 +122,7 @@ class nSLDObj:
 
     def fnWriteConstant2Dict(self, rdict, name, darea, dSLD, z):
         rdict[name] = {}
-        rdict[name]['header'] = "Constant " + name + " area " + str(darea)
+        rdict[name]['header'] = f"Constant {name} area {darea}"
         rdict[name]['area'] = darea
         rdict[name]['sld'] = dSLD
         constarea = numpy.ones_like(z) * darea
@@ -231,12 +229,12 @@ class CompositenSLDObj(nSLDObj):
     def fnWritePar2File(self, f, cName, z):
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
-            g.fnWritePar2File(f, cName + '.' + g.name, z)
+            g.fnWritePar2File(f, f"{cName}.{g.name}", z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         for g in self.subgroups:
             # this allows objects with the same names from multiple bilayers
-            rdict = g.fnWritePar2Dict(rdict, cName + '.' + g.name, z)
+            rdict = g.fnWritePar2Dict(rdict, f"{cName}.{g.name}", z)
         return rdict
 
 
@@ -275,8 +273,6 @@ class Box2Err(nSLDObj):
         # Gaussian function definition, integral is volume, return value is area at positions z
         if (self.l != 0) and (self.sigma1 != 0) and (self.sigma2 != 0):
             area = erf((z - self.z + 0.5 * self.l) / (numpy.sqrt(2) * self.sigma1))
-            # result = math.erf((dz - self.z + 0.5 * self.l) / math.sqrt(2) / self.sigma1)
-            # result -= math.erf((dz - self.z - 0.5 * self.l) / math.sqrt(2) / self.sigma2)
             area -= erf((z - self.z - 0.5 * self.l) / (numpy.sqrt(2) * self.sigma2))
             area *= (self.vol / self.l) * 0.5
             area *= self.nf
@@ -365,9 +361,9 @@ class Box2Err(nSLDObj):
             position = 2 * self.flipcenter + - self.z
         else:
             position = self.z
-        fp.write("Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + " sigma2 " +
-                 str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + " nSL " + str(self.nSL) + " nSL2 "
-                 + str(self.nSL2) + " nf " + str(self.nf) + " flip " + str(self.flip) + "\n")
+        fp.write(f"Box2Err {cName} z {position} sigma1 {self.sigma1} " \
+                 f"sigma2 {self.sigma2} l {self.l} vol {self.vol} " \
+                 f"nSL {self.nSL} nSL2 {self.nSL2} nf {self.nf} flip {self.flip}\n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
@@ -376,10 +372,9 @@ class Box2Err(nSLDObj):
         else:
             position = self.z
         rdict[cName] = {}
-        rdict[cName]['header'] = "Box2Err " + cName + " z " + str(position) + " sigma1 " + str(self.sigma1) + \
-                                 " sigma2 " + str(self.sigma2) + " l " + str(self.l) + " vol " + str(self.vol) + \
-                                 " nSL " + str(self.nSL) + " nSL2 " + str(self.nSL2) + " nf " + str(self.nf) + " flip " \
-                                 + str(self.flip)
+        rdict[cName]['header'] = f"Box2Err {cName} z {position} sigma1 {self.sigma1} " \
+                                 f"sigma2 {self.sigma2} l {self.l} vol {self.vol} " \
+                                 f"nSL {self.nSL} nSL2 {self.nSL2} nf {self.nf} flip {self.flip}"
         rdict[cName]['z'] = self.z
         rdict[cName]['sigma1'] = self.sigma1
         rdict[cName]['sigma2'] = self.sigma2
@@ -436,7 +431,7 @@ class CompositeHeadgroup(CompositenSLDObj):
             comp_name = component.name
             # check if componnent is being used more than once, and update name
             if components.count(component) > 1:
-                comp_name += '_'+str(i)
+                comp_name += f"_{i}"
             comp_obj = ComponentBox(name=comp_name, components=[component], xray_wavelength=self.xray_wavelength)
             self.__setattr__(comp_name, comp_obj)
             self.components.append(comp_obj)
@@ -538,17 +533,14 @@ class CompositeHeadgroup(CompositenSLDObj):
 
     def fnWritePar2File(self, fp, cName, z):
         prefix = "m" if self.flip else ""
-        fp.write(prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + " vol " +
-                 str(self.vol) + " nf " + str(self.nf) + " \n")
+        fp.write(f"{prefix}CompositeHeadgroup {cName} z {self.z} l {self.l} vol {self.vol} nf {self.nf} \n")
         self.fnWriteData2File(fp, cName, z)
         super().fnWritePar2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         prefix = "m" if self.flip else ""
         rdict[cName] = {}
-        rdict[cName]['header'] = prefix + "CompositeHeadgroup " + cName + " z " + str(self.z) + " l " + str(self.l) + \
-                                 " vol "
-        rdict[cName]['header'] += str(self.vol) + " nf " + str(self.nf)
+        rdict[cName]['header'] = f"{prefix}CompositeHeadgroup {cName} z {self.z} l {self.l} vol {self.vol} nf {self.nf}"
         rdict[cName]['z'] = self.z
         rdict[cName]['l'] = self.l
         rdict[cName]['vol'] = self.vol
@@ -809,9 +801,9 @@ class BLM(CompositenSLDObj):
         methyls = []
 
         for i, lipid in enumerate(_lipids):
-            hg_name = hgprefix + '_%i' % (i + 1)
-            methylene_name = methyleneprefix + '_%i' % (i + 1)
-            methyl_name = methylprefix + '_%i' % (i + 1)
+            hg_name = f"{hgprefix}_{i+1}"
+            methylene_name = f"{methyleneprefix}_{i+1}"
+            methyl_name = f"{methylprefix}_{i+1}"
 
             if isinstance(lipid.headgroup, cmp.Component):
                 # populates nSL, nSL2, vol, and l
@@ -905,11 +897,11 @@ class BLM(CompositenSLDObj):
 
     def fnWritePar2File(self, fp, cName, z):
         super().fnWritePar2File(fp, cName, z)
-        self.fnWriteConstant(fp, cName + "_normarea", self.normarea, 0, z)
+        self.fnWriteConstant(fp, f"{cName}_normarea", self.normarea, 0, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
-        rdict = self.fnWriteConstant2Dict(rdict, cName + ".normarea", self.normarea, 0, z)
+        rdict = self.fnWriteConstant2Dict(rdict, f"{cName}.normarea", self.normarea, 0, z)
         return rdict
 
 
@@ -1443,14 +1435,12 @@ class Hermite(nSLDObj):
         self._set_area_spline()
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("Hermite " + cName + " numberofcontrolpoints " + str(self.numberofcontrolpoints) + " normarea "
-                 + str(self.normarea) + " nf " + str(self.nf) + " \n")
+        fp.write(f"Hermite {cName} numberofcontrolpoints {self.numberofcontrolpoints} normarea {self.normarea} nf {self.nf} \n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict[cName] = {}
-        rdict[cName]['header'] = "Hermite " + cName + " numberofcontrolpoints " + str(self.numberofcontrolpoints)
-        rdict[cName]['header'] += " normarea " + str(self.normarea) + " nf " + str(self.nf)
+        rdict[cName]['header'] = f"Hermite {cName} numberofcontrolpoints {self.numberofcontrolpoints} normarea {self.normarea} nf {self.nf}"
         rdict[cName]['numberofcontrolpoints'] = self.numberofcontrolpoints
         rdict[cName]['normarea'] = self.normarea
         rdict[cName]['nf'] = self.nf
@@ -1610,14 +1600,12 @@ class ContinuousEuler(nSLDObj):
         self._apply_transform()
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Gamma "
-                 + str(self.gamma) + " Beta " + str(self.beta) + " nf " + str(self.nf) + " \n")
+        fp.write(f"ContinuousEuler {cName} StartPosition {self.z} Gamma {self.gamma} Beta {self.beta} nf {self.nf} \n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict[cName] = {}
-        rdict[cName]['header'] = "ContinuousEuler " + cName + " StartPosition " + str(self.z) + " Gamma "
-        rdict[cName]['header'] += str(self.gamma) + " Beta " + str(self.beta) + " nf " + str(self.nf)
+        rdict[cName]['header'] = f"ContinuousEuler {cName} StartPosition {self.z} Gamma {self.gamma} Beta {self.beta} nf {self.nf}"
         rdict[cName]['startposition'] = self.z
         rdict[cName]['gamma'] = self.gamma
         rdict[cName]['beta'] = self.beta
@@ -1814,14 +1802,12 @@ class DiscreteEuler(nSLDObj):
         self.fnSetBulknSLD(bulknsld)
 
     def fnWritePar2File(self, fp, cName, z):
-        fp.write("DiscreteEuler " + cName + " StartPosition " + str(self.z) + " beta "
-                 + str(self.beta) + " gamma " + str(self.gamma) + " nf " + str(self.nf) + " \n")
+        fp.write(f"DiscreteEuler {cName} StartPosition {self.z} Gamma {self.gamma} Beta {self.beta} nf {self.nf} \n")
         self.fnWriteData2File(fp, cName, z)
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict[cName] = {}
-        rdict[cName]['header'] = "DiscreteEuler " + cName + " StartPosition " + str(self.z) + " beta "
-        rdict[cName]['header'] += str(self.beta) + " gamma " + str(self.gamma) + " nf " + str(self.nf)
+        rdict[cName]['header'] = f"DiscreteEuler {cName} StartPosition {self.z} Gamma {self.gamma} Beta {self.beta} nf {self.nf}"
         rdict[cName]['startposition'] = self.z
         rdict[cName]['beta'] = self.beta
         rdict[cName]['gamma'] = self.gamma
