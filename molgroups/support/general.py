@@ -14,25 +14,20 @@ def add_comments_to_start_of_file(filename, comments):
     """
     adds comment lines to the beginning of a file
     """
-    file = open(filename, "r")
-    content = file.readlines()
-    file.close()
+    with open(filename, "r") as file:
+        content = file.readlines()
 
-    file = open(filename, "w")
-    file.writelines(comments)
-    file.writelines(content)
-    file.close()
-
-    return
+    with open(filename, "w") as file:
+        file.writelines(comments)
+        file.writelines(content)
 
 
 def extract_comments_from_file(filename, commentstr="#"):
     """
     extracts all comment lines starting with 'commentstr' from a file and returns them
     """
-    file = open(filename, "r")
-    content = file.readlines()
-    file.close()
+    with open(filename, "r") as file:
+        content = file.readlines()
 
     return [line for line in content if line.startswith(commentstr)]
 
@@ -52,7 +47,6 @@ def fnConvert4to3(filename):
     """
     converts 4 column data to three column data and overwrites the file
     deletes all '#' comment lines
-
     """
     df = pandas.read_csv(filename, sep='\s+', header=None, names=['1', '2', '3', '4'], skip_blank_lines=True,
                          comment='#')
@@ -67,17 +61,11 @@ def fnCutZeros(data, referenceaxis):
     """
     for element in data:
         if element != referenceaxis:
-            while True:
-                if not data[element][0]:
-                    del data[element][0]
-                else:
-                    break
-            while True:
-                if not data[element][-1]:
-                    del data[element][-1]
-                else:
-                    break
-
+            while not data[element][0]:
+                del data[element][0]
+            while not data[element][-1]:
+                del data[element][-1]
+                
 
 # Integrates columnname in data and returns the integral in data2
 def fnIntegrate(data,columnname,referenceaxis):
@@ -111,7 +99,7 @@ def fnLoadSingleColumns(sFileName, data={}, exceptions=[], header=True, headerli
         # else use the one given as an attribute
         splitheaderline = headerline
 
-    for i,columnname in enumerate(splitheaderline):
+    for i, columnname in enumerate(splitheaderline):
         if LoadList == [] or (columnname in LoadList):
             data[columnname] = []
 
@@ -830,10 +818,10 @@ def fnDiffEnvelope():
             fnNormalizeLast(data4,columnname,140)
             fnAppend(data4,intenvelope,columnname,referenceaxis)
 
-    fnSaveSingleColumns('envelopedif.dat',diffenvelope)
-    fnSaveSingleColumns('envelopeint.dat',intenvelope)
-    fnSaveSingleColumns('envelopedifstat.dat',fnStat(diffenvelope,referenceaxis))
-    fnSaveSingleColumns('envelopeintstat.dat',fnStat(intenvelope,referenceaxis))
+    fnSaveSingleColumns('envelopedif.dat', diffenvelope)
+    fnSaveSingleColumns('envelopeint.dat', intenvelope)
+    fnSaveSingleColumns('envelopedifstat.dat', fnStat(diffenvelope,referenceaxis))
+    fnSaveSingleColumns('envelopeintstat.dat', fnStat(intenvelope,referenceaxis))
 
 
 #reads a number of files depending on two variables xx and yy and creating
@@ -844,10 +832,10 @@ def fnDiffEnvelope():
 
 def fnCreateCArray(filename1, filename2, filename3, xxrange, yyrange, datacolumns=[]):
 
-    file=open("result.txt","w");
+    file=open("result.txt","w")
 
-    file.write("double arr ["+str((xxrange[1]-xxrange[0])/xxrange[2])+"] ")
-    file.write("["+str((yyrange[1]-yyrange[0])/yyrange[2])+"] ")
+    file.write(f"double arr [{(xxrange[1]-xxrange[0])/xxrange[2]}] ")
+    file.write(f"[{(yyrange[1]-yyrange[0])/yyrange[2]}] ")
     file.write("["+str(len(datacolumns)+1)+"] {")
     for xx in range(xxrange[0],xxrange[1],xxrange[2]):
         file.write("{")
