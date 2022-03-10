@@ -1,11 +1,10 @@
 ## === Import section ===
 
 import sys
-# append path to your molgroups, or just link molgroups to your same directory
-sys.path.append('')
 import numpy as np
-from mol import PC, ssBLM
-import components as cmp
+from molgroups import mol
+from molgroups import components as cmp
+from molgroups import lipids
 from refl1d.names import load4, Parameter, SLD, Slab, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
@@ -45,8 +44,8 @@ l_tiox = Parameter(name='total tiox thickness', value=120).range(50, 150)
 l_submembrane = Parameter(name='submembrane thickness', value=10).range(0, 50)
 
 ### Define bilayer object
-DOPC = cmp.Lipid(name='DOPC', headgroup=PC, tails=[cmp.oleoyl, cmp.oleoyl], methyls=cmp.methyl)
-blm = ssBLM(lipids=[DOPC], lipid_nf=[1.0])
+DOPC = cmp.Lipid(name='DOPC', headgroup=lipids.PC, tails=[cmp.oleoyl, cmp.oleoyl], methyls=cmp.methyl)
+blm = mol.ssBLM(lipids=[DOPC], lipid_nf=[1.0])
 
 ### Define molgroups space.
 dimension=300       # Number of steps
