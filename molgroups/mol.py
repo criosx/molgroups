@@ -1620,7 +1620,7 @@ aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU'
 
 
 def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
-              deuterated_residues=None,
+              deuterated_residues=[],
               xray_wavelength=1.5418):
     """
         Creates an 8-column data file for use with ContinuousEuler from a pdb file\
@@ -1663,7 +1663,8 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
         else:
             resmol = aa[key]
         resvol[i] = resmol.cell_volume
-        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength) * 1e-6
+        # TODO: Make new column for xray imaginary part (this is real part only)
+        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
         resnslH[i] = resmol.sld * 1e-6
         resnslD[i] = resmol.Dsld * 1e-6
 
@@ -1671,7 +1672,7 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
     rescoords = numpy.array(rescoords)
 
     # replace base value in nsl calculation with proper deuterated scattering length\
-    resnsl = resscatter[:, 2]
+    #resnsl = resscatter[:, 2]
     if deuterated_residues is not None:
         deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
 
