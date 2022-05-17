@@ -1,5 +1,6 @@
 from __future__ import print_function
 from math import fabs, pow, floor, ceil, sqrt, log10
+from collections import defaultdict
 from numpy import subtract, minimum, maximum, average, array
 from operator import itemgetter
 from os import getcwd, remove, rename, path, kill, devnull
@@ -18,7 +19,8 @@ from . import rsdi
 
 
 class CMolStat:
-    def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".", runfile="run", state=None, problem=None,
+    def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".",
+                 runfile="run", state=None, problem=None,
                  load_state=True, save_stat_data=False):
         self.diParameters = {}
         # Dictionary with all the parameters
@@ -86,8 +88,7 @@ class CMolStat:
         self.fnLoadParameters()                         # Load Parameters for limits
         self.fnLoadStatData(sparse)                     # Load data from file into list
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(fConfidence, 1)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
@@ -212,20 +213,17 @@ class CMolStat:
         self.diStatResults['Convergence'] = fMaxConvergence
         print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
               {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
-        print('Confidence level: %(fCL).4f' % {'fCL': fConfidence})
+        print('Confidence level: {fConfidence:.4f}')
 
-    def fnCalculateMolgroupProperty(self, fConfidence):
+    def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
             maxvalue = max(lList)
             imax = lList.index(maxvalue)
-
-            ifwhmplus = imax
-            ifwhmminus = imax
+            ifwhmplus = ifwhmminus = imax
             while lList[ifwhmplus] > (maxvalue / 2) and ifwhmplus < (len(lList) - 1):
                 ifwhmplus += 1
             while lList[ifwhmminus] > (maxvalue / 2) and ifwhmminus > 0:
                 ifwhmminus -= 1
-
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
         self.fnLoadStatData()
@@ -233,11 +231,11 @@ class CMolStat:
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
-            pdf_frac1 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac1.dat', sep='\s+')
-            pdf_frac2 = pandas.read_csv(self.spath+'/'+self.mcmcpath + '/envelopefrac2.dat', sep='\s+')
+            pdf_frac1 = pandas.read_csv(f"{self.spath}/{self.mcmcpath}/envelopefrac1.dat", sep='\s+')
+            pdf_frac2 = pandas.read_csv(f"{self.spath}/{self.mcmcpath}/envelopefrac2.dat", sep='\s+')
 
             for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
-                striter = 'iter' + str(mcmc_iter)
+                striter = f'iter{mcmc_iter}'
                 self.diStatResults['Molgroups'][mcmc_iter]['frac1'] = {}
                 self.diStatResults['Molgroups'][mcmc_iter]['frac2'] = {}
                 self.diStatResults['Molgroups'][mcmc_iter]['frac1']['zaxis'] = pdf_frac1['zaxis'].tolist()
@@ -247,12 +245,8 @@ class CMolStat:
         except IOError:
             print('Did not find any fractional envelopes ...')
 
-        diResults = {}
+        diResults = defaultdict(list)
         l_molgroups = list(self.diStatResults['Molgroups'][0].keys())
-        for s_molgroup in l_molgroups:  # create results for individual molgroups
-            diResults[s_molgroup + '_COM'] = []
-            diResults[s_molgroup + '_INT'] = []
-            diResults[s_molgroup + '_AVG'] = []
 
         for mcmc_iter in range(len(self.diStatResults['Molgroups'])):  # cycle over all MC iterations
             mgdict = self.diStatResults['Molgroups'][mcmc_iter]
@@ -282,11 +276,7 @@ class CMolStat:
                 diResults[s_molgroup + '_AVG'].append(f_avg)
 
             # calculate ratios between frac1 and frac2
-            if ('frac1' in l_molgroups) and ('frac2' in l_molgroups):
-                if 'ratio_f1f2' not in list(diResults.keys()):
-                    diResults['ratio_f1f2'] = []
-                if 'ratio_f2f1' not in list(diResults.keys()):
-                    diResults['ratio_f2f1'] = []
+            if {'frac1','frac2'}.issubset(l_molgroups):
                 diResults['ratio_f1f2'].append(diResults['frac1_INT'][-1] / diResults['frac2_INT'][-1])
                 diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
 
@@ -294,31 +284,22 @@ class CMolStat:
             # get vf_bilayer from molecular group methylene2_x
             vf_bilayer = 0
             i = 1
-            while True:
-                if 'bilayer.methylene2_'+str(i) in mgdict:
-                    vf_bilayer += float(mgdict['bilayer.methylene2_'+str(i)]['headerdata']['nf'])
-                    i += 1
-                else:
-                    break
-
+            while f'bilayer.methylene2_{i}' in mgdict:
+                vf_bilayer += float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['nf'])
+                i +=1
             # prepare arrays for summing up molgroups
             total_components = numpy.zeros_like(mgdict['bilayer.normarea']['areaaxis'])
 
             if 'bilayer.headgroup1_1' in l_molgroups:
                 f_vol_headgroup1 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup1_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup1_' + str(j)]['areaaxis'])
-                        f_vol_headgroup1 += float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup1_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while f'bilayer.headgroup1_{j}' in l_molgroups:
+                    total_components += numpy.array(mgdict[f'bilayer.headgroup1_{j}']['areaaxis'])
+                    f_vol_headgroup1 += float(mgdict[f'bilayer.headgroup1_{j}']['headerdata']['vol']) * \
+                        float(mgdict[f'bilayer.headgroup1_{j}']['headerdata']['nf'])
                     j += 1
 
-                if 'bilayer.tether' in l_molgroups and 'bilayer.tetherg' in l_molgroups \
-                        and 'bilayer.normarea' in l_molgroups and 'bilayer.bME' in l_molgroups:
-
+                if {'bilayer.tether','bilayer.tetherg','bilayer.normarea','bilayer.bME'}.issubset(l_molgroups):
                     f_vol_submembrane = mgdict['bilayer.normarea']['areaaxis'][0] * \
                         (float(mgdict['bilayer.tether']['headerdata']['l']) +
                          float(mgdict['bilayer.tetherg']['headerdata']['l'])) * vf_bilayer
@@ -333,75 +314,54 @@ class CMolStat:
 
                     f_total_tether_length = float(mgdict['bilayer.tether']['headerdata']['l']) + \
                         float(mgdict['bilayer.tetherg']['headerdata']['l'])
-                    if 'fTotalTetherLength' not in list(diResults.keys()):
-                        diResults['fTotalTetherLength'] = []
                     diResults['fTotalTetherLength'].append(f_total_tether_length)
 
                     f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / \
                         mgdict['bilayer.normarea']['areaaxis'][0]
-                    if 'fTetherDensity' not in list(diResults.keys()):
-                        diResults['fTetherDensity'] = []
                     diResults['fTetherDensity'].append(f_tether_density)
 
                     total_components += numpy.array(mgdict['bilayer.bME']['areaaxis']) + \
                         numpy.array(mgdict['bilayer.tether']['areaaxis']) + \
                         numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
 
-            if 'bilayer.methylene1_1' in l_molgroups and 'bilayer.methyl1_1' in l_molgroups:
+            if {'bilayer.methylene1_1', 'bilayer.methyl1_1'}.issubset(l_molgroups):
                 f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl1_1']['headerdata']['l'])
-                if 'fTotalLipid1Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid1Length'] = []
                 diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
                 i = 1
-                while True:
-                    if 'bilayer.methylene1_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene1_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl1_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while f'bilayer.methylene1_{i}' in mgdict:
+                    total_components += numpy.array(mgdict[f'bilayer.methylene1_{i}']['areaaxis']) + \
+                                        numpy.array(mgdict[f'bilayer.methyl1_{i}']['areaaxis'])
+                    i += 1
 
-            if 'bilayer.methylene2_1' in l_molgroups and 'bilayer.methyl2_1' in l_molgroups:
+            if {'bilayer.methylene2_1','bilayer.methyl2_1'}.issubset(l_molgroups):
                 f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
                     mgdict['bilayer.methyl2_1']['headerdata']['l'])
-                if 'fTotalLipid2Length' not in list(diResults.keys()):
-                    diResults['fTotalLipid2Length'] = []
                 diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
 
                 f_area_per_lipid2 = 0
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        f_area_per_lipid2 += float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['vol']) * \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['nf']) / \
-                                             float(mgdict['bilayer.methylene2_' + str(i)]['headerdata']['l'])
-                        i += 1
-                    else:
-                        break
-                if 'fAreaPerLipid2' not in list(diResults.keys()):
-                    diResults['fAreaPerLipid2'] = []
+                while f'bilayer.methylene2_{i}' in mgdict:
+                    f_area_per_lipid2 += float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['vol']) * \
+                                            float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['nf']) / \
+                                            float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['l'])
+                    i += 1
+                    
                 diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
 
                 i = 1
-                while True:
-                    if 'bilayer.methylene2_' + str(i) in mgdict:
-                        total_components += numpy.array(mgdict['bilayer.methylene2_' + str(i)]['areaaxis']) + \
-                                            numpy.array(mgdict['bilayer.methyl2_' + str(i)]['areaaxis'])
-                        i += 1
-                    else:
-                        break
+                while f'bilayer.methylene2_{i}' in mgdict:
+                    total_components += numpy.array(mgdict[f'bilayer.methylene2_{i}']['areaaxis']) + \
+                                        numpy.array(mgdict[f'bilayer.methyl2_{i}']['areaaxis'])
+                    i += 1
 
             if 'bilayer.headgroup2_1' in l_molgroups:
                 f_vol_headgroup2 = numpy.zeros_like(total_components)
                 j = 1
-                while True:
-                    if 'bilayer.headgroup2_' + str(j) in l_molgroups:
-                        total_components += numpy.array(mgdict['bilayer.headgroup2_' + str(j)]['areaaxis'])
-                        f_vol_headgroup2 += float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['vol']) * \
-                            float(mgdict['bilayer.headgroup2_' + str(j)]['headerdata']['nf'])
-                    else:
-                        break
+                while f'bilayer.headgroup2_{j}' in l_molgroups:
+                    total_components += numpy.array(mgdict[f'bilayer.headgroup2_{j}']['areaaxis'])
+                    f_vol_headgroup2 += float(mgdict[f'bilayer.headgroup2_{j}']['headerdata']['vol']) * \
+                        float(mgdict[f'bilayer.headgroup2_{j}']['headerdata']['nf'])
                     j += 1
 
             if 'bilayer.defect_hc' in l_molgroups:
@@ -413,8 +373,7 @@ class CMolStat:
             if 'protein' in l_molgroups:
                 total_components = total_components + mgdict['protein']['areaaxis']
                 for i in range(len(total_components)):
-                    if total_components[i] > vf_bilayer * mgdict['normarea']['areaaxis'][i]:
-                        total_components[i] = vf_bilayer * mgdict['normarea']['areaaxis'][i]
+                    total_components[i] = min(total_components[i], vf_bilayer * mgdict['normarea']['areaaxis'][i])
 
             # calculate water and protein fractions if bilayer is present
             if 'bilayer.headgroup1_1' in l_molgroups:
@@ -439,34 +398,21 @@ class CMolStat:
 
                 ref = mgdict['bilayer.normarea']['areaaxis']
                 ratio = 1 - sum(total_components[0:i_start_hg1]) / sum(ref[0:i_start_hg1])
-                if 'WaterFracSubMembrane' not in list(diResults.keys()):
-                    diResults['WaterFracSubMembrane'] = []
                 diResults['WaterFracSubMembrane'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg1:i_start_hc]) / sum(ref[i_start_hg1:i_start_hc])
-                if 'WaterFracHeadgroup1' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup1'] = []
                 diResults['WaterFracHeadgroup1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_methyl2]) / sum(ref[i_start_hc:i_start_methyl2])
-                if 'WaterFracLipid1' not in list(diResults.keys()):
-                    diResults['WaterFracLipid1'] = []
                 diResults['WaterFracLipid1'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_methyl2:i_start_hg2]) / sum(ref[i_start_methyl2:i_start_hg2])
-                if 'WaterFracLipid2' not in list(diResults.keys()):
-                    diResults['WaterFracLipid2'] = []
                 diResults['WaterFracLipid2'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hc:i_start_hg2]) / sum(ref[i_start_hc:i_start_hg2])
-                if 'WaterFracHydrocarbon' not in list(diResults.keys()):
-                    diResults['WaterFracHydrocarbon'] = []
                 diResults['WaterFracHydrocarbon'].append(ratio)
                 ratio = 1 - sum(total_components[i_start_hg2:i_start_bulk]) / sum(ref[i_start_hg2:i_start_bulk])
-                if 'WaterFracHeadgroup2' not in list(diResults.keys()):
-                    diResults['WaterFracHeadgroup2'] = []
                 diResults['WaterFracHeadgroup2'].append(ratio)
 
                 # fraction of protein in certain parts of the membrane
                 for group in ['protein', 'frac1', 'frac2']:
                     if group in l_molgroups:
-
                         if sum(mgdict[group]['areaaxis']) == 0.0:
                             f_frac_submembrane = 0
                             f_frac_inner_headgroup = 0
@@ -479,97 +425,61 @@ class CMolStat:
                             f_frac_inner_leaflet = 0
                             f_frac_outer_leaflet = 0
                         else:
-                            f_frac_submembrane = sum(mgdict[group]['areaaxis'][0:i_start_hg1]) / \
-                                                 sum(mgdict[group]['areaaxis'])
-                            f_frac_inner_headgroup = sum(mgdict[group]['areaaxis'][i_start_hg1:i_start_hc]) / \
-                                                     sum(mgdict[group]['areaaxis'])
-                            f_frac_inner_hydrocarbon = sum(mgdict[group]['areaaxis'][i_start_hc:i_start_methyl2]) / \
-                                                       sum(mgdict[group]['areaaxis'])
-                            f_frac_outer_hydrocarbon = sum(mgdict[group]['areaaxis'][i_start_methyl2:i_start_hg2]) / \
-                                                       sum(mgdict[group]['areaaxis'])
-                            f_frac_hydrocarbon = sum(mgdict[group]['areaaxis'][i_start_hc:i_start_hg2]) / \
-                                                 sum(mgdict[group]['areaaxis'])
-                            f_frac_outer_headgroup = sum(mgdict[group]['areaaxis'][i_start_hg2:i_start_bulk]) / \
-                                                     sum(mgdict[group]['areaaxis'])
+                            ref = mgdict[group]['areaaxis']
+                            f_frac_submembrane = sum(ref[0:i_start_hg1]) / sum(ref)
+                            f_frac_inner_headgroup = sum(ref[i_start_hg1:i_start_hc]) / sum(ref)
+                            f_frac_inner_hydrocarbon = sum(ref[i_start_hc:i_start_methyl2]) / sum(ref)
+                            f_frac_outer_hydrocarbon = sum(ref[i_start_methyl2:i_start_hg2]) / sum(ref)
+                            f_frac_hydrocarbon = sum(ref[i_start_hc:i_start_hg2]) / sum(ref)
+                            f_frac_outer_headgroup = sum(ref[i_start_hg2:i_start_bulk]) / sum(ref)
                             f_frac_headgroups = f_frac_inner_headgroup + f_frac_outer_headgroup
-                            f_frac_bulk = sum(mgdict[group]['areaaxis'][i_start_bulk:]) / sum(mgdict[group]['areaaxis'])
+                            f_frac_bulk = sum(ref[i_start_bulk:]) / sum(ref)
                             f_frac_inner_leaflet = f_frac_inner_headgroup + f_frac_inner_hydrocarbon
                             f_frac_outer_leaflet = f_frac_outer_headgroup + f_frac_outer_hydrocarbon
 
-                        if 'FracSubmembrane_' + group not in list(diResults.keys()):
-                            diResults['FracSubmembrane_' + group] = []
-                        diResults['FracSubmembrane_' + group].append(f_frac_submembrane)
-                        if 'FracHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracHydrocarbon_' + group] = []
-                        diResults['FracHydrocarbon_' + group].append(f_frac_hydrocarbon)
-                        if 'FracInnerHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHydrocarbon_' + group] = []
-                        diResults['FracInnerHydrocarbon_' + group].append(f_frac_inner_hydrocarbon)
-                        if 'FracOuterHydrocarbon_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHydrocarbon_' + group] = []
-                        diResults['FracOuterHydrocarbon_' + group].append(f_frac_outer_hydrocarbon)
-                        if 'FracInnerHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracInnerHeadgroup_' + group] = []
-                        diResults['FracInnerHeadgroup_' + group].append(f_frac_inner_headgroup)
-                        if 'FracOuterHeadgroup_' + group not in list(diResults.keys()):
-                            diResults['FracOuterHeadgroup_' + group] = []
-                        diResults['FracOuterHeadgroup_' + group].append(f_frac_outer_headgroup)
-                        if 'FracHeadgroups_' + group not in list(diResults.keys()):
-                            diResults['FracHeadgroups_' + group] = []
-                        diResults['FracHeadgroups_' + group].append(f_frac_headgroups)
-                        if 'FracBulk_' + group not in list(diResults.keys()):
-                            diResults['FracBulk_' + group] = []
-                        diResults['FracBulk_' + group].append(f_frac_bulk)
-                        if 'FracInnerLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracInnerLeaflet_' + group] = []
-                        diResults['FracInnerLeaflet_' + group].append(f_frac_inner_leaflet)
-                        if 'FracOuterLeaflet_' + group not in list(diResults.keys()):
-                            diResults['FracOuterLeaflet_' + group] = []
-                        diResults['FracOuterLeaflet_' + group].append(f_frac_outer_leaflet)
+                        diResults[f'FracSubmembrane_{group}'].append(f_frac_submembrane)
+                        diResults[f'FracHydrocarbon_{group}'].append(f_frac_hydrocarbon)
+                        diResults[f'FracInnerHydrocarbon_{group}'].append(f_frac_inner_hydrocarbon)
+                        diResults[f'FracOuterHydrocarbon_{group}'].append(f_frac_outer_hydrocarbon)
+                        diResults[f'FracInnerHeadgroup_{group}'].append(f_frac_inner_headgroup)
+                        diResults[f'FracOuterHeadgroup_{group}'].append(f_frac_outer_headgroup)
+                        diResults[f'FracHeadgroups_{group}'].append(f_frac_headgroups)
+                        diResults[f'FracBulk_{group}'].append(f_frac_bulk)
+                        diResults[f'FracInnerLeaflet_{group}'].append(f_frac_inner_leaflet)
+                        diResults[f'FracOuterLeaflet_{group}'].append(f_frac_outer_leaflet)
 
                         # calculate peak position and FWHM for spline profile
-                        imax, maxvalue, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
-                        if 'PeakPosition_' + group not in list(diResults.keys()):
-                            diResults['PeakPosition_' + group] = []
-                        diResults['PeakPosition_' + group].append(mgdict[group]['zaxis'][imax] - f_startbulk)
-                        if 'PeakValue_' + group not in list(diResults.keys()):
-                            diResults['PeakValue_' + group] = []
-                        diResults['PeakValue_' + group].append(mgdict[group]['areaaxis'][imax])
-                        if 'FWHMMinusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMMinusPosition_' + group] = []
-                        diResults['FWHMMinusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmminus] - f_startbulk)
-                        if 'FWHMPlusPosition_' + group not in list(diResults.keys()):
-                            diResults['FWHMPlusPosition_' + group] = []
-                        diResults['FWHMPlusPosition_' + group].append(mgdict[group]['zaxis'][ifwhmplus] - f_startbulk)
-                        if 'FWHM_' + group not in list(diResults.keys()):
-                            diResults['FWHM_' + group] = []
-                        diResults['FWHM_' + group].append(
+                        imax, __, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
+                        diResults[f'PeakPosition_{group}'].append(mgdict[group]['zaxis'][imax] - f_startbulk)
+                        diResults[f'PeakValue_{group}'].append(mgdict[group]['areaaxis'][imax])
+                        diResults[f'FWHMMinusPosition_{group}'].append(mgdict[group]['zaxis'][ifwhmminus] - f_startbulk)
+                        diResults[f'FWHMPlusPosition_{group}'].append(mgdict[group]['zaxis'][ifwhmplus] - f_startbulk)
+                        diResults[f'FWHM_{group}'].append(
                             mgdict[group]['zaxis'][ifwhmplus] - mgdict[group]['zaxis'][ifwhmminus])
 
-        if fConfidence > 1:
-            fConfidence = 1
+        fConfidence = min(1, fConfidence)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
 
         fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
         fHigherPercentileMark = (100 - fLowerPercentileMark)
+        
+        results = pandas.DataFrame()
+        with open(self.mcmcpath + "/CalculationResults.dat", "w") as file:
+            for element, __ in sorted(diResults.items()):
+                fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
+                fMedian = stats.scoreatpercentile(diResults[element], 50.)
+                fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
+                interval = {'element': element, 'lower_conf': fLowPerc, 'median': fMedian, 'upper_conf': fHighPerc}
+                results = results.append(interval, ignore_index=True)
+                
+                sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
-        File = open(self.mcmcpath + "/CalculationResults.dat", "w")
-        for element, value in sorted(diResults.items()):
-            fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
-            fMedian = stats.scoreatpercentile(diResults[element], 50.)
-            fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-
-            sPrintString = '%(el)s'
-            sPrintString += '  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
-
-            soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
-                                      'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
-            File.write(soutput)
-            print(soutput)
-            File.write('\n')
-
-        File.close()
+                soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
+                                        'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
+                file.write(soutput + '\n')
+                if verbose: print(soutput)
+        return results
 
     def fnCalcConfidenceLimits(self, data, method=1):
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
@@ -623,8 +533,7 @@ class CMolStat:
                 return [data[0], data[0], data[0], data[0], data[0]]
 
             # calculate a smoother maximum value
-            a = maxindex
-            c = maxindex
+            a = c = maxindex
             if 0 < maxindex < len(histo) - 1:
                 a = maxindex - 1
                 c = maxindex + 1
@@ -632,8 +541,7 @@ class CMolStat:
             maxindexsmooth = maxindexsmooth / (histo[a] + histo[maxindex] + histo[c])
             maxvaluesmooth = low_range + (maxindexsmooth + 0.5) * bin_size
 
-            a = maxindex
-            c = maxindex
+            a = c = maxindex
             confidence = histo[maxindex]
             while confidence < 0.6827:
                 if a > 0:
@@ -718,11 +626,7 @@ class CMolStat:
 
             diffX = iXEnd - iXStart  # how many indizes do go?
             diffY = iYEnd - iYStart
-
-            if abs(diffX) > abs(diffY):  # which direction more steps?
-                diff = abs(diffX)
-            else:
-                diff = abs(diffY)
+            diff = max(abs(diffX), abs(diffY)) # which direction more steps?
 
             if diff == 0:  # treat single point differently because
                 liArray[iYStart][iXStart] = liArray[iYStart][iXStart]  # of division by zero error -> do nothing!
@@ -742,16 +646,14 @@ class CMolStat:
 
         liContourArray = []  # initiate array
         liContourArrayDimensions = []  # array dimensions
-        i = 0  # result for contour plot of profiles
-        while i < iNumberOfModels:  # list of lists for each profile
+        # result for contour plot of profiles
+        for i in range(iNumberOfModels):  # list of lists for each profile
             liContourArray = liContourArray + [[]]
             liContourArrayDimensions = liContourArrayDimensions + [[0., 0., dRhoGrid, 0., 0., dZGrid]]
             # dimension format ymin, ymax, ystep, xmin, xmax, xstep
-            i = i + 1
 
         for iteration in self.diStatResults['nSLDProfiles']:  # cycle through all individual stat. results
-            i = 0
-            for model in iteration:  # cycle through all models
+            for i, model in enumerate(iteration):  # cycle through all models
                 for l in range(len(model[0])):  # extract nSLD profile data point by point
                     dz = round(model[0][l] / dZGrid) * dZGrid  # round to grid precision
                     drho = round(model[1][l] / dRhoGrid) * dRhoGrid  # round nSLD to grid precision
@@ -762,53 +664,41 @@ class CMolStat:
 
                     dzold = dz
                     drhoold = drho
-                i += 1
 
-        i = 0
         print('Processing data for output ...')
-        while i < iNumberOfModels:  # loop through all models
-
+        for i in range(iNumberOfModels):  # loop through all models
             print('Model %i: %i x %i' % (i, len(liContourArray[i][0]),
                                          len(liContourArray[i])))
-            sFileName = 'Cont_nSLD_Array' + str(i) + '.dat'  # write out array
-            file = open(sFileName, "w")
-            for line in liContourArray[i]:
-                sLine = ''
-                for element in line:
-                    sLine = sLine + str(element) + ' '
-                sLine = sLine + '\n'
-                file.write(sLine)
-            file.close()
+            sFileName = f'Cont_nSLD_Array{i}.dat'  # write out array
+            with open(sFileName, "w") as file:
+                for line in liContourArray[i]:
+                    sLine = ' '.join(map(str, line))
+                    file.write(sLine + ' \n')
 
-            dZMin = liContourArrayDimensions[i][3]
-            dZMax = liContourArrayDimensions[i][4]
-            dZStep = liContourArrayDimensions[i][5]
             dRhoMin = liContourArrayDimensions[i][0]
             dRhoMax = liContourArrayDimensions[i][1]
             dRhoStep = liContourArrayDimensions[i][2]
+            dZMin = liContourArrayDimensions[i][3]
+            dZMax = liContourArrayDimensions[i][4]
+            dZStep = liContourArrayDimensions[i][5]
 
             dZ = dZMin  # write out x-dimension wave
-            sFileName = 'Cont_nSLD_DimZ' + str(i) + '.dat'  # dimension wave has one point extra for Igor
-            file = open(sFileName, "w")
-            while (dZ <= dZMax + dZStep):
-                sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
-                file.write(sLine)
-                dZ = dZ + dZStep
-            file.close()
+            sFileName = f'Cont_nSLD_DimZ{i}.dat'  # dimension wave has one point extra for Igor
+            with open(sFileName, "w") as file:
+                while dZ <= dZMax + dZStep:
+                    sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
+                    file.write(sLine)
+                    dZ = dZ + dZStep
 
             dRho = dRhoMin  # write out y-dimension wave
-            sFileName = 'Cont_nSLD_DimRho' + str(i) + '.dat'  # dimension wave has one point extra for Igor
-            file = open(sFileName, "w")
-            while dRho <= dRhoMax + dRhoStep:
-                sLine = str(round(dRho / dRhoGrid) * dRhoGrid) + '\n'
-                file.write(sLine)
-                dRho = dRho + dRhoStep
-            file.close()
-
-            i = i + 1
+            sFileName = f'Cont_nSLD_DimRho{i}.dat'  # dimension wave has one point extra for Igor
+            with open(sFileName, "w") as file:
+                while dRho <= dRhoMax + dRhoStep:
+                    sLine = f'{round(dRho / dRhoGrid) * dRhoGrid}\n'
+                    file.write(sLine)
+                    dRho += dRhoStep
 
         if 'Molgroups' in self.diStatResults:
-
             liContourArray = []  # initiate array
             liContourArrayDimensions = []  # array dimensions
             for _ in self.diStatResults['Molgroups'][0]:  # iterate through molecular group names
@@ -817,10 +707,9 @@ class CMolStat:
                 # dimension format ymin, ymax, ystep, xmin, xmax, xstep
 
             for iteration in self.diStatResults['Molgroups']:  # cycle through all individual stat. results
-                i = 0
                 dareaold = 0
                 dzold = 0
-                for molgroup in iteration:  # cycle through all molecular groups
+                for i, molgroup in enumerate(iteration):  # cycle through all molecular groups
                     for l in range(len(iteration[molgroup]['zaxis'])):  # extract area profile data point by point
                         dz = round(iteration[molgroup]['zaxis'][l] / dZGrid) * dZGrid  # round to grid precision
                         darea = round(
@@ -832,49 +721,39 @@ class CMolStat:
 
                         dzold = dz
                         dareaold = darea
-                    i += 1
 
-            i = 0
-            for molgroup in self.diStatResults['Molgroups'][0]:  # loop through all models
+            for i, molgroup in enumerate(self.diStatResults['Molgroups'][0]):  # loop through all models
 
                 print('%s %i: %i x %i' % (molgroup, i, len(liContourArray[i][0]),
                                           len(liContourArray[i])))
                 sFileName = 'Cont_' + molgroup + '_Array' + '.dat'  # write out array
-                file = open(sFileName, "w")
-                for line in liContourArray[i]:
-                    sLine = ''
-                    for element in line:
-                        sLine = sLine + str(element) + ' '
-                    sLine = sLine + '\n'
-                    file.write(sLine)
-                file.close()
+                with open(sFileName, "w") as file:
+                    for line in liContourArray[i]:
+                        sLine = ' '.join(map(str, line)) + ' \n'
+                        file.write(sLine)
 
-                dZMin = liContourArrayDimensions[i][3]
-                dZMax = liContourArrayDimensions[i][4]
-                dZStep = liContourArrayDimensions[i][5]
                 dAreaMin = liContourArrayDimensions[i][0]
                 dAreaMax = liContourArrayDimensions[i][1]
                 dAreaStep = liContourArrayDimensions[i][2]
+                dZMin = liContourArrayDimensions[i][3]
+                dZMax = liContourArrayDimensions[i][4]
+                dZStep = liContourArrayDimensions[i][5]
 
                 dZ = dZMin  # write out x-dimension wave
                 sFileName = 'Cont_' + molgroup + '_DimZ' + '.dat'  # dimension wave has one point extra for Igor
-                file = open(sFileName, "w")
-                while (dZ <= dZMax + dZStep):
-                    sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
-                    file.write(sLine)
-                    dZ = dZ + dZStep
-                file.close()
+                with open(sFileName, "w") as file:
+                    while dZ <= dZMax + dZStep:
+                        sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
+                        file.write(sLine)
+                        dZ = dZ + dZStep
 
                 dArea = dAreaMin  # write out y-dimension wave
                 sFileName = 'Cont_' + molgroup + '_DimArea' + '.dat'  # dimension wave has one point extra for Igor
-                file = open(sFileName, "w")
-                while (dArea <= dAreaMax + dAreaStep):
-                    sLine = str(round(dArea / dAreaGrid) * dAreaGrid) + '\n'
-                    file.write(sLine)
-                    dArea = dArea + dAreaStep
-                file.close()
-
-                i = i + 1
+                with open(sFileName, "w") as file:
+                    while dArea <= dAreaMax + dAreaStep:
+                        sLine = str(round(dArea / dAreaGrid) * dAreaGrid) + '\n'
+                        file.write(sLine)
+                        dArea = dArea + dAreaStep
 
     # -------------------------------------------------------------------------------
 
@@ -935,21 +814,21 @@ class CMolStat:
         diStat = {}
         for element in lGroupList:
             diStat[element] = []
-            diStat[element + '_corr'] = []
-            diStat[element + '_cvo'] = []
-            diStat[element + '_corr_cvo'] = []
+            diStat[f'{element}_corr'] = []
+            diStat[f'{element}_cvo'] = []
+            diStat[f'{element}_corr_cvo'] = []
 
         keylist = list(diStat)
         for element in keylist:
-            diStat[element + '_msigma'] = []
-            diStat[element + '_psigma'] = []
+            diStat[f'{element}_msigma'] = []
+            diStat[f'{element}_psigma'] = []
 
         diIterations = {}
         for element in lGroupList:
             diIterations[element] = {}
-            diIterations[element + '_corr'] = {}
-            diIterations[element + '_cvo'] = {}
-            diIterations[element + '_corr_cvo'] = {}
+            diIterations[f'{element}_corr'] = {}
+            diIterations[f'{element}_cvo'] = {}
+            diIterations[f'{element}_corr_cvo'] = {}
 
         # pull all relevant molgroups
         # headgroups are allready corrected for protein penetration (_corr) and will be copied over to the _corr
@@ -967,12 +846,10 @@ class CMolStat:
         print('  innerhg ...')
         grouplist = []
         i = 1
-        while True:
-            if 'bilayer.headgroup1_' + str(i) in self.diStatResults['Molgroups'][0]:
-                grouplist.append('bilayer.headgroup1_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.headgroup1_{i}' in self.diStatResults['Molgroups'][0]:
+            grouplist.append(f'bilayer.headgroup1_{i}')
+            i += 1
+
         diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
         diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.carbonyl_glycerol'])
         diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
@@ -981,22 +858,19 @@ class CMolStat:
         print('  innerhc ...')
         gl_methylene = []
         gl_methyl = []
+        
         i = 1
-        while True:
-            if 'bilayer.methylene1_' + str(i) in self.diStatResults['Molgroups'][0]:
-                gl_methylene.append('bilayer.methylene1_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.methylene1_{i}' in self.diStatResults['Molgroups'][0]:
+            gl_methylene.append(f'bilayer.methylene1_{i}')
+            i += 1
         gl_methylene.append('bilayer.tether_methylene')
+        
         i = 1
-        while True:
-            if 'bilayer.methyl1_' + str(i) in self.diStatResults['Molgroups'][0]:
-                gl_methyl.append('bilayer.methyl1_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.methyl1_{i}' in self.diStatResults['Molgroups'][0]:
+            gl_methyl.append(f'bilayer.methyl1_{i}')
+            i += 1
         gl_methyl.append('bilayer.tether_methyl')
+        
         diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
         diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
         diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
@@ -1004,20 +878,16 @@ class CMolStat:
         print('  outerhc ...')
         gl_methylene = []
         i = 1
-        while True:
-            if 'bilayer.methylene2_' + str(i) in self.diStatResults['Molgroups'][0]:
-                gl_methylene.append('bilayer.methylene2_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.methylene2_{i}' in self.diStatResults['Molgroups'][0]:
+            gl_methylene.append(f'bilayer.methylene2_{i}')
+            i += 1
+
         gl_methyl = []
         i = 1
-        while True:
-            if 'bilayer.methyl2_' + str(i) in self.diStatResults['Molgroups'][0]:
-                gl_methyl.append('bilayer.methyl2_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.methyl2_{i}' in self.diStatResults['Molgroups'][0]:
+            gl_methyl.append(f'bilayer.methyl2_{i}')
+            i += 1
+
         diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene+gl_methyl)
         diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
         diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
@@ -1025,12 +895,10 @@ class CMolStat:
         print('  outerhg ...')
         grouplist = []
         i = 1
-        while True:
-            if 'bilayer.headgroup2_' + str(i) in self.diStatResults['Molgroups'][0]:
-                grouplist.append('bilayer.headgroup2_' + str(i))
-                i += 1
-            else:
-                break
+        while f'bilayer.headgroup2_{i}' in self.diStatResults['Molgroups'][0]:
+            grouplist.append(f'bilayer.headgroup2_{i}')
+            i += 1
+                
         diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
         diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.carbonyl_glycerol'])
         diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.phosphate'])
@@ -1045,13 +913,13 @@ class CMolStat:
         # shallow copies of the uncorrected data into the corrected dictionaries
         # and the values will be replaced by their modifications step by step
         for element in lGroupList:
-            diIterations[element + '_corr'] = diIterations[element].copy()
+            diIterations[f'{element}_corr'] = diIterations[element].copy()
 
         # loop over all iterations and apply the corrections / calculations
         print('Applying corrections ...\n')
         for i in range(len(list(diIterations['substrate'].keys())) - 1):
 
-            key = 'iter' + str(i)
+            key = f'iter{i}'
             substrate = numpy.array(diIterations['substrate'][key])
             siox = numpy.array(diIterations['siox'][key])
             tether = numpy.array(diIterations['tether'][key])
@@ -1070,7 +938,7 @@ class CMolStat:
             maxbilayerarea, _, _ = fnMaximumHalfPoint(hc)
             # vf_bilayer = maxbilayerarea/areaperlipid
             # if no substrate, use maximum bilayer area as area per lipid
-            if substrate.min() == substrate.max() and substrate.max() == 0:
+            if substrate.min() == substrate.max() == 0:
                 areaperlipid = maxbilayerarea
 
             # recuperate the non-corrected headgroup distributions that were not saved to file by the fit
@@ -1092,18 +960,10 @@ class CMolStat:
 
             # correct the hc profiles due to protein penetration
             for i in range(len(protein)):
-                if sum[i] + protein[i] > maxbilayerarea:
-                    if (innerhc[i] + outerhc[i]) > 0:
-                        excess = sum[i] + protein[i] - maxbilayerarea
-                        if excess > (innerhc[i] + outerhc[i]):
-                            excess = (innerhc[i] + outerhc[i])
-                        # print (innerhc[i]+outerhc[i]) > 0, i
-                        # print 'first' , innerhc_corr[i], excess, innerhc[i], outerhc[i],
-                        # excess*innerhc[i]/(innerhc[i]+outerhc[i])
-                        innerhc_corr[i] -= excess * innerhc[i] / (innerhc[i] + outerhc[i])
-                        # print 'second' , outerhc_corr[i], excess, innerhc[i], outerhc[i],
-                        # excess*outerhc[i]/(innerhc[i]+outerhc[i])
-                        outerhc_corr[i] -= excess * outerhc[i] / (innerhc[i] + outerhc[i])
+                excess = min(sum[i] + protein[i] - maxbilayerarea, (innerhc[i] + outerhc[i]))
+                if excess > 0:
+                    innerhc_corr[i] -= excess * innerhc[i] / (innerhc[i] + outerhc[i])
+                    outerhc_corr[i] -= excess * outerhc[i] / (innerhc[i] + outerhc[i])
 
             # update dictionary entries for later statistics
             diIterations['innerhc_corr'][key] = numpy.copy(innerhc_corr)
@@ -1121,31 +981,30 @@ class CMolStat:
 
             # calculate volume occupancy distributions by division by the area per lipid
             for element in lGroupList:
-                diIterations[element + '_cvo'][key] = diIterations[element][key] / areaperlipid
-                diIterations[element + '_corr_cvo'][key] = diIterations[element + '_corr'][key] / areaperlipid
+                diIterations[f'{element}_cvo'][key] = diIterations[element][key] / areaperlipid
+                diIterations[f'{element}_corr_cvo'][key] = diIterations[f'{element}_corr'][key] / areaperlipid
 
         # calculate the statisics
         print('Calculating statistics ...\n')
         for element in lGroupList:
             if element != 'zaxis':
                 fnStat(diIterations[element], element, diStat)
-                fnStat(diIterations[element + '_corr'], element + '_corr', diStat)
-                fnStat(diIterations[element + '_cvo'], element + '_cvo', diStat)
-                fnStat(diIterations[element + '_corr_cvo'], element + '_corr_cvo', diStat)
+                fnStat(diIterations[f'{element}_corr'], f'{element}_corr', diStat)
+                fnStat(diIterations[f'{element}_cvo'], f'{element}_cvo', diStat)
+                fnStat(diIterations[f'{element}_corr_cvo'], f'{element}_corr_cvo', diStat)
 
         print('Saving data to bilayerplotdata.dat ...\n')
-        self.Interactor.fnSaveSingleColumns(self.mcmcpath + '/bilayerplotdata.dat', diStat)
+        self.Interactor.fnSaveSingleColumns(f'{self.mcmcpath}/bilayerplotdata.dat', diStat)
 
     def fnGetNumberOfModelsFromSetupC(self):
-        file = open(self.setupfilename, "r")  # open setup.c
-        data = file.readlines()
-        file.close()
+        with open(self.setupfilename, "r") as file:  # open setup.c
+            data = file.readlines()
         smatch = compile(r'define\s+MODELS\s+(.+?)\n', IGNORECASE | VERBOSE)
         for line in data:  # search through setup.c
             if smatch.search(line):  # searching for MODELS constant
                 i = smatch.search(line).group(1)
-                return (int(i))
-        return (0)
+                return int(i)
+        return 0
 
     def fnGetParameterValue(self, sname):  # export absolute parameter value
         return self.diParameters[sname]['value']  # for given name
@@ -1179,10 +1038,9 @@ class CMolStat:
         # the function fnLoadParameters
         # must have been already carried out
 
-        if path.isfile(sPath + 'covar.dat'):
-            File = open(sPath + 'covar.dat')
-            data = File.readlines()
-            File.close()
+        if path.isfile(f'{sPath}covar.dat'):
+            with open(f'{sPath}covar.dat') as file:
+                data = file.readlines()
             for i in range(len((data[1]).split())):  # number of columns in second row
                 for parameter in list(self.diParameters.keys()):  # search for parameter number and
                     if self.diParameters[parameter]['number'] == i:  # retrieve value
@@ -1200,9 +1058,8 @@ class CMolStat:
     @staticmethod
     def fnLoadObject(sFileName):
         import pickle
-        File = open(sFileName, "rb")
-        Object = pickle.load(File)
-        File.close()
+        with open(sFileName, "rb") as file:
+            Object = pickle.load(file)
         return Object
 
     def fnLoadParameters(self):
@@ -1213,7 +1070,7 @@ class CMolStat:
         self.fnLoadParameters()
         if self.diStatResults == {}:
             try:
-                self.diStatResults = self.fnLoadObject(self.mcmcpath + '/StatDataPython.dat')
+                self.diStatResults = self.fnLoadObject(f'{self.mcmcpath}StatDataPython.dat')
                 print('Loaded statistical data from StatDataPython.dat')
             except IOError:
                 print('No StatDataPython.dat.')
@@ -1242,14 +1099,14 @@ class CMolStat:
                 if f < xdata[0]:  # fill area where no data available with first value
                     liInterpolated[0].append(f)
                     liInterpolated[1].append(ydata[0])
-                    f = f + fGrid
+                    f += fGrid
                 elif f > xdata[-1]:  # fill remaining cells with last value
                     liInterpolated[0].append(f)
                     liInterpolated[1].append(ydata[-1])
-                    f = f + fGrid
+                    f += fGrid
                 else:  # at least one data point surpassed by f
                     while (f > xdata[ix]) and (ix < (len(xdata) - 1)):  # searching first data point past f
-                        ix = ix + 1
+                        ix += 1
                     if f < xdata[ix]:  # was there a data point past f?
                         LowerX = ix - 1  # calculate data surrounding f
                         UpperX = ix
@@ -1258,11 +1115,11 @@ class CMolStat:
                                                         ) + ydata[UpperX] * ((xdata[UpperX] - f) / fDataGrid)
                         liInterpolated[0].append(f)
                         liInterpolated[1].append(fInterpolate)
-                        f = f + fGrid
+                        f += fGrid
                     elif f == xdata[ix]:  # no interpolation needed
                         liInterpolated[0].append(xdata[ix])
                         liInterpolated[1].append(ydata[ix])
-                        f = f + fGrid
+                        f += fGrid
 
             return liInterpolated
 
@@ -1274,22 +1131,18 @@ class CMolStat:
             liStoredEnvelopeHeaders.insert(iposition, str(percentile / 2))
 
         def fnSaveEnvelopes(liStoredEnvelopes, liStoredEnvelopeHeaders, iModel, fMin, fMax, fGrid, fSigma):
-            file = open('Envelopes' + str(iModel) + '.dat', "w")
+            file = open(f'Envelopes{iModel}.dat', "w")
 
             if fSigma == 0:  # save all computed envelopes
-
                 liSaveEnvelopeHeaders = liStoredEnvelopeHeaders
                 liSaveEnvelopes = liStoredEnvelopes
 
-
             else:  # save only multiples of fSigma in Sigma
-
                 liSaveEnvelopeHeaders = []
                 liSaveEnvelopes = []
 
                 fmult = 0.
-                while 1:
-
+                while True:
                     fConfidence = special.erf(fmult / sqrt(2))  # upper and lower Percentiles for fmult*sigma
                     fLowerPerc = (1 - fConfidence) / 2
                     fUpperPerc = 1 - (1 - fConfidence) / 2
@@ -1301,14 +1154,14 @@ class CMolStat:
                     if (iLowerPerc == 0) or (iUpperPerc >= len(liStoredEnvelopeHeaders) - 1):
                         break
 
-                    liSaveEnvelopeHeaders.insert(0, 'minus' + str(fmult) + 'sigma')
+                    liSaveEnvelopeHeaders.insert(0, f'minus{fmult}sigma')
                     liSaveEnvelopes.insert(0, liStoredEnvelopes[iLowerPerc])
 
                     if iUpperPerc != iLowerPerc:
-                        liSaveEnvelopeHeaders.append('plus' + str(fmult) + 'sigma')
+                        liSaveEnvelopeHeaders.append(f'plus{fmult}sigma')
                         liSaveEnvelopes.append(liStoredEnvelopes[iUpperPerc])
 
-                    fmult = fmult + fSigma
+                    fmult += fSigma
 
                 liSaveEnvelopeHeaders.insert(0, 'LowerEnvelope')
                 liSaveEnvelopes.insert(0, liStoredEnvelopes[0])
@@ -1318,16 +1171,16 @@ class CMolStat:
             file.write("z ")
             for element in liSaveEnvelopeHeaders:
                 if fSigma == 0:
-                    file.write("p" + element + " ")
+                    file.write(f"p{element} ")
                 else:
-                    file.write(element + " ")
+                    file.write(f"{element} ")
             file.write("\n")
 
             f = fMin
             for i in range(len(liSaveEnvelopes[0])):
-                file.write(str(f) + " ")
+                file.write(f'{f} ')
                 for element in liSaveEnvelopes:
-                    file.write(str(element[i]) + " ")
+                    file.write(f'{element[i]} ')
                 file.write("\n")
                 f = f + fGrid
 
@@ -1359,32 +1212,28 @@ class CMolStat:
             iModelEnd = iContrast + 1
 
         for iModel in range(iModelStart, iModelEnd):  # do the analysis separately for each model
-            print('Analyzing model %i ...' % (iModel))
+            print(f'Analyzing model {iModel} ...')
 
             liStoredEnvelopes = []  # List of stored envelopes
             liStoredEnvelopeHeaders = []  # and their headers
 
-            fMin = 0
-            fMax = 0  # initializing boundaries
+            fMin = fMax = 0  # initializing boundaries
             profilelist = []  # extracting all profiles related to the actual
             for iteration in self.diStatResults['nSLDProfiles']:  # model
                 profilelist.append(iteration[iModel][:])
-                if fMin > profilelist[-1][0][0]:
-                    fMin = profilelist[-1][0][0]
-                if fMax < profilelist[-1][0][-1]:
-                    fMax = profilelist[-1][0][-1]
+                fMin = min(fMin, profilelist[-1][0][0])
+                fMax = max(fMax, profilelist[-1][0][-1])
             fMax = floor((fMax - fMin) / fGrid) * fGrid + fMin  # make fMax compatible with fGrid and fMin
 
             print('Rebinning data...')
-            for i in range(len(profilelist)):
-                profilelist[i] = fnInterpolateData(profilelist[i][0], profilelist[i][1], fMin, fMax, fGrid)
-
             iNumberOfProfiles = len(profilelist)
+            for i in range(iNumberOfProfiles):
+                profilelist[i] = fnInterpolateData(profilelist[i][0], profilelist[i][1], fMin, fMax, fGrid)
 
             if not shortflag:
                 for iPercentile in range(iNumberOfProfiles):
 
-                    print('Calculating %f percentile...' % (1 - float(iPercentile) / float(iNumberOfProfiles)))
+                    print(f'Calculating {1 - float(iPercentile) / float(iNumberOfProfiles)} percentile...')
 
                     fArea, liEnvelope = fnCalculateEnvelope(profilelist)  # calculate envelope
                     fnStoreEnvelope(liStoredEnvelopes, liStoredEnvelopeHeaders,
@@ -1411,8 +1260,7 @@ class CMolStat:
                 iPercentile += 1
 
                 while iPercentile < iNumberOfProfiles:
-
-                    print('Short: Calculating %f percentile...' % (1 - float(iPercentile) / float(iNumberOfProfiles)))
+                    print(f'Short: Calculating {1 - float(iPercentile) / float(iNumberOfProfiles)} percentile...')
 
                     lScoring = []  # list of profile scores
                     for i in range(len(profilelist)):  # eliminate the profile with the largest reduction
@@ -1462,12 +1310,9 @@ class CMolStat:
             liParameters = list(self.diParameters.keys())  # get list of parameters from setup.c/par.dat
             liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem][
                 'number'])  # sort by number of appereance in setup.c
-
-            liAddition = []
-            for parameter in liParameters:  # cycle through all parameters
-                liAddition.append(('%s = %s;\n' %  # change setup.c to quasi fix all parameters
-                                   (self.diParameters[parameter]['variable'], self.diParameters[parameter]['value'])))
+            # change setup.c to quasi fix all parameters
             self.fnWriteConstraint2SetupC(liAddition)  # write out
+            liAddition = [f"{self.diParameters[parameter]['variable']} = {self.diParameters[parameter]['value']};\n" for parameter in liParameters] 
             call(["rm", "-f", "mol.dat"])
             self.fnMake()  # compile changed setup.c
             call(["./fit", "-o"])  # write out profile.dat and fit.dat
@@ -1480,32 +1325,27 @@ class CMolStat:
         self.fnLoadMolgroups()  # Load Molgroups into self.diMolgroups
         normarea = 100  # default, if no normarea is provided
 
-        File = open('areatab.dat', 'w')  # save all molgroupdata in table for loading
+        with open('areatab.dat', 'w') as File: # save all molgroupdata in table for loading
         # into Igor
-
-        File.write('z ')  # write header line
-        for element in self.diMolgroups:
-            File.write(self.diMolgroups[element]['headerdata']['ID'] + ' ')
-        File.write("summol water waterperc")
-        File.write('\n')
-
-        element = list(self.diMolgroups.keys())[0]
-        datalength = len(self.diMolgroups[element]['zaxis'])
-
-        for i in range(datalength):
-            File.write(str(self.diMolgroups[element]['zaxis'][i]) + ' ')
-            summe = 0
-            normarea = 0
+            File.write('z ')  # write header line
             for element in self.diMolgroups:
-                if element != 'normarea':
-                    summe = summe + self.diMolgroups[element]['areaaxis'][i]
-                else:
-                    normarea = self.diMolgroups[element]['areaaxis'][i]
-                File.write(str(self.diMolgroups[element]['areaaxis'][i]) + ' ')
-            File.write(str(summe) + ' ' + str(normarea - summe) + ' ' + str((normarea - summe) / normarea))
-            File.write('\n')
+                File.write(self.diMolgroups[element]['headerdata']['ID'] + ' ')
+            File.write('summol water waterperc\n')
 
-        File.close()
+            element = list(self.diMolgroups.keys())[0]
+            datalength = len(self.diMolgroups[element]['zaxis'])
+
+            for i in range(datalength):
+                File.write(f"{self.diMolgroups[element]['zaxis'][i]} ")
+                sum = 0
+                normarea = 0
+                for element in self.diMolgroups:
+                    if element != 'normarea':
+                        sum += self.diMolgroups[element]['areaaxis'][i]
+                    else:
+                        normarea = self.diMolgroups[element]['areaaxis'][i]
+                    File.write(f"{self.diMolgroups[element]['areaaxis'][i]} ")
+                File.write(f'{sum} {normarea-sum} {(normarea-sum) / normarea}\n')
 
         plt.figure(1, figsize=(14, 10))
 
@@ -1528,7 +1368,9 @@ class CMolStat:
             plt.subplot(222)
             plt.plot(zax, nSL, label=element)
 
-            if element != 'normarea':  # do not sum up normarea indicator
+            if element == 'normarea':  # Get normarea for nSLD calculations
+                normarea = self.diMolgroups[element]['areaaxis'][0]
+            else:  # do not sum up normarea indicator
                 if not areasum:
                     for i in range(length):
                         areasum.append(0.)
@@ -1536,9 +1378,6 @@ class CMolStat:
                 for i in range(length):
                     areasum[i] = areasum[i] + area[i]
                     nSLsum[i] = nSLsum[i] + nSL[i]
-
-            if element == 'normarea':  # Get normarea for nSLD calculations
-                normarea = self.diMolgroups[element]['areaaxis'][0]
 
         plt.subplot(221)
         plt.plot(zax, areasum, label='Sum')
@@ -1566,21 +1405,13 @@ class CMolStat:
                 plt.plot(zax, nSLDtVolFrac, label=element)
         plt.subplot(223)
         # plt.plot(zax,nSLDtVolFracSum,label='nSLDtVolFracSum')
-
-        for j in range(4):  # loop over contrast mixtures
-            if j == 0:
-                fBulknSLD = 6.34
-            if j == 1:
-                fBulknSLD = 4.00
-            if j == 2:
-                fBulknSLD = 0.00
-            if j == 3:
-                fBulknSLD = -0.56
-
+        
+        fBulknSLDs = [6.34, 4.00, 0.00, -0.56]
+        for fBulknSLD in fBulknSLDs:  # loop over contrast mixtures            
             for i in range(length):  # calculate nSLD for several cases
                 nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD * (1 - (areasum[i] / normarea))
             plt.subplot(224)
-            plt.plot(zax, nSLDSum, label='nSLDsum CM' + str(fBulknSLD))
+            plt.plot(zax, nSLDSum, label=f'nSLDsum CM{fBulknSLD}')
 
         plt.subplot(221)
         plt.ylabel('area / Ang+2')
@@ -1602,10 +1433,9 @@ class CMolStat:
         plt.xlabel('z / Ang')
         plt.legend(loc=0, prop=font)
 
-        plt.suptitle('%s \n\n Area and nSLD Profile' % (plotname))
-        plt.savefig('%s_mol.png' % (plotname), format='png')
+        plt.suptitle(f'{plotname} \n\n Area and nSLD Profile')
+        plt.savefig(f'{plotname}', format='png')
         plt.show()
-        # plt.close()
 
     # -------------------------------------------------------------------------------
 
@@ -1618,86 +1448,78 @@ class CMolStat:
         plt.figure(1, figsize=(14, 10))
 
         iCounter = 0
-        while 1:
-            sfilename = 'fit' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
+        sfilename = 'fit' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            with open(sfilename, 'r') as file:
                 data = file.readlines()
-                file.close()
-                data = data[1:]
+            data = data[1:]
 
-                k = 0
-                l = 0
-                qlist = []
-                dqlist = []
-                Rlist = []
-                dRlist = []
-                fitlist = []
-                fitRFlist = []
-                RFlist = []
-                dRFlist = []
-                reslist = []
-                resplus = []
-                resminus = []
-                for line in data:
-                    splitline = line.split()
-                    qlist.append(float(splitline[0]))
-                    dqlist.append(float(splitline[1]))
-                    Rlist.append(float(splitline[2]))
-                    dRlist.append(float(splitline[3]))
-                    fitlist.append(float(splitline[4]))
-                    RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
-                    dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
-                    fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
-                    reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
-                    resplus.append(1)
-                    resminus.append(-1)
+            k = 0
+            l = 0
+            qlist = []
+            dqlist = []
+            Rlist = []
+            dRlist = []
+            fitlist = []
+            fitRFlist = []
+            RFlist = []
+            dRFlist = []
+            reslist = []
+            resplus = []
+            resminus = []
+            for line in data:
+                splitline = line.split()
+                qlist.append(float(splitline[0]))
+                dqlist.append(float(splitline[1]))
+                Rlist.append(float(splitline[2]))
+                dRlist.append(float(splitline[3]))
+                fitlist.append(float(splitline[4]))
+                RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
+                dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
+                fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
+                reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
+                resplus.append(1)
+                resminus.append(-1)
 
-                plt.subplot(221)
-                plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
+            plt.subplot(221)
+            plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
 
-                plt.subplot(222)
-                plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
-                plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
-                plt.xlim(xmin=-0.01)
+            plt.subplot(222)
+            plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
+            plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
+            plt.xlim(xmin=-0.01)
 
-                plt.subplot(223)
-                plt.plot(qlist, reslist, label='fit' + str(iCounter))
-                plt.plot(qlist, resplus, 'r')
-                plt.plot(qlist, resminus, 'r')
+            plt.subplot(223)
+            plt.plot(qlist, reslist, label='fit' + str(iCounter))
+            plt.plot(qlist, resplus, 'r')
+            plt.plot(qlist, resminus, 'r')
 
-                iCounter = iCounter + 1
-
-            else:
-                break
+            iCounter += 1
+            sfilename = 'fit' + str(iCounter) + '.dat'
 
         iCounter = 0
-        while 1:
-            sfilename = 'profile' + str(iCounter) + '.dat'
-            if path.isfile(sfilename):
-                file = open(sfilename, 'r')
+        sfilename = 'profile' + str(iCounter) + '.dat'
+        while path.isfile(sfilename):
+            with open(sfilename, 'r') as file:
                 data = file.readlines()
-                file.close()
-                data = data[1:]
+            data = data[1:]
 
-                k = 0;
-                l = 0
-                zlist = [];
-                rholist = []
-                for line in data:
-                    splitline = line.split()
-                    zlist.append(float(splitline[0]))
-                    rholist.append(float(splitline[1]) * 1e6)
+            k = 0;
+            l = 0
+            zlist = [];
+            rholist = []
+            for line in data:
+                splitline = line.split()
+                zlist.append(float(splitline[0]))
+                rholist.append(float(splitline[1]) * 1e6)
 
-                plt.subplot(224)
-                plt.plot(zlist, rholist, label='profile' + str(iCounter))
+            plt.subplot(224)
+            plt.plot(zlist, rholist, label=f'profile{iCounter}')
 
-                iCounter = iCounter + 1
-
-            else:
-                break
+            iCounter = iCounter + 1
+            sfilename = f'profile{iCounter}.dat'
 
         plt.subplot(221)
         plt.ylabel('Reflectivity / R')
@@ -1719,10 +1541,9 @@ class CMolStat:
         plt.xlabel('z / Ang')
         plt.legend(loc=0, prop=font)
 
-        plt.suptitle('%s \n\n Reflectivity data and fit, residuals and profile' % plotname)
-        plt.savefig('%s_fit.png' % (plotname), format='png')
+        plt.suptitle(f'{plotname} \n\n Reflectivity data and fit, residuals and profile')
+        plt.savefig(f'{plotname}_fit.png', format='png')
         plt.show()
-        # plt.close()
 
     # -------------------------------------------------------------------------------
 
@@ -1823,19 +1644,18 @@ class CMolStat:
                 if molgroup in iteration:
                     sumareaprofile += iteration[molgroup]['areaaxis']
                     sumnslprofile += iteration[molgroup]['nslaxis']
-                else:
-                    if i == 0:
-                        print('Molecular group %s does not exist.' % molgroup)
+                elif i == 0 and verbose:
+                    print(f'Molecular group {molgroup} does not exist.')
 
-                diarea['iter%i' % i] = sumareaprofile
-                dinsl['iter%i' % i] = sumnslprofile
+                diarea[f'iter{i}'] = sumareaprofile
+                dinsl[f'iter{i}'] = sumnslprofile
                 stepsize = diarea['zaxis'][1] - diarea['zaxis'][0]
-                dinsld['iter%i' % i] = []
-                for j in range(len(diarea['iter%i' % i])):
-                    if diarea['iter%i' % i][j] != 0:
-                        dinsld['iter%i' % i].append(dinsl['iter%i' % i][j] / diarea['iter%i' % i][j] / stepsize)
+                dinsld[f'iter{i}'] = []
+                for j in range(len(diarea[f'iter{i}'])):
+                    if diarea[f'iter{i}'][j] != 0:
+                        dinsld[f'iter{i}'].append(dinsl[f'iter{i}'][j] / diarea[f'iter{i}'][j] / stepsize)
                     else:
-                        dinsld['iter%i' % i].append(0.0)
+                        dinsld[f'iter{i}'].append(0.0)
 
         return diarea, dinsl, dinsld
 
@@ -1859,13 +1679,10 @@ class CMolStat:
                 liParameters = list(self.diParameters.keys())
                 # sort by number of appereance in setup.c
                 liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-                bConsistency = True
-                for element in liParameters:
-                    if element not in list(self.diStatResults['Parameters'].keys()):
-                        bConsistency = False
+                bConsistency = set(liParameters).issubset(self.diStatResults['Parameters'].keys())
                 if bConsistency:
                     if verbose:
-                        print('Processing parameter set %i.\n' % (j))
+                        print(f'Processing parameter set {j}.\n')
                     p = []
                     for parameter in liParameters:
                         val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
@@ -1913,15 +1730,14 @@ class CMolStat:
 
         # save stat data to disk, if flag is set
         if self.save_stat_data:
-            self.fnSaveObject(self.diStatResults, self.spath+'/'+self.mcmcpath + '/StatDataPython.dat')
+            self.fnSaveObject(self.diStatResults, f'{self.spath}/{self.mcmcpath}/StatDataPython.dat')
 
     @staticmethod
     def fnSaveObject(save_object, sFileName):
         import pickle
-
-        File = open(sFileName, "wb")
-        pickle.dump(save_object, File)
-        File.close()
+        
+        with open(sFileName, "wb") as file:
+            pickle.dump(save_object, file)
 
     def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
                        tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5, cbmatmax=1.25e-6,
@@ -1955,9 +1771,9 @@ class CMolStat:
 
             # extend simulated data to q-range as defined
             i = 0
-            while path.isfile(self.spath + '/sim' + str(i) + '.dat') and qrange != 0:
-                comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
-                simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', skip_blank_lines=True,
+            while path.isfile(f'{self.spath}/sim{i}.dat') and qrange != 0:
+                comments = general.extract_comments_from_file(f'{self.spath}/sim{i}.dat', "#")
+                simdata = pandas.read_csv(f'{self.spath}/sim{i}.dat', sep='\s+', skip_blank_lines=True,
                                           comment='#')
                 # first cut data at qrange
                 simdata = simdata[(simdata.Q <= qrange)]
@@ -1966,8 +1782,8 @@ class CMolStat:
                     newframe = pandas.DataFrame(simdata[-1:], columns=simdata.columns)
                     newframe['Q'].iloc[-1] = 2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2]
                     simdata = simdata.append(newframe)
-                simdata.to_csv(self.spath + '/sim' + str(i) + '.dat', sep=' ', index=None)
-                general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
+                simdata.to_csv(f'{self.spath}/sim{i}.dat', sep=' ', index=None)
+                general.add_comments_to_start_of_file(f'{self.spath}/sim{i}.dat', comments)
                 i += 1
 
             # simulate data, works on sim.dat files
@@ -1987,10 +1803,7 @@ class CMolStat:
             def fnDetPrec(fF):
                 if fabs(fF) < 1e-4:  # applies to nSLDs
                     fF *= 1E6
-                if fF > 0:  # determine precision
-                    fPrec = ceil(log10(fF) * (-1))
-                else:
-                    fPrec = 0
+                fPrec = ceil(log10(fF) * (-1)) if fF > 0 else 0 #determine precision
                 if fPrec > 0:  # takes care of numbers like fF=0.0095
                     iPrec = int(fPrec)
                     if round(fF, iPrec) == round(fF, iPrec - 1):  # which should be rounded to 0.01 and
@@ -2011,9 +1824,8 @@ class CMolStat:
         self.fnAnalyzeStatFile(fConfidence)  # analyze stat data and
         # populate self.diStatresults
 
-        file = open(sTableName, 'r')  # load in template
-        template = file.readlines()
-        file.close()
+        with open(sTableName, 'r') as file: # load in template
+            template = file.readlines()
 
         table = []  # table to be created
 
@@ -2026,7 +1838,7 @@ class CMolStat:
                     fLowPerc = self.diStatResults['Parameters'][phrase]['LowPerc']
                     fHighPerc = self.diStatResults['Parameters'][phrase]['HighPerc']
                     fLowPercDiff, fMedianDiff, fHighPercDiff, iPrec = fnTexFormatf(fLowPerc, fMedian, fHighPerc)
-                    sPrec = '%(#).' + str(iPrec) + 'f'
+                    sPrec = f'%(#).{iPrec}f'
                     temp = '$'  # Latex format
                     temp += (sPrec % {'#': fMedianDiff})
                     temp += '_{'
@@ -2037,10 +1849,8 @@ class CMolStat:
                     splitline[i] = temp
             table.append(' '.join(splitline) + '\n')
 
-        file = open("StatTable.tex", 'w')  # save table to file
-        file.writelines(table)
-        file.close()
-
+        with open("StatTable.tex", 'w') as file: # save table to file
+            file.writelines(table)
 
 def Auto(convergence=0.001):  # automatic fit
     ReflPar.fnMake()
@@ -2053,7 +1863,7 @@ def Auto(convergence=0.001):  # automatic fit
     ReflPar.fnLoadAndPrintPar()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # genetic runs until chisq<20 or not improving
+    while True:  # genetic runs until chisq<20 or not improving
         call(['nice', './fit', '-peS', '-n', '51'], stdout=open(devnull, "w"))
         call(['cp', 'pop_bak.dat', 'pop.dat'])
         print('Genetic run, approximate roughness')
@@ -2073,7 +1883,7 @@ def AutoFinish(convergence=0.001, sPath='./'):
     ReflPar.fnLoadParameters()
     fOldChiSq = ReflPar.fnGetChiSq()
 
-    while 1:  # Amoeba, approximate roughness
+    while True:  # Amoeba, approximate roughness
         call(['nice', './fit', '-peaS'], stdout=open(devnull, "w"))  # until chisq<10 or no improvement
         print('Amoeba, approximate roughness')
         ReflPar.fnLoadAndPrintPar()
@@ -2098,8 +1908,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
     iGeneticSkipCount = 0
     iFinishCounter = 0
 
-    while 1:
-
+    while True:
         if iGeneticIsUseless:  # skip genetic algorithm after it proved to be
             iGeneticSkipCount += 1  # useless and give it a chance every 5 iterations
             print(' ')
@@ -2129,7 +1938,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
             fTempChiSq = fBlockChiSq
 
         call(['cp', 'pop.dat', 'pop_rspy.dat'])
-        while 1:
+        while True:
             call(['nice', './fit', '-pea'], stdout=open(devnull, "w"))
             print('Amoeba, correct roughness')
             ReflPar.fnLoadAndPrintPar()
@@ -2147,7 +1956,7 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
             fTempChiSq = fBlockChiSq
 
         call(['cp', 'pop.dat', 'pop_rspy.dat'])
-        while 1:
+        while True:
             call(['nice', './fit', '-pel'], stdout=open(devnull, "w"))
             print('Levenberg-Marquardt, correct roughness')
             ReflPar.fnLoadAndPrintPar()
@@ -2178,76 +1987,47 @@ def AutoFinish2(convergence=0.001, sPath='./'):  # automatic fit, only local min
 
 def AvgProfile():
     iCounter = 0
-    while 1:
-        sfilename = 'ContDimRho' + str(iCounter) + '.dat'
-        if path.isfile(sfilename):
-            file = open(sfilename, 'r')
+    while path.isfile(f"ContDimRho{iCounter}.dat"):
+        with open(f"ContDimRho{iCounter}.dat", 'r') as file:
             data = file.readlines()
-            file.close()
-            rho = []
-            for i in range(len(data)):
-                rho.append(float(data[i]))
-
-            sfilename = 'ContDimZ' + str(iCounter) + '.dat'
-            file = open(sfilename, 'r')
+        rho = list(map(float, data))
+        
+        with open(f"ContDimZ{iCounter}.dat", 'r') as file:
             data = file.readlines()
-            file.close()
-            z = []
-            for i in range(len(data)):
-                z.append(float(data[i]))
+        z = list(map(float, data))
+        z = [(z[i] + z[i + 1]) / 2 for i in range(len(z) - 1)] #correct for Igor-style array axis notation
 
-            ztemp = []  # correct for Igor-style array axis notation
-            for i in range(len(z) - 1):
-                ztemp.append((z[i] + z[i + 1]) / 2)
-            z = ztemp
-
-            sfilename = 'ContArray' + str(iCounter) + '.dat'
-            file = open(sfilename, 'r')
+        with open(f"ContArray{iCounter}.dat", 'r') as file:
             data = file.readlines()
-            file.close()
-            arr = []
-            for i in range(len(data)):
-                rhoarr = []
-                tdata = (data[i]).split()
-                for j in range(len(tdata)):
-                    rhoarr.append(float(tdata[j]))
-                arr.append(rhoarr)
-            # print len(tdata), len(rho), len(z), len(data)
+        arr = [list(map(float, rhoarr.split())) for rhoarr in data]
 
-            median = []
-            maxlikely = []
-            lowperc = []
-            highperc = []
-            for i in range(len(z)):
-                cumulative = numpy.cumsum(arr[i])
-                mediancum = cumulative[-1] * 0.5
-                lowperccum = cumulative[-1] * 0.17
-                highperccum = cumulative[-1] * 0.83
-                for j in range(len(arr[i]) - 1):
-                    if cumulative[j] <= mediancum <= cumulative[j + 1]:
-                        frac = (mediancum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
-                        median.append(rho[j] * frac + rho[j - 1] * (1 - frac))
-                    if cumulative[j] <= lowperccum <= cumulative[j + 1]:
-                        frac = (lowperccum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
-                        lowperc.append(rho[j] * frac + rho[j - 1] * (1 - frac))
-                    if cumulative[j] <= highperccum <= cumulative[j + 1]:
-                        frac = (highperccum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
-                        highperc.append(rho[j] * frac + rho[j - 1] * (1 - frac))
-                    if max(arr[i]) == arr[i][j]:
-                        maxlikely.append(rho[j])
+        median = []
+        maxlikely = []
+        lowperc = []
+        highperc = []
+        for i in range(len(z)):
+            cumulative = numpy.cumsum(arr[i])
+            mediancum = cumulative[-1] * 0.5
+            lowperccum = cumulative[-1] * 0.17
+            highperccum = cumulative[-1] * 0.83
+            for j in range(len(arr[i]) - 1):
+                if cumulative[j] <= mediancum <= cumulative[j + 1]:
+                    frac = (mediancum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
+                    median.append(rho[j] * frac + rho[j - 1] * (1 - frac))
+                if cumulative[j] <= lowperccum <= cumulative[j + 1]:
+                    frac = (lowperccum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
+                    lowperc.append(rho[j] * frac + rho[j - 1] * (1 - frac))
+                if cumulative[j] <= highperccum <= cumulative[j + 1]:
+                    frac = (highperccum - cumulative[j]) / (cumulative[j + 1] - cumulative[j])
+                    highperc.append(rho[j] * frac + rho[j - 1] * (1 - frac))
+                if max(arr[i]) == arr[i][j]:
+                    maxlikely.append(rho[j])
 
-            sfilename = 'AvgProfile' + str(iCounter) + '.dat'
-            file = open(sfilename, "w")
+        with open(f"AvgProfile{iCounter}.dat", "w") as file:
             file.write('z    maxlikely    median    lowperc     highperc \n')
             for i in range(len(z)):
-                file.write(
-                    str(z[i]) + ' ' + str(maxlikely[i]) + ' ' + str(median[i]) + ' ' + str(lowperc[i]) + ' ' + str(
-                        highperc[i]) + '\n')
-            file.close()
-            iCounter += 1
-        else:
-            break
-
+                file.write(f"{z[i]} {maxlikely[i]} {median[i]} {lowperc[i]} {highperc[i]}\n")
+        iCounter += 1
 
 def fContour(dZGrid=0.5, dRhoGrid=1e-8, sStatMode='is'):  # Calculate contour plot data from SErr.dat
     ReflPar.fnContourData(sStatMode + 'Err.dat', dZGrid, dRhoGrid)
@@ -2280,16 +2060,14 @@ def DErr(convergence=0.001):  # function has not yet been thoroughly tested
     # fixing, and fitting within a defined range
     def fnWriteToFile(sParameterName, fTestValue, fChiSq):  # append new data set to file
         try:
-            file = open('Error_' + sParameterName + '.dat', 'r')  # if file exists, open and read data
-            data = file.readlines()
-            file.close()
+            with open(f"Error_{sParameterName}.dat", "r") as file:  # if file exists, open and read data
+                data = file.readlines()
         except IOError:
             data = []  # otherwise start with an empty data file
         newdata = data[:]  # copy dat into new object
-        newdata.append(str(fTestValue) + "  " + str(fChiSq) + '\n')  # append line with the data parameter to store
-        file = open('Error_' + sParameterName + '.dat', 'w')  # create new file and write out the new data
-        file.writelines(newdata)
-        file.close()
+        newdata.append(f"{fTestValue}  {fChiSq}\n")  # append line with the data parameter to store
+        with open(f"Error_{sParameterName}.dat", "w") as file:  # create new file and write out the new data
+            file.writelines(newdata)
 
     ReflPar.fnLoadAndPrintPar()  # print latest fit parameters
     tTaggedParameters = ReflPar.fnGetTaggedParameters()  # get a list of all tagged parameters and test ranges
@@ -2340,7 +2118,7 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
         call(['rm', '-rf', sDir])  # remove rs directory
 
     def fCreateRsDir(sMode, lSubProcesses):
-        while 1:  # create random name directory
+        while True:  # create random name directory
             sRandomName = str(int(random() * 1000000000000))  # and check if the name already
             sDirName = '../rspy' + sRandomName  # exists as a Multicore DirName
             iNameExists = 0
@@ -2435,7 +2213,7 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
 
             sleep(30)  # wait before checking for finished subprocesses
 
-            while 1:
+            while True:
                 iFinishedProcessFound = 0
 
                 for i in range(len(lSubProcesses)):  # check for finished sub processes
@@ -2444,17 +2222,15 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
 
                     if path.isfile(sDirName + '/' + 'StatFinished'):  # look up if process is finished
                         if path.isfile(sMode + 'Err.dat'):
-                            file = open(sDirName + '/' + sMode + 'Err.dat', 'r')  # get statistical data from rs subdir
-                            data = file.readlines()
-                            file.close()
+                            with open(sDirName + '/' + sMode + 'Err.dat', 'r') as file:  # get statistical data from rs subdir
+                                data = file.readlines()
                             data = data[1:]  # delete headerline
                             iFailureCounter = 0
-                            while 1:
+                            while True:
                                 try:
-                                    file = open(sMode + 'Err.dat', 'a')  # append new data to file in root dir
-                                    file.writelines(data)
-                                    file.close()
-                                    break
+                                    with open(sMode + 'Err.dat', 'a') as file:  # append new data to file in root dir
+                                        file.writelines(data)
+                                        break
                                 except:
                                     print('(i)sErr.dat is in use. Wait for 2s')
                                     iFailureCounter += 1
@@ -2503,10 +2279,9 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
                     break
 
         if not sJobID == '':
-            file = open(sJobID, 'w')  # indicate Multicore is finished if required
-            file.write('Multicore finished \n')  # requirement comes from presence of a
-            file.close()  # job id as given by a PBS caller
-
+            with open(sJobID, 'w') as file: # indicate Multicore is finished if required
+                file.write('Multicore finished \n')  # requirement comes from presence of a
+                                                     # job id as given by a PBS caller
 
     finally:
         print('Exiting MC')
@@ -2516,38 +2291,33 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
 
 def fMCMC(iMaxIterations=1024000, liMolgroups=['protein'], fSparse=0):
     while True:
-
         if not path.isfile('run.py'):  # make sure there is a run.py
-            file = open('run.py', 'w')
-            file.write('from bumps.fitproblem import FitProblem\n')
-            file.write('from refl1d import garefl\n')
-            file.write('from refl1d.names import *\n')
-            file.write('\n')
-            file.write("problem = garefl.load('model.so')\n")
-            file.write('\n')
-            file.write('problem.penalty_limit = 50\n')
-            file.close()
+            with open('run.py', 'w') as file:
+                file.write('from bumps.fitproblem import FitProblem\n')
+                file.write('from refl1d import garefl\n')
+                file.write('from refl1d.names import *\n')
+                file.write('\n')
+                file.write("problem = garefl.load('model.so')\n")
+                file.write('\n')
+                file.write('problem.penalty_limit = 50\n')
 
-        iBurn = 4000  # check wether an existing MCMC exists
+        iBurn = 4000  # check whether an existing MCMC exists
         bMCMCexists = False
         for i in range(1, 9):
             iBurn = iBurn * 2
-            if path.isdir('MCMC_' + str(iBurn) + '_500'):
-                print('Found ' + 'MCMC_' + str(iBurn) + '_500 \n')
+            if path.isdir(f'MCMC_{iBurn}_500'):
+                print(f'Found MCMC_{iBurn}_500 \n')
                 bMCMCexists = True
                 break
-
-                # if not bMCMCexists:                                                         #run best fit
-                # Auto()
 
         lCommand = ['refl1d_cli.py', 'run.py', '--fit=dream', '--parallel=0']
         if bMCMCexists:
             if iBurn >= iMaxIterations:
                 print('Maximum number of MCMC iterations reached\n')
                 break  # end
-            lCommand.append('--resume=MCMC_' + str(iBurn) + '_500')
-            lCommand.append('--store=MCMC_' + str(iBurn * 2) + '_500')
-            lCommand.append('--burn=' + str(iBurn))
+            lCommand.append(f'--resume=MCMC_{iBurn}_500')
+            lCommand.append(f'--store=MCMC_{iBurn*2}_500')
+            lCommand.append(f'--burn={iBurn}')
         else:
             lCommand.append('--init=lhs')
             lCommand.append('--store=MCMC_8000_500')
@@ -2558,13 +2328,13 @@ def fMCMC(iMaxIterations=1024000, liMolgroups=['protein'], fSparse=0):
 
         call(lCommand)  # run MCMC
 
-        rename('MCMC_' + str(iBurn * 2) + '_500', 'MCMC')  # create sErr.dat
+        rename(f'MCMC_{iBurn*2}_500', 'MCMC')  # create sErr.dat
         if path.isfile('isErr.dat'):
             remove('isErr.dat')
         if path.isfile('sErr.dat'):
             remove('sErr.dat')
         StatAnalysis(-1, 0.005)  # sErr.dat contains about 1000 iterations
-        rename('MCMC', 'MCMC_' + str(iBurn * 2) + '_500')
+        rename('MCMC', f'MCMC_{iBurn*2}_500')
 
         if liMolgroups:
             if path.isfile('StatDataPython.dat'):
@@ -2572,10 +2342,7 @@ def fMCMC(iMaxIterations=1024000, liMolgroups=['protein'], fSparse=0):
             ReflPar.fnPullMolgroup(liMolgroups, 0)
 
         if bMCMCexists:
-            rmtree('MCMC_' + str(iBurn) + '_500')
-
-    return
-
+            rmtree(f'MCMC_{iBurn}_500')
 
 def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNodes=1,
            iIterationsPerCall='10', sQueue='default',
@@ -2590,7 +2357,7 @@ def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNode
             sOutName = sJobID + '.out'
             sErrName = sJobID + '.err'
             iSleepCounter = 0
-            while 1:
+            while True:
                 if path.isfile(sOutName) and path.isfile(sErrName):  # wait for output files
                     call(['rm', '-f', sOutName])
                     call(['rm', '-f', sErrName])
@@ -2600,21 +2367,20 @@ def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNode
                 if retcode == 0:  # on some systems only
                     break  # standardfiles are written
                 sleep(1)
-                iSleepCounter = iSleepCounter + 1
+                iSleepCounter += 1
                 if iSleepCounter > 20:
                     print('Waited 20s for output files to be written ... giving up.')
                     break
 
     def fCreateMultiCoreJobID(lSubProcesses):
-        while 1:  # create random name directory
+        while True:  # create random name directory
             sRandomName = str(int(random() * 1000000000000))  # and check if the name already
-            iNameExists = 0  # as a PBS Job ID
+            iNameExists = False  # as a PBS Job ID
             for element in lSubProcesses:
                 if sRandomName == element[1]:
-                    iNameExists = 1
-            if not iNameExists == 1:
-                break
-        return sRandomName  # randomname will be job id
+                    iNameExists = True
+            if not iNameExists:
+                return sRandomName # randomname will be job id
 
     def fKillAllProcesses():  # kills all running processes
         for item in lSubProcesses:
@@ -2639,17 +2405,15 @@ def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNode
                     lSubProcesses)  # sDirName is name of directory for Multicore architecture
                 # and a Filepointer for the PBS architecture
                 data = ['#PBS -l ncpus=1\n', '#PBS -l cput=48:00:00\n', '#PBS -l walltime=72:00:00\n',
-                        '#PBS -e ' + getcwd() + '/' + sJobID + '.err\n',
-                        '#PBS -o ' + getcwd() + '/' + sJobID + '.out\n', 'cd $PBS_O_WORKDIR\n',
-                        './rs.py -' + sMode + ' ' + str(iIterationsPerCall) + ' '
-                        + '-c' + ' ' + str(iConvergence) + ' ' + '-m' + ' ' + str(iNodes) + ' '
-                        + '-ipc' + ' ' + str(iIterationsPerCall / iNodes) + ' ' + '-id' + ' ' + sJobID + '\n',
+                        f'#PBS -e {getcwd()}/{sJobID}.err\n',
+                        f'#PBS -o {getcwd()}/{sJobID}.out\n', 'cd $PBS_O_WORKDIR\n',
+                        f'./rs.py -{sMode} {iIterationsPerCall} -c {iConvergence} -m {iNodes} -ipc ' \
+                            f'{iIterationsPerCall / iNodes} -id {sJobID}\n',
                         '#end']  # create run batchfile
                 # data.append('#PBS -l nodes=1:ppn=1\n')
                 runfile = 'run.sh'
-                file = open(runfile, "w")
-                file.writelines(data)
-                file.close()
+                with open(runfile, "w") as file:
+                    file.writelines(data)
                 pid = Popen(['qsub', '-q', sQueue, runfile], open(devnull, "w")).communicate()[
                     0]  # ged pid from queue systm
                 pid = pid.split()[0]  # remove newline at end of output
@@ -2698,8 +2462,7 @@ def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNode
 
             sleep(30)  # wait before checking for finished subprocesses
 
-            while 1:
-
+            while True:
                 iFinishedProcessFound = 0
 
                 for i in range(len(lSubProcesses)):  # check for finished sub processes
@@ -2739,9 +2502,9 @@ def fMCPBS(iIterations, iConvergence=0.01, fConfidence=0.9546, sMode='is', iNode
 
     finally:
         fKillAllProcesses()
-        call('rm -f ' + path.expanduser('~/') + '*.OU',
+        call(f"rm -f {path.expanduser('~/')}*.OU",
              shell=True, stdout=open(devnull, "w"))  # delete standard files
-        call('rm -f ' + path.expanduser('~/') + '*.ER',
+        call(f"rm -f {path.expanduser('~/')}*.ER",
              shell=True, stdout=open(devnull, "w"))  # (on some systems)
         # this has to go through shell
 
@@ -2765,15 +2528,13 @@ def SErr(iiterations, convergence=0.01, sStatMode='is', fConfidence=0.9546):
         filelist = ReflPar.fnLoadFileListAndChangeToLocal()
         ReflPar.fnMake()
     except:
-        file = open('StatAborted', 'w')  # indicate that all iterations are done
-        file.write('statistical analysis aborted \n')
-        file.close()
-        return ()
+        with open('StatAborted', 'w') as file: # indicate that all iterations are done
+            file.write('statistical analysis aborted \n')
+            return ()
     try:
         if not path.isfile(sStatMode + 'Err.dat'):
-            file = open(sStatMode + 'Err.dat', 'w')
-            file.write("Chisq " + " ".join(ReflPar.fnGetSortedParNames()) + '\n')
-            file.close()
+            with open(sStatMode + 'Err.dat', 'w') as file:
+                file.write("Chisq " + " ".join(ReflPar.fnGetSortedParNames()) + '\n')
         for i in range(iiterations):
             print('Iteration #', i)
             ReflPar.cGaReflInteractor.fnMCModifyFile(filelist)
@@ -2792,17 +2553,14 @@ def SErr(iiterations, convergence=0.01, sStatMode='is', fConfidence=0.9546):
                 # analysis
             ReflPar.fnLoadParameters()
             chisq = ReflPar.fnGetChiSq()
-            file = open(sStatMode + 'Err.dat', 'a')
-            file.write(str(chisq) + " " + " ".join(ReflPar.fnGetSortedParValues()) + '\n')
-            file.close()
+            with  open(sStatMode + 'Err.dat', 'a') as file:
+                file.write(str(chisq) + " " + " ".join(ReflPar.fnGetSortedParValues()) + '\n')
 
-        file = open('StatFinished', 'w')  # indicate that all iterations are done
-        file.write('statistical analysis finished \n')
-        file.close()
+        with open('StatFinished', 'w') as file:  # indicate that all iterations are done
+            file.write('statistical analysis finished \n')
     except:
-        file = open('StatAborted', 'w')  # indicate that all iterations are done
-        file.write('statistical analysis aborted \n')
-        file.close()
+        with open('StatAborted', 'w') as file: # indicate that all iterations are done
+            file.write('statistical analysis aborted \n')
     finally:
         ReflPar.fnRemoveBackup()  # always restore working dir,
         call(['rm', '-f', '*.mce'])  # also in case of crash
