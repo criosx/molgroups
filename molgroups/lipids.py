@@ -5,7 +5,7 @@ from . import mol
 PC = [mol.CompositeHeadgroup, {'components': [cmp.carbonyl_glycerol, cmp.phosphate, cmp.choline],
                                'sigma1': [2.53, 2.29, 2.02],
                                'sigma2': [2.29, 2.02, 2.26],
-                               'rel_pos': [0., 0.58, 0.],
+                               'rel_pos': [0., 0.58, 1.0],
                                'length': 9.575}]
 
 # Lipids

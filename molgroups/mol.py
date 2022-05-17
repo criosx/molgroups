@@ -484,11 +484,13 @@ class CompositeHeadgroup(CompositenSLDObj):
 
         vol = 0.
         for i, component in enumerate(self.components):
-            if i == 0:
-                pos = 0.5 * component.l
-            elif i == len(self.components)-1:
-                pos = self.l - 0.5 * component.l
-            elif self.rel_pos[i] * self.l < component.l * 0.5:
+            # Set rel_pos for first and last group to 0.0 and 1.0 respectively if they are supposed to sit
+            # flush with the end of the headgroup
+            # if i == 0:
+            #     pos = 0.5 * component.l
+            # elif i == len(self.components)-1:
+            #     pos = self.l - 0.5 * component.l
+            if self.rel_pos[i] * self.l < component.l * 0.5:
                 pos = 0.5 * component.l
             elif self.rel_pos[i] * self.l > self.l - component.l * 0.5:
                 pos = self.l - 0.5 * component.l
