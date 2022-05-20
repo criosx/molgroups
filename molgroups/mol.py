@@ -525,9 +525,23 @@ class CompositeHeadgroup(CompositenSLDObj):
             self.fnSetBulknSLD(bulknsld)
         self.fnAdjustParameters()
 
-    def fnSetSigma(self, sigma):
-        self.sigma1.fill(sigma)
-        self.sigma2.fill(sigma)
+    def fnSetSigma(self, sigma=2.0, sigma1=None, sigma2=None):
+        # either fill all sigmas with sigma or provide arrays of sigma1 and sigma2
+
+        if (sigma1 is not None) and (sigma2 is not None):
+            if len(sigma1) == len(self.sigma1):
+                self.sigma1 = numpy.array(sigma1)
+            else:
+                print('Length of fnSetSigma attribute sigma1 does not match number of subgroups.')
+            if len(sigma2) == len(self.sigma2):
+                self.sigma2 = numpy.array(sigma2)
+            else:
+                print('Length of fnSetSigma attribute sigma2 does not match number of subgroups.')
+        else:
+            self.sigma1.fill(sigma)
+            self.sigma2.fill(sigma)
+
+        self.fnAdjustParameters()
 
     def fnSetZ(self, dz):
         self.z = dz
