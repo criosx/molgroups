@@ -112,8 +112,8 @@ layer_siox.interface.range(2.0000, 9.000)
 layer_silicon.interface = layer_siox.interface
 
 ## === Data files ===
-probe = load4('ch061.refl', back_reflectivity=True)
-probeh = load4('ch060.refl', back_reflectivity=True)
+probe = load4('../noBLM/ch061.refl', back_reflectivity=True)
+probeh = load4('../noBLM/ch060.refl', back_reflectivity=True)
 
 # Set instrumental (probe) parameters
 probe.background.range(-1e-7, 1e-5)
