@@ -1,0 +1,96 @@
+-- Model 0 ch061
+.probe
+  .back_absorption = back_absorption ch061 = 1
+  .background = background ch061 = 2.09884e-06 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 1.00426 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.000384513 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = 0.00478468 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox interface = 2.45458 in [2,3]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox interface = 2.45458 in [2,3]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.10485 in [3.1,5.1]
+      .thickness = siox thickness = 65.2579 in [20,80]
+    [2]
+      .bulknsld = d2o rho = 6.29427 in [5.3,6.5]
+      .global_rough = global roughness = 2.18865 in [2,3]
+      .interface = bilayer interface = 0
+      .l_surfasil = surfasil thickness = 69.9315 in [20,70]
+      .n_surfasil = surfasil numfrac = 5.5071 in [0.1,10]
+      .rho_substrate = siox rho = 3.10485 in [3.1,5.1]
+      .sigma = surfasil roughness = 2.20717 in [2,3]
+      .thickness = bilayer thickness = 150
+    [3]
+      .interface = d2o interface = 2
+      .material
+        .irho = d2o irho = 0
+        .rho = d2o rho = 6.29427 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+  .thickness = stack thickness = 215.258
+
+[chisq=324.84(11), nllf=20952]
+-- Model 1 ch060
+.probe
+  .back_absorption = back_absorption ch060 = 1
+  .background = background ch060 = 5.28253e-06 in [-1e-07,1e-05]
+  .intensity = intensity ch061 = 1.00426 in [0.9,1.05]
+  .sample_broadening = sample_broadening ch061 = 0.000384513 in [-0.005,0.02]
+  .theta_offset = theta_offset ch061 = 0.00478468 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox interface = 2.45458 in [2,3]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox interface = 2.45458 in [2,3]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.10485 in [3.1,5.1]
+      .thickness = siox thickness = 65.2579 in [20,80]
+    [2]
+      .bulknsld = h2o rho = 0.585388 in [-0.6,0.6]
+      .global_rough = global roughness = 2.18865 in [2,3]
+      .interface = bilayer interface = 0
+      .l_surfasil = surfasil thickness = 69.9315 in [20,70]
+      .n_surfasil = surfasil numfrac = 5.5071 in [0.1,10]
+      .rho_substrate = siox rho = 3.10485 in [3.1,5.1]
+      .sigma = surfasil roughness = 2.20717 in [2,3]
+      .thickness = bilayer thickness = 150
+    [3]
+      .interface = h2o interface = 2
+      .material
+        .irho = h2o irho = 0
+        .rho = h2o rho = 0.585388 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+  .thickness = stack thickness = 215.258
+
+[chisq=24.14(11), nllf=1556.88]
+[overall chisq=184.499(65), nllf=22508.8]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1     background ch061 2.10(41)e-6 0.00000210 0.00000210 [0.0000017 0.0000025] [0.0000012 0.0000030]
+ 2      intensity ch061  1.007(31)   1.012   1.004 [   0.98    1.04] [   0.93    1.05]
+ 3 sample_broadening ch061 2.4(57)e-3  0.0011  0.0004 [ -0.003   0.009] [ -0.005   0.015]
+ 4   theta_offset ch061 0.9(48)e-3  0.0032  0.0048 [ -0.004   0.004] [ -0.013   0.005]
+ 5       siox interface   2.44(30)   2.413   2.455 [   2.09    2.78] [   2.01    2.96]
+ 6             siox rho  3.122(39)   3.110   3.105 [   3.10    3.13] [   3.10    3.23]
+ 7       siox thickness     38(13)   33.38   65.26 [   27.6    57.1] [   23.6    68.1]
+ 8              d2o rho   6.10(15)   6.144   6.294 [   5.95    6.24] [   5.75    6.31]
+ 9     global roughness   2.31(22)   2.282   2.189 [   2.08    2.54] [   2.01    2.85]
+10   surfasil thickness   66.6(34)   67.75   69.93 [   63.3    69.6] [   58.8    70.0]
+11     surfasil numfrac   7.31(88)   7.254   5.507 [   6.44    8.18] [   5.47    8.98]
+12   surfasil roughness   2.64(27)   2.705   2.207 [   2.31    2.91] [   2.10    2.99]
+13     background ch060 4.5(10)e-6 0.00000451 0.00000528 [0.0000035 0.0000054] [0.0000024 0.0000065]
+14              h2o rho   0.26(21)   0.258   0.585 [   0.05    0.50] [  -0.17    0.59]
+
+Statistics and plots based on 7728 samples (50.0% of total samples drawn)
