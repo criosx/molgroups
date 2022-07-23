@@ -32,6 +32,16 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_surfasil, vf_surf
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
+    # === Export objects for post analysis ===
+    problem.name = "Surfasil on SiOx"
+    problem.groups = [substrate, surfasil]
+    problem.dimension = dimension
+    problem.stepsize = stepsize
+    dict1 = substrate.fnWritePar2Dict({}, 'substrate', np.arange(dimension) * stepsize)
+    dict2 = substrate.fnWritePar2Dict({}, 'surfasil', np.arange(dimension) * stepsize)
+    problem.moldat = {**dict1, **dict2}
+
+
     # Return nSLD profile in Refl1D units
     return nsld*1e6
 
@@ -137,11 +147,4 @@ model = Experiment(sample=sample, probe=probe, dz=stepsize, step_interfaces = st
 modelh = Experiment(sample=sampleh, probe=probeh, dz=stepsize, step_interfaces = step)
 
 problem = FitProblem([model, modelh])
-
-# === Export objects for post analysis ===
-problem.name = "Surfasil on SiOx"
-problem.groups = [substrate, surfasil]
-problem.dimension = dimension
-problem.stepsize = stepsize
-
 

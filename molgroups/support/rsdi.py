@@ -518,7 +518,7 @@ class CRefl1DInteractor(CBumpsInteractor):
         return z, rho, irho
 
     def fnRunMCMC(self, burn, steps, batch=False):
-        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        lCommand = ['refl1d', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             lCommand.append('--batch')
         lCommand.append('--store=' + self.mcmcpath)
