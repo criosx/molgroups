@@ -1,0 +1,308 @@
+-- Model 0 kr095_4column
+.probe
+  .back_absorption = back_absorption kr095_4column = 1
+  .background = background kr095_4column = 9.96606e-07 in [-1e-07,1e-05]
+  .intensity = intensity kr095_4column = 0.984885 in [0.9,1.05]
+  .sample_broadening = sample_broadening kr095_4column = 0.0099593 in [-0.005,0.02]
+  .theta_offset = theta_offset kr095_4column = 0.00824585 in [-0.015,0.015]
+.sample
+  .layers
+    [0]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.43345 in [3.1,5.1]
+      .thickness = d_oxide = 29.578 in [5,40]
+    [2]
+      .interface = sigma_cr_au = 5.36714 in [1,15]
+      .material
+        .irho = chromium irho = 0
+        .rho = chromium rho = 3.65457 in [2.7,4]
+      .thickness = d_cr = 16.4058 in [10,60]
+    [3]
+      .interface = gold interface = 0
+      .material
+        .irho = gold irho = 0
+        .rho = gold rho = 4.71962 in [4.2,4.8]
+      .thickness = (d_gold - 20.0) = 121.521
+    [4]
+      .bulknsld = d2o rho = 6.32738 in [5.3,6.5]
+      .global_rough = sigma_substrate = 4.03007 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = 14.3474 in [8,30]
+      .l_lipid2 = 10.2189 in [8,16]
+      .l_tether = 6.81531 in [3,18]
+      .mult_tether = 0.729301 in [0.1,4]
+      .nf_tether = 0.219791 in [0.2,1]
+      .rho_substrate = gold rho = 4.71962 in [4.2,4.8]
+      .sigma = sigma_blm = 6.76487 in [2,8]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = 0.988154 in [0,1]
+    [5]
+      .interface = d2o interface = 5
+      .material
+        .irho = d2o irho = 0
+        .rho = d2o rho = 6.32738 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+  .thickness = stack thickness = 317.505
+
+[chisq=15.65(20), nllf=899.986]
+-- Model 1 kr096_4column
+.probe
+  .back_absorption = back_absorption kr096_4column = 1
+  .background = background kr096_4column = 8.08867e-07 in [-1e-07,1e-05]
+  .intensity = intensity kr095_4column = 0.984885 in [0.9,1.05]
+  .sample_broadening = sample_broadening kr095_4column = 0.0099593 in [-0.005,0.02]
+  .theta_offset = theta_offset kr095_4column = 0.00824585 in [-0.015,0.015]
+.sample
+  .layers
+    [0]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.43345 in [3.1,5.1]
+      .thickness = d_oxide = 29.578 in [5,40]
+    [2]
+      .interface = sigma_cr_au = 5.36714 in [1,15]
+      .material
+        .irho = chromium irho = 0
+        .rho = chromium rho = 3.65457 in [2.7,4]
+      .thickness = d_cr = 16.4058 in [10,60]
+    [3]
+      .interface = gold interface = 0
+      .material
+        .irho = gold irho = 0
+        .rho = gold rho = 4.71962 in [4.2,4.8]
+      .thickness = (d_gold - 20.0) = 121.521
+    [4]
+      .bulknsld = h2o rho = 0.319742 in [-0.6,0.6]
+      .global_rough = sigma_substrate = 4.03007 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = 14.3474 in [8,30]
+      .l_lipid2 = 10.2189 in [8,16]
+      .l_tether = 6.81531 in [3,18]
+      .mult_tether = 0.729301 in [0.1,4]
+      .nf_tether = 0.219791 in [0.2,1]
+      .rho_substrate = gold rho = 4.71962 in [4.2,4.8]
+      .sigma = sigma_blm = 6.76487 in [2,8]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = 0.988154 in [0,1]
+    [5]
+      .interface = h2o interface = 5
+      .material
+        .irho = h2o irho = 0
+        .rho = h2o rho = 0.319742 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+  .thickness = stack thickness = 317.505
+
+[chisq=26.14(20), nllf=1503.1]
+-- Model 2 kr097_4column
+.probe
+  .back_absorption = back_absorption kr097_4column = 1
+  .background = background kr097_4column = 3.65771e-08 in [-1e-07,1e-05]
+  .intensity = intensity kr095_4column = 0.984885 in [0.9,1.05]
+  .sample_broadening = sample_broadening kr095_4column = 0.0099593 in [-0.005,0.02]
+  .theta_offset = theta_offset kr095_4column = 0.00824585 in [-0.015,0.015]
+.sample
+  .layers
+    [0]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.43345 in [3.1,5.1]
+      .thickness = d_oxide = 29.578 in [5,40]
+    [2]
+      .interface = sigma_cr_au = 5.36714 in [1,15]
+      .material
+        .irho = chromium irho = 0
+        .rho = chromium rho = 3.65457 in [2.7,4]
+      .thickness = d_cr = 16.4058 in [10,60]
+    [3]
+      .interface = gold interface = 0
+      .material
+        .irho = gold irho = 0
+        .rho = gold rho = 4.71962 in [4.2,4.8]
+      .thickness = (d_gold - 20.0) = 121.521
+    [4]
+      .bulknsld = d2o_prot rho = 6.33917 in [5.3,6.5]
+      .dDp
+        [0] = dDp0 = -4.11853 in [-5,5]
+        [1] = dDp1 = 0.749804 in [-5,5]
+        [2] = dDp2 = -1.89619 in [-5,5]
+        [3] = dDp3 = 0.966766 in [-5,5]
+        [4] = dDp4 = 4.59317 in [-5,5]
+        [5] = dDp5 = 1.19045 in [-5,5]
+        [6] = dDp6 = 3.35505 in [-5,5]
+        [7] = dDp7 = -0.598286 in [-5,5]
+      .dVf
+        [0] = dVf0 = 0.0835992 in [-0.001,0.4]
+        [1] = dVf1 = 0.0288167 in [-0.001,0.4]
+        [2] = dVf2 = 0.377461 in [-0.001,0.4]
+        [3] = dVf3 = 0.165245 in [-0.001,0.4]
+        [4] = dVf4 = 0.0801785 in [-0.001,0.4]
+        [5] = dVf5 = 0.253153 in [-0.001,0.4]
+        [6] = dVf6 = 0.0311437 in [-0.001,0.4]
+        [7] = dVf7 = 0.359267 in [-0.001,0.4]
+      .global_rough = sigma_substrate = 4.03007 in [2,9]
+      .interface = bilayer_prot interface = 0
+      .l_lipid1 = (l_lipid1 + dl_lipid) = 12.712
+      .l_lipid2 = (l_lipid2 + dl_lipid) = 8.58347
+      .l_tether = 6.81531 in [3,18]
+      .mult_tether = 0.729301 in [0.1,4]
+      .nf_protein = bilayer_prot nf_protein = 1
+      .nf_tether = 0.219791 in [0.2,1]
+      .protexchratio = bilayer_prot protexchratio = 0.8
+      .rho_substrate = gold rho = 4.71962 in [4.2,4.8]
+      .sigma = sigma_blm = 6.76487 in [2,8]
+      .thickness = bilayer_prot thickness = 150
+      .vf_bilayer = vf_bilayer_prot = 0.988428 in [0,1]
+    [5]
+      .interface = d2o_prot interface = 5
+      .material
+        .irho = d2o_prot irho = 0
+        .rho = d2o_prot rho = 6.33917 in [5.3,6.5]
+      .thickness = d2o_prot thickness = 0
+  .thickness = stack thickness = 317.505
+
+[chisq=12.35(35), nllf=710.111]
+-- Model 3 kr098_4column
+.probe
+  .back_absorption = back_absorption kr098_4column = 1
+  .background = background kr098_4column = 6.4986e-07 in [-1e-07,1e-05]
+  .intensity = intensity kr095_4column = 0.984885 in [0.9,1.05]
+  .sample_broadening = sample_broadening kr095_4column = 0.0099593 in [-0.005,0.02]
+  .theta_offset = theta_offset kr095_4column = 0.00824585 in [-0.015,0.015]
+.sample
+  .layers
+    [0]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = sigma_substrate = 4.03007 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = siox rho = 3.43345 in [3.1,5.1]
+      .thickness = d_oxide = 29.578 in [5,40]
+    [2]
+      .interface = sigma_cr_au = 5.36714 in [1,15]
+      .material
+        .irho = chromium irho = 0
+        .rho = chromium rho = 3.65457 in [2.7,4]
+      .thickness = d_cr = 16.4058 in [10,60]
+    [3]
+      .interface = gold interface = 0
+      .material
+        .irho = gold irho = 0
+        .rho = gold rho = 4.71962 in [4.2,4.8]
+      .thickness = (d_gold - 20.0) = 121.521
+    [4]
+      .bulknsld = h2o_prot rho = 0.00324256 in [-0.6,0.6]
+      .dDp
+        [0] = dDp0 = -4.11853 in [-5,5]
+        [1] = dDp1 = 0.749804 in [-5,5]
+        [2] = dDp2 = -1.89619 in [-5,5]
+        [3] = dDp3 = 0.966766 in [-5,5]
+        [4] = dDp4 = 4.59317 in [-5,5]
+        [5] = dDp5 = 1.19045 in [-5,5]
+        [6] = dDp6 = 3.35505 in [-5,5]
+        [7] = dDp7 = -0.598286 in [-5,5]
+      .dVf
+        [0] = dVf0 = 0.0835992 in [-0.001,0.4]
+        [1] = dVf1 = 0.0288167 in [-0.001,0.4]
+        [2] = dVf2 = 0.377461 in [-0.001,0.4]
+        [3] = dVf3 = 0.165245 in [-0.001,0.4]
+        [4] = dVf4 = 0.0801785 in [-0.001,0.4]
+        [5] = dVf5 = 0.253153 in [-0.001,0.4]
+        [6] = dVf6 = 0.0311437 in [-0.001,0.4]
+        [7] = dVf7 = 0.359267 in [-0.001,0.4]
+      .global_rough = sigma_substrate = 4.03007 in [2,9]
+      .interface = bilayer_prot interface = 0
+      .l_lipid1 = (l_lipid1 + dl_lipid) = 12.712
+      .l_lipid2 = (l_lipid2 + dl_lipid) = 8.58347
+      .l_tether = 6.81531 in [3,18]
+      .mult_tether = 0.729301 in [0.1,4]
+      .nf_protein = bilayer_prot nf_protein = 1
+      .nf_tether = 0.219791 in [0.2,1]
+      .protexchratio = bilayer_prot protexchratio = 0.8
+      .rho_substrate = gold rho = 4.71962 in [4.2,4.8]
+      .sigma = sigma_blm = 6.76487 in [2,8]
+      .thickness = bilayer_prot thickness = 150
+      .vf_bilayer = vf_bilayer_prot = 0.988428 in [0,1]
+    [5]
+      .interface = h2o_prot interface = 5
+      .material
+        .irho = h2o_prot irho = 0
+        .rho = h2o_prot rho = 0.00324256 in [-0.6,0.6]
+      .thickness = h2o_prot thickness = 0
+  .thickness = stack thickness = 317.505
+
+[chisq=7.29(35), nllf=419.438]
+[overall chisq=16.98(12), nllf=3532.64]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1 background kr095_4column 1.2(10)e-6 0.00000097 0.00000100 [0.0000003 0.0000023] [-0.0000000 0.0000037]
+ 2 intensity kr095_4column  0.981(43)   0.985   0.985 [   0.93    1.03] [   0.91    1.05]
+ 3 sample_broadening kr095_4column 8.3(68)e-3  0.0086  0.0100 [  0.000   0.016] [ -0.004   0.019]
+ 4 theta_offset kr095_4column -0.5(79)e-3 -0.0004  0.0082 [ -0.010   0.008] [ -0.014   0.013]
+ 5      sigma_substrate    6.1(19)   6.215   4.030 [   3.79    8.18] [   2.32    8.88]
+ 6             siox rho   3.82(48)   3.724   3.433 [   3.33    4.36] [   3.16    4.93]
+ 7              d_oxide   20.0(99)   19.95   29.58 [    8.9    31.4] [    5.4    38.6]
+ 8          sigma_cr_au    8.4(40)    8.58    5.37 [    3.6    13.0] [    1.4    14.8]
+ 9         chromium rho   3.44(34)   3.475   3.655 [   3.04    3.82] [   2.76    3.97]
+10                 d_cr     28(12)   27.03   16.41 [   15.1    41.5] [   10.8    53.2]
+11             gold rho   4.54(15)   4.562   4.720 [   4.38    4.71] [   4.24    4.78]
+12              d2o rho   6.02(28)   6.045   6.327 [   5.73    6.31] [   5.41    6.45]
+13             l_lipid1   14.4(49)   13.28   14.35 [    9.6    19.3] [    8.3    27.3]
+14             l_lipid2   12.1(22)  12.195  10.219 [   9.44   14.73] [   8.19   15.74]
+15             l_tether    9.0(38)    8.49    6.82 [    4.9    13.3] [    3.2    17.2]
+16          mult_tether    1.8(12)   1.592   0.729 [   0.48    3.22] [   0.17    3.87]
+17            nf_tether   0.50(23)   0.447   0.220 [   0.26    0.79] [   0.21    0.98]
+18            sigma_blm    4.5(16)   4.432   6.765 [   2.72    6.21] [   2.12    7.69]
+19           vf_bilayer   0.85(15)   0.898   0.988 [   0.70    0.98] [   0.45    1.00]
+20 background kr096_4column 3.9(23)e-6 0.00000377 0.00000081 [0.0000013 0.0000062] [0.0000002 0.0000086]
+21              h2o rho  -0.05(33)  -0.069   0.320 [  -0.44    0.33] [  -0.58    0.54]
+22 background kr097_4column 1.2(11)e-6 0.00000094 0.00000004 [0.0000002 0.0000023] [-0.0000001 0.0000040]
+23         d2o_prot rho   6.00(29)   6.022   6.339 [   5.66    6.31] [   5.43    6.45]
+24                 dDp0   -0.5(28)  -0.809  -4.119 [  -3.72    2.80] [  -4.73    4.68]
+25                 dDp1    0.0(29)  -0.000   0.750 [  -3.28    3.37] [  -4.59    4.68]
+26                 dDp2   -0.3(28)  -0.384  -1.896 [  -3.56    3.04] [  -4.79    4.52]
+27                 dDp3   -0.0(29)  -0.045   0.967 [  -3.38    3.39] [  -4.75    4.71]
+28                 dDp4    0.1(29)   0.060   4.593 [  -3.27    3.50] [  -4.76    4.69]
+29                 dDp5   -0.0(29)  -0.247   1.190 [  -3.39    3.52] [  -4.68    4.78]
+30                 dDp6    0.2(29)   0.306   3.355 [  -3.45    3.54] [  -4.76    4.78]
+31                 dDp7   -0.5(30)  -0.764  -0.598 [  -3.87    3.36] [  -4.80    4.79]
+32                 dVf0   0.21(11)   0.216   0.084 [   0.07    0.34] [   0.01    0.39]
+33                 dVf1   0.20(11)   0.204   0.029 [   0.08    0.34] [   0.01    0.39]
+34                 dVf2   0.19(11)   0.192   0.377 [   0.06    0.33] [   0.00    0.38]
+35                 dVf3   0.17(11)   0.164   0.165 [   0.05    0.30] [   0.00    0.38]
+36                 dVf4   0.16(10)   0.145   0.080 [   0.05    0.28] [   0.01    0.37]
+37                 dVf5   0.22(11)   0.224   0.253 [   0.09    0.34] [   0.02    0.39]
+38                 dVf6   0.15(11)   0.139   0.031 [   0.04    0.28] [   0.00    0.37]
+39                 dVf7   0.17(11)   0.158   0.359 [   0.05    0.30] [   0.01    0.38]
+40      vf_bilayer_prot   0.77(17)   0.795   0.988 [   0.59    0.94] [   0.38    0.99]
+41 background kr098_4column 3.9(24)e-6 0.00000363 0.00000065 [0.0000014 0.0000065] [0.0000001 0.0000090]
+42         h2o_prot rho   0.01(34)   0.011   0.003 [  -0.38    0.39] [  -0.56    0.56]
+43               d_gold  139.8(55)  139.44  141.52 [  133.6   146.3] [  130.6   149.2]
+44             dl_lipid   -0.0(16)  -0.006  -1.635 [  -1.78    1.83] [  -2.80    2.83]
+
+Statistics and plots based on 13609 samples (50.0% of total samples drawn)

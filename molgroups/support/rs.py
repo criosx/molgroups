@@ -14,8 +14,8 @@ from time import time, gmtime, sleep, ctime
 import numpy
 import pandas
 
-from . import general
-from . import rsdi
+import general
+import rsdi
 
 
 class CMolStat:

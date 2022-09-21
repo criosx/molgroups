@@ -8,19 +8,19 @@ from refl1d.flayer import FunctionalProfile
 
 # === Constant definition section ===
 # Canvas
-DIMENSION = 300
+DIMENSION = 450
 STEPSIZE = 0.5
 
 # Hermite Spline
 CONTROLPOINTS = 8
 SPACING = 15.0
-PENETRATION = 12
+PENETRATION = 42
 dDp = [None] * CONTROLPOINTS
 dVf = [None] * CONTROLPOINTS
 
 # SLDS
-PROTDEUT = 6.78e-6
-PROTNONDEUT = 5.31e-6
+PROTDEUT = 1.67e-6
+PROTNONDEUT = 3.14e-6
 NSLDH2O = -0.5666e-6
 NSLDD2O = 6.36e-6
 
@@ -59,8 +59,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tet
     return nsld * 1e6
 
 
-def bilayer_protein(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tether, l_tether, l_lipid1,
-                    l_lipid2, vf_bilayer, nf_protein, protexchratio):
+def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tether, l_tether, l_lipid1,
+                    l_lipid2, vf_bilayer, nf_protein, protexchratio, dDp, dVf):
     """ Generic tethered bilayer """
 
     # Scale all SLDs from Refl1D units (1e-6 Ang^-2) to molgroups units (Ang^-2)
@@ -119,22 +119,22 @@ def bilayer_protein(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, 
 
 
 # bilayer parameters
-vf_bilayer = Parameter(name='volume fraction bilayer', value=0.9).range(0.0, 1.0)
-l_lipid1 = Parameter(name='inner acyl chain thickness', value=10.0).range(8, 30)
-l_lipid2 = Parameter(name='outer acyl chain thickness', value=10.0).range(8, 16)
-sigma = Parameter(name='bilayer roughness', value=5).range(2, 9)
-global_rough = Parameter(name='substrate roughness', value=5).range(2, 9)
-d_oxide = Parameter(name='silicon oxide layer thickness', value=10).range(5, 30)
-d_Cr = Parameter(name='chromium layer thickness', value=40).range(10, 150)
-d_gold = Parameter(name='gold layer thickness', value=100).range(150, 250)
-rough_cr_au = Parameter(name='gold chromium roughness', value=10).range(2, 24.0)
-nf_tether = Parameter(name='number fraction tether', value=0.7).range(0.2, 1.0)
-mult_tether = Parameter(name='bME to tether ratio', value=2).range(0.1, 4)
-l_tether = Parameter(name='tether length', value=10).range(3, 18)
+vf_bilayer = Parameter(name='vf_bilayer', value=0.9).range(0.0, 1.0)                #volume fraction bilayer
+l_lipid1 = Parameter(name='l_lipid1', value=10.0).range(8, 30)                      #inner methylenes
+l_lipid2 = Parameter(name='l_lipid2', value=10.0).range(8, 16)                      #outer methylenes
+sigma = Parameter(name='sigma_blm', value=5).range(2, 8)                            #bilayer roughness
+global_rough = Parameter(name='sigma_substrate', value=5).range(2, 9)               #substrate roughness
+d_oxide = Parameter(name='d_oxide', value=10).range(5, 40)                          #silicon oxide thickness
+d_Cr = Parameter(name='d_cr', value=40).range(10, 60)                              #chromium thickness
+d_gold = Parameter(name='d_gold', value=100).range(130, 150)                        #gold thickness
+rough_cr_au = Parameter(name='sigma_cr_au', value=10).range(1, 15.0)                #chromium-gold interface roughness
+nf_tether = Parameter(name='nf_tether', value=0.7).range(0.2, 1.0)                  #number fraction tether
+mult_tether = Parameter(name='mult_tether', value=2).range(0.1, 4)                  #bme-to-tether ratio
+l_tether = Parameter(name='l_tether', value=10).range(3, 18)
 
 # protein parameters
-dl_lipid = Parameter(name='change lipid thickness', value=0.0).range(-3., 3.0)
-vf_bilayer_prot = Parameter(name='vf bilayer protein', value=0.9).range(0.0, 1.0)
+dl_lipid = Parameter(name='dl_lipid', value=0.0).range(-3., 3.0)                    #change in methylene thickness
+vf_bilayer_prot = Parameter(name='vf_bilayer_prot', value=0.9).range(0.0, 1.0)      #volume fraction bilayer w/ protein
 nf_protein = 1
 protexchratio = 0.8
 for i in range(len(dDp)):
@@ -142,14 +142,13 @@ for i in range(len(dDp)):
 for i in range(len(dVf)):
     dVf[i] = Parameter(name='dVf'+str(i), value=0.001).range(-0.001, 0.4)
 
-
 # === Stack ===
 # First, we create a 'material' for each bulk layer, which has an real and imaginary
 # scattering length density, stored in a Refl1d object called 'SLD'
 d2o = SLD(name='d2o', rho=6.3000, irho=0.0000)
 h2o = SLD(name='h2o', rho=-0.56, irho=0.0000)
-d2o_prot = SLD(name='d2o', rho=6.3000, irho=0.0000)
-h2o_prot = SLD(name='h2o', rho=-0.56, irho=0.0000)
+d2o_prot = SLD(name='d2o_prot', rho=6.3000, irho=0.0000)
+h2o_prot = SLD(name='h2o_prot', rho=-0.56, irho=0.0000)
 siox = SLD(name='siox', rho=4.1000, irho=0.0000)
 silicon = SLD(name='silicon', rho=2.0690, irho=0.0000)
 cr = SLD(name='chromium', rho=2.7, irho=0.0)
@@ -179,17 +178,17 @@ mollayerh = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=bilayer, sigma=si
                               global_rough=global_rough, rho_substrate=gold.rho, nf_tether=nf_tether,
                               mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
                               vf_bilayer=vf_bilayer)
-mollayer_prot = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=bilayer, sigma=sigma, bulknsld=d2o_prot.rho,
+mollayer_prot = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=bilayer_prot, sigma=sigma, bulknsld=d2o_prot.rho,
                                   global_rough=global_rough, rho_substrate=gold.rho, nf_tether=nf_tether,
                                   mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1+dl_lipid,
                                   l_lipid2=l_lipid2+dl_lipid, vf_bilayer=vf_bilayer_prot, nf_protein=nf_protein,
-                                  protexchratio=protexchratio)
+                                  protexchratio=protexchratio, dDp=dDp, dVf=dVf)
 
-mollayerh_prot = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=bilayer, sigma=sigma, bulknsld=h2o_prot.rho,
+mollayerh_prot = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=bilayer_prot, sigma=sigma, bulknsld=h2o_prot.rho,
                                    global_rough=global_rough, rho_substrate=gold.rho, nf_tether=nf_tether,
                                    mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1+dl_lipid,
                                    l_lipid2=l_lipid2+dl_lipid, vf_bilayer=vf_bilayer_prot, nf_protein=nf_protein,
-                                   protexchratio=protexchratio)
+                                   protexchratio=protexchratio, dDp=dDp, dVf=dVf)
 
 # Stack the layers into individual samples, using common layer objects for layers that are unchanged between samples
 # Always build the sample from the substrate up. If the neutron beam is incident from the substrate side,
@@ -203,31 +202,31 @@ sampleh_prot = layer_silicon | layer_siox | layer_cr | layer_gold | mollayerh_pr
 # Set sample parameter ranges and constraints between layer properties, if these are not set using parameters previously
 
 # nSLD parameters
-d2o.rho.range(5.3000, 6.5000)
+d2o.rho.range(5.8000, 6.4000)
 h2o.rho.range(-0.6, 0.6)
-d2o_prot.rho.range(5.3000, 6.5000)
+d2o_prot.rho.range(5.8000, 6.4000)
 h2o_prot.rho.range(-0.6, 0.6)
-siox.rho.range(3.1000, 5.1000)
-cr.rho.range(2.7000, 4.0000)
-gold.rho.range(4.2000, 4.8000)
+siox.rho.range(2.7000, 3.80)
+cr.rho.range(2.7000, 4.15)
+gold.rho.range(4.2000, 4.60)
 
 # === Data files ===
-probe = load4('os046_4column.refl', back_reflectivity=True)
-probeh = load4('os047_4column.refl', back_reflectivity=True)
-probe_prot = load4('os046_4column.refl', back_reflectivity=True)
-probeh_prot = load4('os047_4column.refl', back_reflectivity=True)
+probe = load4('kr095_4column.refl', back_reflectivity=True)
+probeh = load4('kr096_4column.refl', back_reflectivity=True)
+probe_prot = load4('kr097_4column.refl', back_reflectivity=True)
+probeh_prot = load4('kr098_4column.refl', back_reflectivity=True)
 
 # Background parameter
 # probe.background.value = 0.0000
-probe.background.range(-1e-7, 1e-5)
-probeh.background.range(-1e-7, 1e-5)
-probe_prot.background.range(-1e-7, 1e-5)
-probeh_prot.background.range(-1e-7, 1e-5)
-probe.intensity.range(0.9, 1.05)
+probe.background.range(-1e-9, 1e-5)
+probeh.background.range(-1e-9, 1e-5)
+probe_prot.background.range(-1e-9, 1e-5)
+probeh_prot.background.range(-1e-9, 1e-5)
+probe.intensity.range(0.95, 1.05)
 probeh.intensity = probe.intensity
 probe_prot.intensity = probe.intensity
 probeh_prot.intensity = probe.intensity
-probe.theta_offset.range(-0.015, 0.015)
+probe.theta_offset.range(-0.001, 0.001)
 probeh.theta_offset = probe.theta_offset
 probe_prot.theta_offset = probe.theta_offset
 probeh_prot.theta_offset = probe.theta_offset
@@ -254,3 +253,4 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=STEPSIZE, step_interfaces=s
 model_prot = Experiment(sample=sample_prot, probe=probe_prot, dz=STEPSIZE, step_interfaces=step)
 modelh_prot = Experiment(sample=sampleh_prot, probe=probeh_prot, dz=STEPSIZE, step_interfaces=step)
 problem = FitProblem([model, modelh, model_prot, modelh_prot])
+

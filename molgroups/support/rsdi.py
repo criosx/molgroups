@@ -12,7 +12,7 @@ import shutil
 import glob
 import os
 
-from . import general
+import general
 
 
 class CDataInteractor:
