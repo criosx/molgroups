@@ -14,8 +14,8 @@ from time import time, gmtime, sleep, ctime
 import numpy
 import pandas
 
-import general
-import rsdi
+from molgroups.support import general
+from molgroups.support import rsdi
 
 
 class CMolStat:

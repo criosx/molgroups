@@ -12,7 +12,7 @@ import shutil
 import glob
 import os
 
-import general
+from molgroups.support import general
 
 
 class CDataInteractor:
