@@ -253,4 +253,3 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=STEPSIZE, step_interfaces=s
 model_prot = Experiment(sample=sample_prot, probe=probe_prot, dz=STEPSIZE, step_interfaces=step)
 modelh_prot = Experiment(sample=sampleh_prot, probe=probeh_prot, dz=STEPSIZE, step_interfaces=step)
 problem = FitProblem([model, modelh, model_prot, modelh_prot])
-

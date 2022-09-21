@@ -8,7 +8,7 @@ from refl1d.flayer import FunctionalProfile
 
 # === Constant definition section ===
 # Canvas
-DIMENSION = 300
+DIMENSION = 450
 STEPSIZE = 0.5
 
 # Hermite Spline
@@ -202,13 +202,13 @@ sampleh_prot = layer_silicon | layer_siox | layer_cr | layer_gold | mollayerh_pr
 # Set sample parameter ranges and constraints between layer properties, if these are not set using parameters previously
 
 # nSLD parameters
-d2o.rho.range(5.3000, 6.5000)
+d2o.rho.range(5.8000, 6.4000)
 h2o.rho.range(-0.6, 0.6)
-d2o_prot.rho.range(5.3000, 6.5000)
+d2o_prot.rho.range(5.8000, 6.4000)
 h2o_prot.rho.range(-0.6, 0.6)
-siox.rho.range(3.1000, 5.1000)
-cr.rho.range(2.7000, 4.0000)
-gold.rho.range(4.2000, 4.8000)
+siox.rho.range(2.7000, 3.80)
+cr.rho.range(2.7000, 4.15)
+gold.rho.range(4.2000, 4.60)
 
 # === Data files ===
 probe = load4('kr095_4column.refl', back_reflectivity=True)
@@ -218,15 +218,15 @@ probeh_prot = load4('kr098_4column.refl', back_reflectivity=True)
 
 # Background parameter
 # probe.background.value = 0.0000
-probe.background.range(-1e-7, 1e-5)
-probeh.background.range(-1e-7, 1e-5)
-probe_prot.background.range(-1e-7, 1e-5)
-probeh_prot.background.range(-1e-7, 1e-5)
-probe.intensity.range(0.9, 1.05)
+probe.background.range(-1e-9, 1e-5)
+probeh.background.range(-1e-9, 1e-5)
+probe_prot.background.range(-1e-9, 1e-5)
+probeh_prot.background.range(-1e-9, 1e-5)
+probe.intensity.range(0.95, 1.05)
 probeh.intensity = probe.intensity
 probe_prot.intensity = probe.intensity
 probeh_prot.intensity = probe.intensity
-probe.theta_offset.range(-0.015, 0.015)
+probe.theta_offset.range(-0.001, 0.001)
 probeh.theta_offset = probe.theta_offset
 probe_prot.theta_offset = probe.theta_offset
 probeh_prot.theta_offset = probe.theta_offset
@@ -253,4 +253,3 @@ modelh = Experiment(sample=sampleh, probe=probeh, dz=STEPSIZE, step_interfaces=s
 model_prot = Experiment(sample=sample_prot, probe=probe_prot, dz=STEPSIZE, step_interfaces=step)
 modelh_prot = Experiment(sample=sampleh_prot, probe=probeh_prot, dz=STEPSIZE, step_interfaces=step)
 problem = FitProblem([model, modelh, model_prot, modelh_prot])
-
