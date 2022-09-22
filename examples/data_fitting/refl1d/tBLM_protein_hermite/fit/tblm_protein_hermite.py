@@ -1,5 +1,5 @@
 # === Import section ===
-import numpy as np
+import numpy
 from molgroups import mol
 from molgroups import components as cmp
 from molgroups import lipids
@@ -47,13 +47,13 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tet
     normarea, area, nsl = blm.fnWriteProfile(z)
 
     # Fill in the remaining volume with buffer of appropriate nSLD
-    nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
+    nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be from this function
     problem.bilayers = [blm]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(DIMENSION) * STEPSIZE)
+    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
@@ -106,13 +106,13 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
     normarea, area, nsl = blm.fnWriteProfile(z)
     area, nsl = protein.fnOverlayProfile(z, area, nsl, normarea)
     # Fill in the remaining volume with buffer of appropriate nSLD
-    nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
+    nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be from this function
     problem.bilayers = [blm]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(DIMENSION) * STEPSIZE)
+    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6

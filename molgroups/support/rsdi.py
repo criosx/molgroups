@@ -11,9 +11,10 @@ import pandas
 import shutil
 import glob
 import os
+import sys
 
 from molgroups.support import general
-
+from refl1d import main
 
 class CDataInteractor:
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
@@ -518,14 +519,25 @@ class CRefl1DInteractor(CBumpsInteractor):
         return z, rho, irho
 
     def fnRunMCMC(self, burn, steps, batch=False):
-        lCommand = ['refl1d', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        # Previous Method of Calling the Shell
+        # lCommand = ['refl1d', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        # if batch:
+        #    lCommand.append('--batch')
+        # lCommand.append('--store=' + self.mcmcpath)
+        # lCommand.append('--burn=' + str(burn))
+        # lCommand.append('--steps=' + str(steps))
+        # lCommand.append('--overwrite')
+        # call(lCommand)
+
+        sys.argv = ['-p', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
-            lCommand.append('--batch')
-        lCommand.append('--store=' + self.mcmcpath)
-        lCommand.append('--burn=' + str(burn))
-        lCommand.append('--steps=' + str(steps))
-        lCommand.append('--overwrite')
-        call(lCommand)
+            sys.argv.append('--batch')
+        sys.argv.append('--store=' + self.mcmcpath)
+        sys.argv.append('--burn=' + str(burn))
+        sys.argv.append('--steps=' + str(steps))
+        sys.argv.append('--overwrite')
+
+        main.cli()
 
     def fnSimulateData(self, diNewPars):
         liParameters = list(self.diParameters.keys())
