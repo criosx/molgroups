@@ -6,3 +6,6 @@
 .idea/workspace.xml
 /build/
 /examples/data_fitting/refl1d/tBLM_protein_hermite/fit/
+/examples/data_fitting/refl1d/tBLM/fit/
+/examples/data_fitting/refl1d/ssBLM/fit/
+/examples/data_fitting/refl1d/noBLM/fit/
