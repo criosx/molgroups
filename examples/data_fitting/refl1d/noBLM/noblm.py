@@ -19,8 +19,10 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_surfasil, vf_surf
     # Scale all SLDs from Refl1D units (1e-6 Ang^-2) to molgroups units (Ang^-2)
     bulknsld *= 1e-6
     rho_substrate *= 1e-6
-    volume = l_surfasil * 100 * vf_surfasil
+
     substrate.fnSet(nSL=rho_substrate*substrate.vol, sigma=global_rough, position=0)
+
+    volume = l_surfasil * 100 * vf_surfasil
     surfasil.fnSet(length=l_surfasil, position=20+0.5*l_surfasil, nf=1, volume=volume,
                    nSL=0.24e-6 * volume)
     surfasil.fnSetSigma(sigma1=global_rough, sigma2=sigma)
