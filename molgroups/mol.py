@@ -1197,7 +1197,7 @@ class tBLM(BLM):
         # If too much bME is present, adjust the mult_tether parameter
         # TODO: I do not think that this is good. Mult_tether is a parameter that is conserved across multiple
         #  data sets that might vary in sub-membrane thickness. This approach breaks this link. We should think of
-        #  a different way how the structure reacts to an overvilling of the bMe region. (F.H.)
+        #  a different way how the structure reacts to an overfilling of the bMe region. (F.H.)
         A_bme, min_A_tether_bme = _adjust_mult_tether()
         l_tether_free = self.l_tether - (self.initial_bME_l + self.av_hg1_l)
 
@@ -1222,7 +1222,7 @@ class tBLM(BLM):
         # can be adjusted in the Tether molecule so tetherg has more volume.
         # TODO: Not good. The glycerol is a small group with an area close to that of the tether double
         #   chain. This is why its area traditionally had been modeled as a fixed fraction of the double chain, allowing
-        #   for some water. The remedy to include EO volume in the tether_g group is not preferrable as it does not
+        #   for some water. The remedy to include EO volume in the tether_g group is not preferable as it does not
         #   divide the molecule based on chemistry/scattering properties but on later usage. (F.H.)
         min_A_tether_hg = self.tetherg.cell_volume * self.tetherg_nf / self.av_hg1_l
         A_hg = numpy.sum([hg.nf * hg.vol / hg.l for hg in self.headgroups1]) + min_A_tether_hg

@@ -1627,7 +1627,7 @@ class CMolStat:
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
         """
 
-        if self.diStatResults != {}:
+        if self.diStatResults == {}:
             self.fnLoadStatData()
 
         zaxis = self.diStatResults['Molgroups'][0][list(self.diStatResults['Molgroups'][0].keys())[0]]['zaxis']
