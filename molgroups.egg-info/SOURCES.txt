@@ -14,5 +14,6 @@ molgroups/infotheory/__init__.py
 molgroups/infotheory/entropy.py
 molgroups/support/__init__.py
 molgroups/support/general.py
+molgroups/support/molstat.py
 molgroups/support/rs.py
 molgroups/support/rsdi.py
