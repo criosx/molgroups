@@ -1071,7 +1071,7 @@ class CMolStat:
         self.fnLoadParameters()
         if self.diStatResults == {}:
             try:
-                self.diStatResults = self.fnLoadObject(f'{self.mcmcpath}StatDataPython.dat')
+                self.diStatResults = self.fnLoadObject(os.path.join(self.spath, self.mcmcpath, 'StatDataPython.dat'))
                 print('Loaded statistical data from StatDataPython.dat')
             except IOError:
                 print('No StatDataPython.dat.')
@@ -1581,7 +1581,7 @@ class CMolStat:
         are added for each iteration and a file pulledmolgroups.dat is created.
         A statistical analysis area profile containing the median, sigma, and
         2 sigma intervals are put out in pulledmolgroupsstat.dat.
-        Saves results to file
+        Save results to file
         """
         diarea, dinsl, dinsld = self.fnPullMolgroupLoader(liMolgroupNames, sparse, verbose=verbose)
         diStat = dict(zaxis=[], m2sigma_area=[], msigma_area=[], median_area=[], psigma_area=[], p2sigma_area=[],
