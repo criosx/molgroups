@@ -338,7 +338,7 @@ class CBumpsInteractor(CDataInteractor):
         self.problem.setp(p)
 
         # from bumps.cli import load_best
-        # load_best(problem, self.mcmcpath+'/'+self.runfile+'.par')
+        # load_best(problem, os.path.join(self.mcmcpath, self.runfile) + '.par')
 
         # distinguish between fitproblem and multifitproblem
         if "models" in dir(self.problem):
@@ -388,8 +388,8 @@ class CBumpsInteractor(CDataInteractor):
         if skip_entries is None:
             skip_entries = []
 
-        if path.isfile(self.spath+'/'+self.mcmcpath+"/sErr.dat") or path.isfile(self.spath+'/'+self.mcmcpath+
-                                                                                "/isErr.dat"):
+        if path.isfile(os.path.join(self.spath, self.mcmcpath, "sErr.dat")) or \
+                path.isfile(os.path.join(self.spath, self.mcmcpath, "isErr.dat")):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
@@ -412,7 +412,7 @@ class CBumpsInteractor(CDataInteractor):
                         #     points[j, i] *= 1E-6
                         diStatRawData["Parameters"][parname]["Values"].append(points[j, i])
 
-            self.fnSaveSingleColumnsFromStatDict(self.spath+'/'+self.mcmcpath + "/sErr.dat",
+            self.fnSaveSingleColumnsFromStatDict(os.path.join(self.spath, self.mcmcpath, "sErr.dat"),
                                                  diStatRawData["Parameters"], skip_entries)
 
         return diStatRawData
@@ -449,12 +449,12 @@ class CBumpsInteractor(CDataInteractor):
 
     def fnRestoreState(self):
         import bumps.dream.state
-        fulldir = self.spath + '/' + self.mcmcpath
-        if path.isfile(fulldir + "/" + self.runfile + '.py'):
-            state = bumps.dream.state.load_state(fulldir + "/" + self.runfile)
+        fulldir = os.path.join(self.spath, self.mcmcpath)
+        if path.isfile(os.path.join(fulldir, self.runfile) + '.py'):
+            state = bumps.dream.state.load_state(os.path.join(fulldir, self.runfile))
             state.mark_outliers()  # ignore outlier chains
         else:
-            print("No file: " + fulldir + "/" + self.runfile + '.py')
+            print("No file: " + os.path.join(fulldir, self.runfile) + '.py')
             print("No state to reload.")
             state = None
         return state
@@ -500,7 +500,7 @@ class CRefl1DInteractor(CBumpsInteractor):
         on any object variable.
         """
 
-        file = open(self.spath+'/'+self.runfile+'.py', 'r+')
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
         data = file.readlines()
         file.close()
         smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
@@ -509,7 +509,7 @@ class CRefl1DInteractor(CBumpsInteractor):
             newdata.append(smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 '
                                       + str(fupperlimit) + r'\4', line))
 
-        file = open(self.spath+'/'+self.runfile+'.py', 'w')
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'w')
         file.writelines(newdata)
         file.close()
 
@@ -520,7 +520,7 @@ class CRefl1DInteractor(CBumpsInteractor):
 
     def fnRunMCMC(self, burn, steps, batch=False):
         # Previous Method of Calling the Shell
-        # lCommand = ['refl1d', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        # lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
         # if batch:
         #    lCommand.append('--batch')
         # lCommand.append('--store=' + self.mcmcpath)
@@ -529,10 +529,10 @@ class CRefl1DInteractor(CBumpsInteractor):
         # lCommand.append('--overwrite')
         # call(lCommand)
 
-        sys.argv = ['-p', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        sys.argv = ['-p', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             sys.argv.append('--batch')
-        sys.argv.append('--store=' + self.mcmcpath)
+        sys.argv.append('--store=' + os.path.join(self.spath, self.mcmcpath))
         sys.argv.append('--burn=' + str(burn))
         sys.argv.append('--steps=' + str(steps))
         sys.argv.append('--overwrite')
@@ -973,7 +973,8 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRunMCMC(self, burn, steps, batch=False, compile_setup=True):
         if compile_setup:
             self.fnMake()
-        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        lCommand = ['refl1d_cli.py', os.path.join(self.spath, self.runfile) + '.py', '--fit=dream', '--parallel',
+                    '--init=lhs']
         if batch:
             lCommand.append('--batch')
         lCommand.append('--store=' + self.spath+'/save')

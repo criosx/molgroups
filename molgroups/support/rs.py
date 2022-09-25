@@ -13,6 +13,7 @@ from subprocess import call, Popen
 from time import time, gmtime, sleep, ctime
 import numpy
 import pandas
+import os
 
 from molgroups.support import general
 from molgroups.support import rsdi
@@ -2220,9 +2221,9 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
                     sDirName = lSubProcesses[i][1]
                     pid = lSubProcesses[i][0]
 
-                    if path.isfile(sDirName + '/' + 'StatFinished'):  # look up if process is finished
+                    if path.isfile(os.path.join(sDirName, 'StatFinished')):  # look up if process is finished
                         if path.isfile(sMode + 'Err.dat'):
-                            with open(sDirName + '/' + sMode + 'Err.dat', 'r') as file:  # get statistical data from rs subdir
+                            with open(os.path.join(sDirName, sMode) + 'Err.dat', 'r') as file:  # get statistical data from rs subdir
                                 data = file.readlines()
                             data = data[1:]  # delete headerline
                             iFailureCounter = 0
@@ -2263,7 +2264,7 @@ def fMCMultiCore(iIterations=1000, fMCConvergence=0.01, iConvergence=0.01,
 
                         break  # because we changed len(lSubProcesses)
 
-                    if path.isfile(sDirName + '/' + 'StatAborted'):  # look up if process is finished
+                    if path.isfile(os.path.join(sDirName, 'StatAborted')):  # look up if process is finished
                         fCleanUpDirectory(sDirName)
                         if (time() - lSubProcesses[i][2]) < 180:
                             iExitFlag = 1
