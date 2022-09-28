@@ -9,12 +9,13 @@ import itertools
 from numpy import mean, std, exp, log, sqrt, log2, pi, e, ndarray
 from numpy.random import permutation
 from sklearn.mixture import BayesianGaussianMixture as GMM
+import os
 from os import path, mkdir
 from math import fabs, pow, floor, ceil
-from subprocess import call, Popen
+from subprocess import Popen
 from time import sleep
 import shutil
-from sys import argv
+
 LN2 = log(2)
 
 
@@ -114,7 +115,7 @@ def running_sqstd(current_sqstd, n, new_point, previous_mean, current_mean):
     return (current_sqstd * (n - 1) + (new_point - previous_mean) * (new_point - current_mean)) / n
 
 
-def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="./plot", ymin=None, ymax=None, levels=5,
+def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="plot", ymin=None, ymax=None, levels=5,
                  niceticks=False):
     import matplotlib.pyplot as plt
     import matplotlib
@@ -142,7 +143,7 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="./
     plt.close()
 
 
-def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='./plot', zmin=None, zmax=None, levels=20):
+def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -161,7 +162,7 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='./plot', zmin=None, z
     ax.set_ylabel(ylabel)
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
     fig.colorbar(cs)
-    plt.savefig('./plots/' + filename + '.pdf')
+    plt.savefig(path.join('plots', filename) + '.pdf')
     plt.close()
 
 
@@ -287,7 +288,7 @@ class Entropy:
                 axis.append(row.l_sim + i * row.step_sim)
             self.axes.append(axis)
 
-        if path.isfile(spath+'/results/MVN_entropy.npy'):
+        if path.isfile(path.join(spath, 'results', 'MVN_entropy.npy')):
             self.load_results(spath)
         else:
             self.results_mvn = np.zeros(self.steplist)
@@ -381,20 +382,21 @@ class Entropy:
         return priorentropy, priorentropy_marginal
 
     def load_results(self, dirname):
-        self.results_mvn = np.load(dirname+'/results/MVN_entropy.npy')
-        self.results_kdn = np.load(dirname+'/results/KDN_entropy.npy')
-        self.results_mvn_marginal = np.load(dirname+'/results/MVN_entropy_marginal.npy')
-        self.results_kdn_marginal = np.load(dirname+'/results/KDN_entropy_marginal.npy')
-        self.n_mvn = np.load(dirname+'/results/MVN_n.npy')
-        self.n_kdn = np.load(dirname+'/results/KDN_n.npy')
-        self.n_mvn_marginal = np.load(dirname+'/results/MVN_n_marginal.npy')
-        self.n_kdn_marginal = np.load(dirname+'/results/KDN_n_marginal.npy')
-        self.sqstd_mvn = np.load(dirname+'/results/MVN_sqstd.npy')
-        self.sqstd_kdn = np.load(dirname+'/results/KDN_sqstd.npy')
-        self.sqstd_mvn_marginal = np.load(dirname+'/results/MVN_sqstd_marginal.npy')
-        self.sqstd_kdn_marginal = np.load(dirname+'/results/KDN_sqstd_marginal.npy')
-        self.par_median = np.load(dirname+'/results/par_median.npy')
-        self.par_std = np.load(dirname+'/results/par_std.npy')
+        path1 = path.join(dirname, 'results')
+        self.results_mvn = np.load(path.join(path1, 'MVN_entropy.npy'))
+        self.results_kdn = np.load(path.join(path1, 'KDN_entropy.npy'))
+        self.results_mvn_marginal = np.load(path.join(path1, 'MVN_entropy_marginal.npy'))
+        self.results_kdn_marginal = np.load(path.join(path1, 'KDN_entropy_marginal.npy'))
+        self.n_mvn = np.load(path.join(path1, 'MVN_n.npy'))
+        self.n_kdn = np.load(path.join(path1, 'KDN_n.npy'))
+        self.n_mvn_marginal = np.load(path.join(path1, 'MVN_n_marginal.npy'))
+        self.n_kdn_marginal = np.load(path.join(path1, 'KDN_n_marginal.npy'))
+        self.sqstd_mvn = np.load(path.join(path1, 'MVN_sqstd.npy'))
+        self.sqstd_kdn = np.load(path.join(path1, 'KDN_sqstd.npy'))
+        self.sqstd_mvn_marginal = np.load(path.join(path1, 'MVN_sqstd_marginal.npy'))
+        self.sqstd_kdn_marginal = np.load(path.join(path1, 'KDN_sqstd_marginal.npy'))
+        self.par_median = np.load(path.join(path1, 'par_median.npy'))
+        self.par_std = np.load(path.join(path1, 'par_std.npy'))
 
     def runmcmc(self, molstat_instance, iteration, dirname, fulldirname):
         # wait for a job to finish before submitting next cluster job
@@ -409,11 +411,11 @@ class Entropy:
             # replaces the placeholders in slurmscript with variables above
             script = self.slurmscript.format(**locals())
 
-            file = open(fulldirname + '/runscript', 'w')
+            file = open(path.join(fulldirname, 'runscript'), 'w')
             file.writelines(script)
             file.close()
 
-            lCommand = ['sbatch', fulldirname + '/runscript']
+            lCommand = ['sbatch', path.join(fulldirname, 'runscript')]
             Popen(lCommand)
             self.joblist.append(iteration)
 
@@ -423,13 +425,14 @@ class Entropy:
 
     def plot_results(self):
         import matplotlib.pyplot as plt
-        import matplotlib
 
         if not path.isdir('plots'):
             mkdir('plots')
 
         onecolormaps = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
         ec = plt.cm.coolwarm
+
+        path1 = path.join(self.spath, 'plots')
 
         if self.plotlimits_filename != '':
             plotlimits = True
@@ -445,34 +448,34 @@ class Entropy:
             ax0 = self.axes[0]
             sp0 = self.steppar['par'].tolist()[0]
             save_plot_1d(ax0, self.results_mvn, np.sqrt(self.sqstd_mvn), sp0, 'Entropy [bits]',
-                         filename=self.spath+'/plots/MVN_entropy')
+                         filename=path.join(path1, 'MVN_entropy'))
             save_plot_1d(ax0, self.results_kdn, np.sqrt(self.sqstd_kdn), sp0, 'Entropy [bits]',
-                         filename=self.spath+'/plots/KDN_entropy')
+                         filename=path.join(path1, 'KDN_entropy'))
             save_plot_1d(ax0, self.results_mvn_marginal, np.sqrt(self.sqstd_mvn_marginal), sp0, 'Entropy [bits]',
-                         filename=self.spath+'/plots/MVN_entropy_marginal')
+                         filename=path.join(path1, 'MVN_entropy_marginal'))
             save_plot_1d(ax0, self.results_kdn_marginal, np.sqrt(self.sqstd_kdn_marginal), sp0, 'Entropy [bits]',
-                         filename=self.spath+'/plots/KDN_entropy_marginal')
+                         filename=path.join(path1, 'KDN_entropy_marginal'))
             save_plot_1d(ax0, self.priorentropy - self.results_mvn, np.sqrt(self.sqstd_mvn), sp0,
-                         'information gain [bits]', filename=self.spath+'/plots/MVN_infocontent', ymin=0)
+                         'information gain [bits]', filename=path.join(path1, 'MVN_infocontent'), ymin=0)
             save_plot_1d(ax0, self.priorentropy - self.results_kdn, np.sqrt(self.sqstd_kdn), sp0,
-                         'information gain [bits]', filename=self.spath+'/plots/KDN_infocontent', ymin=0)
+                         'information gain [bits]', filename=path.join(path1, 'KDN_infocontent'), ymin=0)
             save_plot_1d(ax0, self.priorentropy_marginal - self.results_mvn_marginal, np.sqrt(self.sqstd_mvn_marginal),
-                         sp0, 'information gain [bits]', filename=self.spath+'/plots/MVN_infocontent_marginal', ymin=0,
+                         sp0, 'information gain [bits]', filename=path.join(path1, 'MVN_infocontent_marginal'), ymin=0,
                          ymax=self.upper_info_plotlevel)
             save_plot_1d(ax0, self.priorentropy_marginal - self.results_kdn_marginal, np.sqrt(self.sqstd_kdn_marginal),
-                         sp0, 'information gain [bits]', filename=self.spath+'/plots/KDN_infocontent_marginal', ymin=0,
+                         sp0, 'information gain [bits]', filename=path.join(path1, 'KDN_infocontent_marginal'), ymin=0,
                          ymax=self.upper_info_plotlevel)
-            save_plot_1d(ax0, self.n_mvn, None, sp0, 'computations', filename=self.spath+'/plots/MVN_n', ymin=0)
-            save_plot_1d(ax0, self.n_kdn, None, sp0, 'computations', filename=self.spath+'/plots/KDN_n', ymin=0)
+            save_plot_1d(ax0, self.n_mvn, None, sp0, 'computations', filename=path.join(path1, 'MVN_n'), ymin=0)
+            save_plot_1d(ax0, self.n_kdn, None, sp0, 'computations', filename=path.join(path1, 'KDN_n'), ymin=0)
             save_plot_1d(ax0, self.n_mvn_marginal, None, sp0, 'computations',
-                         filename=self.spath+'/plots/MVN_n_marginal', ymin=0)
+                         filename=path.join(path1, 'MVN_n_marginal'), ymin=0)
             save_plot_1d(ax0, self.n_kdn_marginal, None, sp0, 'computations',
-                         filename=self.spath+'/plots/KDN_n_marginal', ymin=0)
+                         filename=path.join(path1, 'KDN_n_marginal'), ymin=0)
 
             i = 0
             for parname in self.parlist:
                 save_plot_1d(ax0, self.par_median[i], self.par_std[i], sp0, parname,
-                             filename=self.spath+'/plots/Par_' + parname + '_median')
+                             filename=path.join(path1, 'Par_' +  parname + '_median'))
                 i += 1
 
         elif len(self.steplist) == 2:
@@ -482,31 +485,31 @@ class Entropy:
             sp1 = self.steppar['par'].tolist()[0]
             sp0 = self.steppar['par'].tolist()[1]
 
-            save_plot_2d(ax0, ax1, self.results_mvn, sp0, sp1, ec, filename=self.spath+'/plots/MVN_entropy')
-            save_plot_2d(ax0, ax1, self.results_kdn, sp0, sp1, ec, filename=self.spath+'/plots/KDN_entropy')
+            save_plot_2d(ax0, ax1, self.results_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_entropy'))
+            save_plot_2d(ax0, ax1, self.results_kdn, sp0, sp1, ec, filename=path.join(path1, 'KDN_entropy'))
             save_plot_2d(ax0, ax1, self.results_mvn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/MVN_entropy_marginal')
+                         filename=path.join(path1, 'MVN_entropy_marginal'))
             save_plot_2d(ax0, ax1, self.results_kdn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/KDN_entropy_marginal')
+                         filename=path.join(path1, 'KDN_entropy_marginal'))
             save_plot_2d(ax0, ax1, self.priorentropy - self.results_mvn, sp0, sp1, ec,
-                         filename=self.spath+'/plots/MVN_infocontent', zmin=0)
+                         filename=path.join(path1, 'MVN_infocontent'), zmin=0)
             save_plot_2d(ax0, ax1, self.priorentropy - self.results_kdn, sp0, sp1, ec,
-                         filename=self.spath+'/plots/KDN_infocontent', zmin=0)
+                         filename=path.join(path1, 'KDN_infocontent'), zmin=0)
             save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_mvn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/MVN_infocontent_marginal', zmin=0, zmax=self.upper_info_plotlevel)
+                         filename=path.join(path1, 'MVN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
             save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_kdn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/KDN_infocontent_marginal', zmin=0, zmax=self.upper_info_plotlevel)
-            save_plot_2d(ax0, ax1, self.sqstd_mvn, sp0, sp1, ec, filename=self.spath+'/plots/MVN_sqstd', zmin=0)
-            save_plot_2d(ax0, ax1, self.sqstd_kdn, sp0, sp1, ec, filename=self.spath+'/plots/KDN_sqstd', zmin=0)
+                         filename=path.join(path1, 'KDN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
+            save_plot_2d(ax0, ax1, self.sqstd_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_sqstd'), zmin=0)
+            save_plot_2d(ax0, ax1, self.sqstd_kdn, sp0, sp1, ec, filename=path.join(path1, 'KDN_sqstd'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_mvn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/MVN_sqstd_marginal', zmin=0)
+                         filename=path.join(path1, 'MVN_sqstd_marginal'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_kdn_marginal, sp0, sp1, ec,
-                         filename=self.spath+'/plots/KDN_sqstd_marginal', zmin=0)
-            save_plot_2d(ax0, ax1, self.n_mvn, sp0, sp1, ec, filename=self.spath+'/plots/MVN_n', zmin=0)
-            save_plot_2d(ax0, ax1, self.n_kdn, sp0, sp1, ec, filename=self.spath+'/plots/KDN_n', zmin=0)
-            save_plot_2d(ax0, ax1, self.n_mvn_marginal, sp0, sp1, ec, filename=self.spath+'/plots/MVN_n_marginal',
+                         filename=path.join(path1, 'KDN_sqstd_marginal'), zmin=0)
+            save_plot_2d(ax0, ax1, self.n_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_n'), zmin=0)
+            save_plot_2d(ax0, ax1, self.n_kdn, sp0, sp1, ec, filename=path.join(path1, 'KDN_n'), zmin=0)
+            save_plot_2d(ax0, ax1, self.n_mvn_marginal, sp0, sp1, ec, filename=path.join(path1, 'MVN_n_marginal'),
                          zmin=0)
-            save_plot_2d(ax0, ax1, self.n_kdn_marginal, sp0, sp1, ec, filename=self.spath+'/plots/KDN_n_marginal',
+            save_plot_2d(ax0, ax1, self.n_kdn_marginal, sp0, sp1, ec, filename=path.join(path1, 'KDN_n_marginal'),
                          zmin=0)
 
             i = 0
@@ -517,10 +520,9 @@ class Entropy:
                 else:
                     zmax = None
                 save_plot_2d(ax0, ax1, self.par_median[i], sp0, sp1, onecolormaps[j],
-                             filename=self.spath+'/plots/Par_' + parname + '_median')
+                             filename=path.join(path1, 'Par_' + parname + '_median'))
                 save_plot_2d(ax0, ax1, self.par_std[i], sp0, sp1, onecolormaps[j],
-                             filename=self.spath+'/plots/Par_' + parname + '_std', zmin=0,
-                             zmax=zmax)
+                             filename=path.join(path1, 'Par_' + parname + '_std'), zmin=0, zmax=zmax)
                 i += 1
                 j += 1
                 if j == len(onecolormaps):
@@ -533,113 +535,116 @@ class Entropy:
             sp1 = self.steppar['par'].tolist()[2]
             for slice in range(self.results_kdn.shape[0]):
                 save_plot_2d(ax1, ax2, self.results_mvn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_entropy_' + str(slice))
+                             filename=path.join(path1, 'MVN_entropy_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.results_kdn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_entropy_' + str(slice))
+                             filename=path.join(path1, 'KDN_entropy_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.results_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_entropy_marginal_' + str(slice))
+                             filename=path.join(path1, 'MVN_entropy_marginal_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.results_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_entropy_marginal_' + str(slice))
+                             filename=path.join(path1, 'MVN_entropy_marginal_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.priorentropy - self.results_mvn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_infocontent_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'MVN_infocontent_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.priorentropy - self.results_kdn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_infocontent_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'KDN_infocontent_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_mvn_marginal[slice], sp1, sp2,
-                             ec, filename=self.spath+'/plots/MVN_infocontent_marginal_' + str(slice), zmin=0)
+                             ec, filename=path.join(path1, 'MVN_infocontent_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_kdn_marginal[slice], sp1, sp2,
-                             ec, filename=self.spath+'/plots/KDN_infocontent_marginal_' + str(slice), zmin=0)
+                             ec, filename=path.join(path1, 'KDN_infocontent_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.sqstd_mvn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_sqstd_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'MVN_sqstd_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.sqstd_kdn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_sqstd_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'KDN_sqstd_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.sqstd_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_sqstd_marginal_' + str(slice),
-                             zmin=0)
+                             filename=path.join(path1, 'MVN_sqstd_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.sqstd_kdn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_sqstd_marginal_' + str(slice),
-                             zmin=0)
+                             filename=path.join(path1, 'KDN_sqstd_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.n_mvn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_n_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'MVN_n_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.n_kdn[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_n_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'KDN_n_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.n_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/MVN_n_marginal_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'MVN_n_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.n_kdn_marginal[slice], sp1, sp2, ec,
-                             filename=self.spath+'/plots/KDN_n_marginal_' + str(slice), zmin=0)
+                             filename=path.join(path1, 'KDN_n_marginal_' + str(slice)), zmin=0)
 
     def save_results(self, dirname):
-        if not path.isdir(dirname+'/results'):
-            mkdir(dirname+'/results')
-        np.save(dirname+'/results/KDN_entropy', self.results_kdn, allow_pickle=False)
-        np.save(dirname+'/results/MVN_entropy', self.results_mvn, allow_pickle=False)
-        np.save(dirname+'/results/KDN_entropy_marginal', self.results_kdn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/MVN_entropy_marginal', self.results_mvn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/KDN_infocontent', self.priorentropy - self.results_kdn, allow_pickle=False)
-        np.save(dirname+'/results/MVN_infocontent', self.priorentropy - self.results_mvn, allow_pickle=False)
-        np.save(dirname+'/results/KDN_infocontent_marginal', self.priorentropy_marginal - self.results_kdn_marginal,
+        path1 = path.join(dirname, 'results')
+        if not path.isdir(path1):
+            mkdir(path1)
+        np.save(path.join(path1, 'KDN_entropy'), self.results_kdn, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_entropy'), self.results_mvn, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_entropy_marginal'), self.results_kdn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_entropy_marginal'), self.results_mvn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_infocontent'), self.priorentropy - self.results_kdn, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_infocontent'), self.priorentropy - self.results_mvn, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_infocontent_marginal'), self.priorentropy_marginal - self.results_kdn_marginal,
                 allow_pickle=False)
-        np.save(dirname+'/results/MVN_infocontent_marginal', self.priorentropy_marginal - self.results_mvn_marginal,
+        np.save(path.join(path1, 'MVN_infocontent_marginal'), self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
-        np.save(dirname+'/results/KDN_sqstd', self.sqstd_kdn, allow_pickle=False)
-        np.save(dirname+'/results/MVN_sqstd', self.sqstd_mvn, allow_pickle=False)
-        np.save(dirname+'/results/KDN_sqstd_marginal', self.sqstd_kdn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/MVN_sqstd_marginal', self.sqstd_mvn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/KDN_n', self.n_kdn, allow_pickle=False)
-        np.save(dirname+'/results/MVN_n', self.n_mvn, allow_pickle=False)
-        np.save(dirname+'/results/KDN_n_marginal', self.n_kdn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/MVN_n_marginal', self.n_mvn_marginal, allow_pickle=False)
-        np.save(dirname+'/results/par_median', self.par_median, allow_pickle=False)
-        np.save(dirname+'/results/par_std', self.par_std, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_sqstd'), self.sqstd_kdn, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_sqstd'), self.sqstd_mvn, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_sqstd_marginal'), self.sqstd_kdn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_sqstd_marginal'), self.sqstd_mvn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_n'), self.n_kdn, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_n'), self.n_mvn, allow_pickle=False)
+        np.save(path.join(path1, 'KDN_n_marginal'), self.n_kdn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'MVN_n_marginal'), self.n_mvn_marginal, allow_pickle=False)
+        np.save(path.join(path1, 'par_median'), self.par_median, allow_pickle=False)
+        np.save(path.join(path1, 'par_std'), self.par_std, allow_pickle=False)
 
         # save to txt when not more than two-dimensional array
         if len(self.steplist) <= 2:
-            np.savetxt(dirname+'/results/MVN_entropy.txt', self.results_mvn)
-            np.savetxt(dirname+'/results/KDN_entropy.txt', self.results_kdn)
-            np.savetxt(dirname+'/results/MVN_entropy_marginal.txt', self.results_mvn_marginal)
-            np.savetxt(dirname+'/results/KDN_entropy_marginal.txt', self.results_kdn_marginal)
-            np.savetxt(dirname+'/results/MVN_infocontent.txt', self.priorentropy - self.results_mvn)
-            np.savetxt(dirname+'/results/KDN_infocontent.txt', self.priorentropy - self.results_kdn)
-            np.savetxt(dirname+'/results/MVN_infocontent_marginal.txt', self.priorentropy_marginal -
+            np.savetxt(path.join(path1, 'MVN_entropy.txt'), self.results_mvn)
+            np.savetxt(path.join(path1, 'KDN_entropy.txt'), self.results_kdn)
+            np.savetxt(path.join(path1, 'MVN_entropy_marginal.txt'), self.results_mvn_marginal)
+            np.savetxt(path.join(path1, 'KDN_entropy_marginal.txt'), self.results_kdn_marginal)
+            np.savetxt(path.join(path1, 'MVN_infocontent.txt'), self.priorentropy - self.results_mvn)
+            np.savetxt(path.join(path1, 'KDN_infocontent.txt'), self.priorentropy - self.results_kdn)
+            np.savetxt(path.join(path1, 'MVN_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_mvn_marginal)
-            np.savetxt(dirname+'/results/KDN_infocontent_marginal.txt', self.priorentropy_marginal -
+            np.savetxt(path.join(path1, 'KDN_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_kdn_marginal)
-            np.savetxt(dirname+'/results/MVN_sqstd.txt', self.sqstd_mvn)
-            np.savetxt(dirname+'/results/KDN_sqstd.txt', self.sqstd_kdn)
-            np.savetxt(dirname+'/results/MVN_sqstd_marginal.txt', self.sqstd_mvn_marginal)
-            np.savetxt(dirname+'/results/KDN_sqstd_marginal.txt', self.sqstd_kdn_marginal)
-            np.savetxt(dirname+'/results/MVN_n.txt', self.n_mvn)
-            np.savetxt(dirname+'/results/KDN_n.txt', self.n_kdn)
-            np.savetxt(dirname+'/results/MVN_n_marginal.txt', self.n_mvn_marginal)
-            np.savetxt(dirname+'/results/KDN_n_marginal.txt', self.n_kdn_marginal)
+            np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn)
+            np.savetxt(path.join(path1, 'KDN_sqstd.txt'), self.sqstd_kdn)
+            np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal)
+            np.savetxt(path.join(path1, 'KDN_sqstd_marginal.txt'), self.sqstd_kdn_marginal)
+            np.savetxt(path.join(path1, 'MVN_n.txt'), self.n_mvn)
+            np.savetxt(path.join(path1, 'KDN_n.txt'), self.n_kdn)
+            np.savetxt(path.join(path1, 'MVN_n_marginal.txt'), self.n_mvn_marginal)
+            np.savetxt(path.join(path1, 'KDN_n_marginal.txt'), self.n_kdn_marginal)
             i = 0
             for parname in self.parlist:
-                np.savetxt(dirname+'/results/Par_' + parname + '_median.txt', self.par_median[i])
-                np.savetxt(dirname+'/results/Par_' + parname + '_std.txt', self.par_std[i])
+                np.savetxt(path.join(path1, 'Par_' + parname + '_median.txt'), self.par_median[i])
+                np.savetxt(path.join(path1, 'Par_' + parname + '_std.txt'), self.par_std[i])
                 i += 1
 
         # save three-dimensional array in slices of the first parameter
         if len(self.steplist) == 3:
             for slice in range(self.results_kdn.shape[0]):
-                np.savetxt(dirname+'/results/MVN_entropy_' + str(slice) + '.txt', self.results_mvn[slice])
-                np.savetxt(dirname+'/results/KDN_entropy_' + str(slice) + '.txt', self.results_kdn[slice])
-                np.savetxt(dirname+'/results/MVN_entropy_marginal_' + str(slice) + '.txt', self.results_mvn_marginal[slice])
-                np.savetxt(dirname+'/results/KDN_entropy_marginal_' + str(slice) + '.txt', self.results_kdn_marginal[slice])
-                np.savetxt(dirname+'/results/MVN_infocontent_' + str(slice) + '.txt', self.priorentropy -
+                np.savetxt(path.join(path1, 'MVN_entropy_' + str(slice) + '.txt'), self.results_mvn[slice])
+                np.savetxt(path.join(path1, 'KDN_entropy_' + str(slice) + '.txt'), self.results_kdn[slice])
+                np.savetxt(path.join(path1, 'MVN_entropy_marginal_' + str(slice) + '.txt'),
+                           self.results_mvn_marginal[slice])
+                np.savetxt(path.join(path1, 'KDN_entropy_marginal_' + str(slice) + '.txt'),
+                           self.results_kdn_marginal[slice])
+                np.savetxt(path.join(path1, 'MVN_infocontent_' + str(slice) + '.txt'), self.priorentropy -
                            self.results_mvn[slice])
-                np.savetxt(dirname+'/results/KDN_infocontent_' + str(slice) + '.txt', self.priorentropy -
+                np.savetxt(path.join(path1, 'KDN_infocontent_' + str(slice) + '.txt'), self.priorentropy -
                            self.results_kdn[slice])
-                np.savetxt(dirname+'/results/MVN_infocontent_marginal_' + str(slice) + '.txt',
+                np.savetxt(path.join(path1, 'MVN_infocontent_marginal_' + str(slice) + '.txt'),
                            self.priorentropy_marginal - self.results_mvn_marginal[slice])
-                np.savetxt(dirname+'/results/KDN_infocontent_marginal_' + str(slice) + '.txt',
+                np.savetxt(path.join(path1, 'KDN_infocontent_marginal_' + str(slice) + '.txt'),
                            self.priorentropy_marginal - self.results_kdn_marginal[slice])
-                np.savetxt(dirname+'/results/MVN_sqstd_' + str(slice) + '.txt', self.sqstd_mvn[slice])
-                np.savetxt(dirname+'/results/KDN_sqstd_' + str(slice) + '.txt', self.sqstd_kdn[slice])
-                np.savetxt(dirname+'/results/MVN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_mvn_marginal[slice])
-                np.savetxt(dirname+'/results/KDN_sqstd_marginal_' + str(slice) + '.txt', self.sqstd_kdn_marginal[slice])
-                np.savetxt(dirname+'/results/MVN_n_' + str(slice) + '.txt', self.n_mvn[slice])
-                np.savetxt(dirname+'/results/KDN_n_' + str(slice) + '.txt', self.n_kdn[slice])
-                np.savetxt(dirname+'/results/MVN_n_marginal_' + str(slice) + '.txt', self.n_mvn_marginal[slice])
-                np.savetxt(dirname+'/results/KDN_n_marginal_' + str(slice) + '.txt', self.n_kdn_marginal[slice])
+                np.savetxt(path.join(path1, 'MVN_sqstd_' + str(slice) + '.txt'), self.sqstd_mvn[slice])
+                np.savetxt(path.join(path1, 'KDN_sqstd_' + str(slice) + '.txt'), self.sqstd_kdn[slice])
+                np.savetxt(path.join(path1, 'MVN_sqstd_marginal_' + str(slice) + '.txt'),
+                           self.sqstd_mvn_marginal[slice])
+                np.savetxt(path.join(path1, 'KDN_sqstd_marginal_' + str(slice) + '.txt'),
+                           self.sqstd_kdn_marginal[slice])
+                np.savetxt(path.join(path1, 'MVN_n_' + str(slice) + '.txt'), self.n_mvn[slice])
+                np.savetxt(path.join(path1, 'KDN_n_' + str(slice) + '.txt'), self.n_kdn[slice])
+                np.savetxt(path.join(path1, 'MVN_n_marginal_' + str(slice) + '.txt'), self.n_mvn_marginal[slice])
+                np.savetxt(path.join(path1, 'KDN_n_marginal_' + str(slice) + '.txt'), self.n_kdn_marginal[slice])
 
     def waitforjob(self, bFinish=False):
         # finish flag means that parent is waiting for all jobs to finish and not because of a too long
@@ -648,7 +653,7 @@ class Entropy:
             repeat = True
             while repeat:
                 for job in self.joblist:
-                    if path.isfile(self.spath+'/iteration_' + str(job) + '/save/'+self.runfile+'-chain.mc'):
+                    if path.isfile(path.join(self.spath, 'iteration_' + str(job), 'save', self.runfile + '-chain.mc')):
                         # wait 2 minutes to allow all output files to be written
                         sleep(180)
                         # zip up finished job
@@ -785,13 +790,14 @@ class Entropy:
                     else:
                         self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
 
-            self.simpar.to_csv(self.spath + '/simpar.dat', sep=' ', header=None, index=False)
+            self.simpar.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
             return pre, qrange
 
         def work_on_index(iteration, it, itindex):
             dirname = 'iteration_' + str(iteration)
-            fulldirname = self.spath + '/' + dirname
-            chainname = fulldirname + '/save/'+self.runfile+'-chain.mc'
+            fulldirname = path.join(self.spath, dirname)
+            path1 = path.join(fulldirname, 'save')
+            chainname = path.join(path1, self.runfile+'-chain.mc')
 
             # fetch mode and cluster mode are exclusive
             if not self.bFetchMode:
@@ -800,14 +806,14 @@ class Entropy:
                 # be lacking a results directory, which is needed for restoring a state/parameters
                 molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
                                                 runfile=self.runfile, load_state=False)
-                self.molstat.Interactor.fnBackup(target=self.spath + '/' 'simbackup')
+                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
                 pre, qrange = set_sim_pars_for_index(it)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
                 self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
                 # previous save needs to be removed as output serves as flag for HPC job termination
-                if path.isdir(fulldirname+'/save'):
-                    shutil.rmtree(fulldirname + '/save')
-                self.molstat.Interactor.fnRemoveBackup(target=self.spath + '/' 'simbackup')
+                if path.isdir(path1):
+                    shutil.rmtree(path1)
+                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
                 self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
 
             # Do not run entropy calculation when on cluster.
@@ -819,12 +825,12 @@ class Entropy:
 
             # delete big files except in Cluster mode. They are needed there for future fetching
             if self.deldir and not self.bClusterMode:
-                call(['rm', fulldirname + '/save/'+self.runfile+'-point.mc'])
-                call(['rm', fulldirname + '/save/'+self.runfile+'-chain.mc'])
-                call(['rm', fulldirname + '/save/'+self.runfile+'-stats.mc'])
-                call(['rm', fulldirname + '/save/'+self.runfile+'-point.mc.gz'])
-                call(['rm', fulldirname + '/save/'+self.runfile+'-chain.mc.gz'])
-                call(['rm', fulldirname + '/save/'+self.runfile+'-stats.mc.gz'])
+                os.remove(path.join(path1, self.runfile+'-point.mc'))
+                os.remove(path.join(path1, self.runfile+'-chain.mc'))
+                os.remove(path.join(path1, self.runfile+'-stats.mc'))
+                os.remove(path.join(path1, self.runfile+'-point.mc.gz'))
+                os.remove(path.join(path1, self.runfile+'-chain.mc.gz'))
+                os.remove(path.join(path1, self.runfile+'-stats.mc.gz'))
 
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False

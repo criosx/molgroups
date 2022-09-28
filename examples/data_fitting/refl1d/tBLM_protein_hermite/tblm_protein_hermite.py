@@ -8,13 +8,13 @@ from refl1d.flayer import FunctionalProfile
 
 # === Constant definition section ===
 # Canvas
-DIMENSION = 450
+DIMENSION = 300
 STEPSIZE = 0.5
 
 # Hermite Spline
-CONTROLPOINTS = 8
+CONTROLPOINTS = 6
 SPACING = 15.0
-PENETRATION = 42
+PENETRATION = 12
 dDp = [None] * CONTROLPOINTS
 dVf = [None] * CONTROLPOINTS
 

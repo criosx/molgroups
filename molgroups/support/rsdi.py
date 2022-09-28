@@ -520,14 +520,16 @@ class CRefl1DInteractor(CBumpsInteractor):
 
     def fnRunMCMC(self, burn, steps, batch=False):
         # Previous Method of Calling the Shell
-        # lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        # if batch:
-        #    lCommand.append('--batch')
-        # lCommand.append('--store=' + self.mcmcpath)
-        # lCommand.append('--burn=' + str(burn))
-        # lCommand.append('--steps=' + str(steps))
-        # lCommand.append('--overwrite')
-        # call(lCommand)
+        '''
+        lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+           lCommand.append('--batch')
+        lCommand.append('--store=' + self.mcmcpath)
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        lCommand.append('--overwrite')
+        call(lCommand)
+        '''
 
         sys.argv = ['-p', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:

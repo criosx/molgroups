@@ -1,0 +1,371 @@
+# steps: 200, # draws: 36000
+<xml><var name="In" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="8" isIPythonHidden="True" />
+<var name="Out" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="___" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__builtin__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__builtins__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__doc__" type="str" qualifier="builtins" value="Automatically created module for IPython interactive environment" isIPythonHidden="True" />
+<var name="__loader__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__name__" type="str" qualifier="builtins" value="__main__" isIPythonHidden="True" />
+<var name="__package__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__spec__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="_dh" type="list" qualifier="builtins" value="%5B%27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d%27%5D" isContainer="True" shape="1" isIPythonHidden="True" />
+<var name="_exit_code" type="int" qualifier="builtins" value="0" />
+<var name="_i" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_i1" type="str" qualifier="builtins" value="%21pwd%0Aimport shutil%0Aimport os%0A%0Afrom molgroups.support import molstat%0Afrom molgroups.infotheory import entropy" isIPythonHidden="True" />
+<var name="_i2" type="str" qualifier="builtins" value="%25%25writefile ssblm.py%0A%23%23 === Import section ===%0Aimport sys%0A%23 append path to your molgroups%2C or just link molgroups to your same directory%0Aimport numpy as np%0Afrom molgroups import mol%0Afrom molgroups import lipids%0Afrom molgroups import components as cmp%0Afrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%0Afrom refl1d.flayer import FunctionalProfile%0A%0A%23%23 === Film structure definition section ===%0A%0A%23%23%23 Bilayer profile definition function%0A%0Adef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%0A    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%0A    %0A    %23 Set unused parameters%0A    l_siox = 0.0 %23 could make a parameter in the future%0A    rho_siox = 0.0%0A%0A    %23 Scale all SLDs from Refl1D units %281e-6 Ang%5E-2%29 to molgroups units %28Ang%5E-2%29%0A    bulknsld %2A= 1e-6%0A    rho_substrate %2A= 1e-6%0A%0A    blm.fnSet%28sigma=sigma%2C bulknsld=bulknsld%2C global_rough=global_rou..." isIPythonHidden="True" />
+<var name="_i3" type="str" qualifier="builtins" value="shutil.copyfile%28%27ch060.refl%27%2C %27sim1.dat%27%29%0Ashutil.copyfile%28%27ch061.refl%27%2C %27sim0.dat%27%29%0A%0Asetupdir = os.getcwd%28%29%0Astore = %22T%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0A%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_i4" type="str" qualifier="builtins" value="%25%25writefile entropypar.dat%0Ai background_0 1.03489e-06 -1e-07 1e-05%0Ai intensity 1.0 0.9 1.05%0Ai sample_broadening 0 -0.005 0.02%0Ai theta_offset 0.0 -0.015 0.005%0Ai siox_interface 6.85069 2 9%0Ai rho_siox 3.39556 3.1 5.1%0Ai siox_thickness 14.9832 5 40%0Ai rho_tiox 2.32129 1.163 3.163 -1 10 1%0Ai tiox_thickness 110.913 66.379 266.38%0Ai tiox_roughness 6.8149 2 9%0Ad inner_acyl_chain_thickness 11.1605 8 16%0Ad outer_acyl_chain_thickness 13.6487 8 16%0Ad submembrane_thickness 13.9116 0 50%0Ad bilayer_roughness 4.84472 2 9%0Ad volume_fraction_bilayer 0.906858 0 1%0Ai rho_solv_0 6.21572 5.3 6.5%0Ai background_1 3.95582e-06 -1e-07 1e-05%0Ai rho_solv_1 -0.550133 -0.6 0.6%0An prefactor 2.58496" isIPythonHidden="True" />
+<var name="_i5" type="str" qualifier="builtins" value="%23 general fit setup%0Asetupdir = os.getcwd%28%29%0Arunfile = %22ssblm%22%0Astore = %27T%27%0Afitsource = %22refl1d%22%0A%0A%23 particular entropy setup%0Aburn = 4000%0Asteps = 200%0Aconvergence = 2.0%0Aminiter = 1%0Amode = %27water%27%0AbClusterMode = False%0AbFetchMode = False%0Atime = 2%0Abcalcsymmetric = True%0Aupper_info_plotlevel = None%0Aplotlimits_filename = %22%22%0Acalcsingle = False%0A%0A%23 setup batchscript for SLURM %28if used%29%0Ascript = %5B%5D%0Ascript.append%28%27%23%21/bin/bash%5Cn%27%29%0Ascript.append%28%27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%29%0Ascript.append%28%27%23SBATCH -A mc4s9np%5Cn%27%29%0Ascript.append%28%27%23SBATCH -p RM%5Cn%27%29%0Ascript.append%28%27%23SBATCH -t 0%27 %2B str%28time%29 %2B %27%3A00%3A00%5Cn%27%29%0Ascript.append%28%27%23SBATCH -N 4%5Cn%27%29%0Ascript.append%28%27%23SBATCH --ntasks-per-node 28%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27set %2Bx%5Cn%27%29%0Ascript.append%28%27cd %24SLURM_SUBMIT_DIR%5Cn%27%29%0A%23 script.append%28%27cd %27%2Bdirname%2B%27%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27module load python/2.7.11_gcc%5Cn%27%29%0Ascript.append%28%27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%29%0Ascript.append%28%27..." isIPythonHidden="True" />
+<var name="_i6" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_i7" type="str" qualifier="builtins" value="entr.run_optimization%28%29" isIPythonHidden="True" />
+<var name="_ih" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="8" isIPythonHidden="True" />
+<var name="_ii" type="str" qualifier="builtins" value="%23 general fit setup%0Asetupdir = os.getcwd%28%29%0Arunfile = %22ssblm%22%0Astore = %27T%27%0Afitsource = %22refl1d%22%0A%0A%23 particular entropy setup%0Aburn = 4000%0Asteps = 200%0Aconvergence = 2.0%0Aminiter = 1%0Amode = %27water%27%0AbClusterMode = False%0AbFetchMode = False%0Atime = 2%0Abcalcsymmetric = True%0Aupper_info_plotlevel = None%0Aplotlimits_filename = %22%22%0Acalcsingle = False%0A%0A%23 setup batchscript for SLURM %28if used%29%0Ascript = %5B%5D%0Ascript.append%28%27%23%21/bin/bash%5Cn%27%29%0Ascript.append%28%27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%29%0Ascript.append%28%27%23SBATCH -A mc4s9np%5Cn%27%29%0Ascript.append%28%27%23SBATCH -p RM%5Cn%27%29%0Ascript.append%28%27%23SBATCH -t 0%27 %2B str%28time%29 %2B %27%3A00%3A00%5Cn%27%29%0Ascript.append%28%27%23SBATCH -N 4%5Cn%27%29%0Ascript.append%28%27%23SBATCH --ntasks-per-node 28%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27set %2Bx%5Cn%27%29%0Ascript.append%28%27cd %24SLURM_SUBMIT_DIR%5Cn%27%29%0A%23 script.append%28%27cd %27%2Bdirname%2B%27%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27module load python/2.7.11_gcc%5Cn%27%29%0Ascript.append%28%27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%29%0Ascript.append%28%27..." isIPythonHidden="True" />
+<var name="_iii" type="str" qualifier="builtins" value="%25%25writefile entropypar.dat%0Ai background_0 1.03489e-06 -1e-07 1e-05%0Ai intensity 1.0 0.9 1.05%0Ai sample_broadening 0 -0.005 0.02%0Ai theta_offset 0.0 -0.015 0.005%0Ai siox_interface 6.85069 2 9%0Ai rho_siox 3.39556 3.1 5.1%0Ai siox_thickness 14.9832 5 40%0Ai rho_tiox 2.32129 1.163 3.163 -1 10 1%0Ai tiox_thickness 110.913 66.379 266.38%0Ai tiox_roughness 6.8149 2 9%0Ad inner_acyl_chain_thickness 11.1605 8 16%0Ad outer_acyl_chain_thickness 13.6487 8 16%0Ad submembrane_thickness 13.9116 0 50%0Ad bilayer_roughness 4.84472 2 9%0Ad volume_fraction_bilayer 0.906858 0 1%0Ai rho_solv_0 6.21572 5.3 6.5%0Ai background_1 3.95582e-06 -1e-07 1e-05%0Ai rho_solv_1 -0.550133 -0.6 0.6%0An prefactor 2.58496" isIPythonHidden="True" />
+<var name="_oh" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_pydevd_bundle" type="module" qualifier="builtins" value="%3Cmodule %27_pydevd_bundle%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers/pydev/_pydevd_bundle/__init__.py%27&gt;" isContainer="True" />
+<var name="bClusterMode" type="bool" qualifier="builtins" value="False" />
+<var name="bFetchMode" type="bool" qualifier="builtins" value="False" />
+<var name="bcalcsymmetric" type="bool" qualifier="builtins" value="True" />
+<var name="burn" type="int" qualifier="builtins" value="4000" />
+<var name="calcsingle" type="bool" qualifier="builtins" value="False" />
+<var name="convergence" type="float" qualifier="builtins" value="2.0" />
+<var name="entr" type="Entropy" qualifier="molgroups.infotheory.entropy" value="%3Cmolgroups.infotheory.entropy.Entropy object at 0x7f9190a2ab90&gt;" isContainer="True" />
+<var name="entropy" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.infotheory.entropy%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/infotheory/entropy.py%27&gt;" isContainer="True" />
+<var name="exit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="fit_object" type="CMolStat" qualifier="molgroups.support.molstat" value="%3Cmolgroups.support.molstat.CMolStat object at 0x7f919880d610&gt;" isContainer="True" />
+<var name="fitsource" type="str" qualifier="builtins" value="refl1d" />
+<var name="get_ipython" type="method" qualifier="builtins" value="%3Cbound method InteractiveShell.get_ipython of %3Cipykernel.zmqshell.ZMQInteractiveShell object at 0x7f91b8837590&gt;&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="miniter" type="int" qualifier="builtins" value="1" />
+<var name="mode" type="str" qualifier="builtins" value="water" />
+<var name="molstat" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.support.molstat%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/support/molstat.py%27&gt;" isContainer="True" />
+<var name="os" type="module" qualifier="builtins" value="%3Cmodule %27os%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/os.py%27&gt;" isContainer="True" />
+<var name="plotlimits_filename" type="str" qualifier="builtins" value="" />
+<var name="pydev_jupyter_vars" type="module" qualifier="builtins" value="%3Cmodule %27pydev_jupyter_vars%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers-pro/jupyter_debug/pydev_jupyter_vars.py%27&gt;" isContainer="True" />
+<var name="quit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="remove_imported_pydev_package" type="function" qualifier="builtins" value="%3Cfunction remove_imported_pydev_package at 0x7f91a8f5b290&gt;" isContainer="True" />
+<var name="runfile" type="str" qualifier="builtins" value="ssblm" />
+<var name="script" type="list" qualifier="builtins" value="%5B%27%23%21/bin/bash%5Cn%27%2C %27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%2C %27%23SBATCH -A mc4s9np%5Cn%27%2C %27%23SBATCH -p RM%5Cn%27%2C %27%23SBATCH -t 02%3A00%3A00%5Cn%27%2C %27%23SBATCH -N 4%5Cn%27%2C %27%23SBATCH --ntasks-per-node 28%5Cn%27%2C %27%5Cn%27%2C %27set %2Bx%5Cn%27%2C %27cd %24SLURM_SUBMIT_DIR%5Cn%27%2C %27%5Cn%27%2C %27module load python/2.7.11_gcc%5Cn%27%2C %27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%2C %27%5Cn%27%2C %27mpirun -np 112 python /home/hoogerhe/src/refl1d/bin/refl1d_cli.py %7Bmcmc_dirname%7D/run.py --fit=dream --mpi --init=lhs --batch --pop=28 --time=1.9 --thin=20 --store=%7Bmcmc_dirname%7D/save --burn=4000 --steps=200%5Cn%27%5D" isContainer="True" shape="15" />
+<var name="setupdir" type="str" qualifier="builtins" value="/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d" />
+<var name="shutil" type="module" qualifier="builtins" value="%3Cmodule %27shutil%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/shutil.py%27&gt;" isContainer="True" />
+<var name="steps" type="int" qualifier="builtins" value="200" />
+<var name="store" type="str" qualifier="builtins" value="T" />
+<var name="sys" type="module" qualifier="builtins" value="%3Cmodule %27sys%27 %28built-in%29&gt;" isContainer="True" />
+<var name="time" type="int" qualifier="builtins" value="2" />
+<var name="upper_info_plotlevel" type="NoneType" qualifier="builtins" value="None" />
+</xml>
+No file: /Users/frank/Dropbox/My Mac (PN115993.campus.nist.gov)/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0/save/ssblm.py
+No state to reload.
+# -p /Users/frank/Dropbox/My Mac (PN115993.campus.nist.gov)/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0/ssblm.py --fit=dream --parallel --init=lhs --store=save --burn=20 --steps=5 --overwrite --seed=779218
+-- Model 0 sim0
+.probe
+  .back_absorption = back_absorption sim0 = 1
+  .background = background_0 = 4.95e-06 in [-1e-07,1e-05]
+  .intensity = 0.975 in [0.9,1.05]
+  .sample_broadening = 0.0075 in [-0.005,0.02]
+  .theta_offset = -0.005 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox_interface = 5.5 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox_interface = 5.5 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = rho_siox = 4.1 in [3.1,5.1]
+      .thickness = siox_thickness = 22.5 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = rho_tiox = -1.15829 in [-2.15829,-0.15829]
+      .thickness = tiox_thickness = 166.38 in [66.379,266.38]
+    [3]
+      .bulknsld = rho_solv_0 = 5.9 in [5.3,6.5]
+      .global_rough = tiox_roughness = 5 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner_acyl_chain_thickness = 12 in [8,16]
+      .l_lipid2 = outer_acyl_chain_thickness = 12 in [8,16]
+      .l_submembrane = submembrane_thickness = 25 in [0,50]
+      .rho_substrate = rho_tiox = -1.15829 in [-2.15829,-0.15829]
+      .sigma = bilayer_roughness = 5.5 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume_fraction_bilayer = 0.5 in [0,1]
+    [4]
+      .interface = d2o interface = 5
+      .material
+        .irho = d2o irho = 0
+        .rho = rho_solv_0 = 5.9 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+  .thickness = stack thickness = 338.88
+
+[chisq=3700.11(14), nllf=238657]
+-- Model 1 sim1
+.probe
+  .back_absorption = back_absorption sim1 = 1
+  .background = background_1 = 4.95e-06 in [-1e-07,1e-05]
+  .intensity = 0.975 in [0.9,1.05]
+  .sample_broadening = 0.0075 in [-0.005,0.02]
+  .theta_offset = -0.005 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox_interface = 5.5 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox_interface = 5.5 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = rho_siox = 4.1 in [3.1,5.1]
+      .thickness = siox_thickness = 22.5 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = rho_tiox = -1.15829 in [-2.15829,-0.15829]
+      .thickness = tiox_thickness = 166.38 in [66.379,266.38]
+    [3]
+      .bulknsld = rho_solv_1 = 0 in [-0.6,0.6]
+      .global_rough = tiox_roughness = 5 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner_acyl_chain_thickness = 12 in [8,16]
+      .l_lipid2 = outer_acyl_chain_thickness = 12 in [8,16]
+      .l_submembrane = submembrane_thickness = 25 in [0,50]
+      .rho_substrate = rho_tiox = -1.15829 in [-2.15829,-0.15829]
+      .sigma = bilayer_roughness = 5.5 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume_fraction_bilayer = 0.5 in [0,1]
+    [4]
+      .interface = h2o interface = 5
+      .material
+        .irho = h2o irho = 0
+        .rho = rho_solv_1 = 0 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+  .thickness = stack thickness = 338.88
+
+[chisq=1028.70(14), nllf=66351.1]
+[overall chisq=2541.736(84), nllf=305008]
+# steps: 5, # draws: 900
+<xml><var name="In" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="9" isIPythonHidden="True" />
+<var name="Out" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="___" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__builtin__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__builtins__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__doc__" type="str" qualifier="builtins" value="Automatically created module for IPython interactive environment" isIPythonHidden="True" />
+<var name="__loader__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__name__" type="str" qualifier="builtins" value="__main__" isIPythonHidden="True" />
+<var name="__package__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__spec__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="_dh" type="list" qualifier="builtins" value="%5B%27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d%27%5D" isContainer="True" shape="1" isIPythonHidden="True" />
+<var name="_exit_code" type="int" qualifier="builtins" value="0" />
+<var name="_i" type="str" qualifier="builtins" value="entr.run_optimization%28%29" isIPythonHidden="True" />
+<var name="_i1" type="str" qualifier="builtins" value="%21pwd%0Aimport shutil%0Aimport os%0A%0Afrom molgroups.support import molstat%0Afrom molgroups.infotheory import entropy" isIPythonHidden="True" />
+<var name="_i2" type="str" qualifier="builtins" value="%25%25writefile ssblm.py%0A%23%23 === Import section ===%0Aimport sys%0A%23 append path to your molgroups%2C or just link molgroups to your same directory%0Aimport numpy as np%0Afrom molgroups import mol%0Afrom molgroups import lipids%0Afrom molgroups import components as cmp%0Afrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%0Afrom refl1d.flayer import FunctionalProfile%0A%0A%23%23 === Film structure definition section ===%0A%0A%23%23%23 Bilayer profile definition function%0A%0Adef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%0A    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%0A    %0A    %23 Set unused parameters%0A    l_siox = 0.0 %23 could make a parameter in the future%0A    rho_siox = 0.0%0A%0A    %23 Scale all SLDs from Refl1D units %281e-6 Ang%5E-2%29 to molgroups units %28Ang%5E-2%29%0A    bulknsld %2A= 1e-6%0A    rho_substrate %2A= 1e-6%0A%0A    blm.fnSet%28sigma=sigma%2C bulknsld=bulknsld%2C global_rough=global_rou..." isIPythonHidden="True" />
+<var name="_i3" type="str" qualifier="builtins" value="shutil.copyfile%28%27ch060.refl%27%2C %27sim1.dat%27%29%0Ashutil.copyfile%28%27ch061.refl%27%2C %27sim0.dat%27%29%0A%0Asetupdir = os.getcwd%28%29%0Astore = %22T%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0A%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_i4" type="str" qualifier="builtins" value="%25%25writefile entropypar.dat%0Ai background_0 1.03489e-06 -1e-07 1e-05%0Ai intensity 1.0 0.9 1.05%0Ai sample_broadening 0 -0.005 0.02%0Ai theta_offset 0.0 -0.015 0.005%0Ai siox_interface 6.85069 2 9%0Ai rho_siox 3.39556 3.1 5.1%0Ai siox_thickness 14.9832 5 40%0Ai rho_tiox 2.32129 1.163 3.163 -1 10 1%0Ai tiox_thickness 110.913 66.379 266.38%0Ai tiox_roughness 6.8149 2 9%0Ad inner_acyl_chain_thickness 11.1605 8 16%0Ad outer_acyl_chain_thickness 13.6487 8 16%0Ad submembrane_thickness 13.9116 0 50%0Ad bilayer_roughness 4.84472 2 9%0Ad volume_fraction_bilayer 0.906858 0 1%0Ai rho_solv_0 6.21572 5.3 6.5%0Ai background_1 3.95582e-06 -1e-07 1e-05%0Ai rho_solv_1 -0.550133 -0.6 0.6%0An prefactor 2.58496" isIPythonHidden="True" />
+<var name="_i5" type="str" qualifier="builtins" value="%23 general fit setup%0Asetupdir = os.getcwd%28%29%0Arunfile = %22ssblm%22%0Astore = %27T%27%0Afitsource = %22refl1d%22%0A%0A%23 particular entropy setup%0Aburn = 4000%0Asteps = 200%0Aconvergence = 2.0%0Aminiter = 1%0Amode = %27water%27%0AbClusterMode = False%0AbFetchMode = False%0Atime = 2%0Abcalcsymmetric = True%0Aupper_info_plotlevel = None%0Aplotlimits_filename = %22%22%0Acalcsingle = False%0A%0A%23 setup batchscript for SLURM %28if used%29%0Ascript = %5B%5D%0Ascript.append%28%27%23%21/bin/bash%5Cn%27%29%0Ascript.append%28%27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%29%0Ascript.append%28%27%23SBATCH -A mc4s9np%5Cn%27%29%0Ascript.append%28%27%23SBATCH -p RM%5Cn%27%29%0Ascript.append%28%27%23SBATCH -t 0%27 %2B str%28time%29 %2B %27%3A00%3A00%5Cn%27%29%0Ascript.append%28%27%23SBATCH -N 4%5Cn%27%29%0Ascript.append%28%27%23SBATCH --ntasks-per-node 28%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27set %2Bx%5Cn%27%29%0Ascript.append%28%27cd %24SLURM_SUBMIT_DIR%5Cn%27%29%0A%23 script.append%28%27cd %27%2Bdirname%2B%27%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27module load python/2.7.11_gcc%5Cn%27%29%0Ascript.append%28%27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%29%0Ascript.append%28%27..." isIPythonHidden="True" />
+<var name="_i6" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_i7" type="str" qualifier="builtins" value="entr.run_optimization%28%29" isIPythonHidden="True" />
+<var name="_i8" type="str" qualifier="builtins" value="setupdir = %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0%27%0Astore = %22save%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_ih" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="9" isIPythonHidden="True" />
+<var name="_ii" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_iii" type="str" qualifier="builtins" value="%23 general fit setup%0Asetupdir = os.getcwd%28%29%0Arunfile = %22ssblm%22%0Astore = %27T%27%0Afitsource = %22refl1d%22%0A%0A%23 particular entropy setup%0Aburn = 4000%0Asteps = 200%0Aconvergence = 2.0%0Aminiter = 1%0Amode = %27water%27%0AbClusterMode = False%0AbFetchMode = False%0Atime = 2%0Abcalcsymmetric = True%0Aupper_info_plotlevel = None%0Aplotlimits_filename = %22%22%0Acalcsingle = False%0A%0A%23 setup batchscript for SLURM %28if used%29%0Ascript = %5B%5D%0Ascript.append%28%27%23%21/bin/bash%5Cn%27%29%0Ascript.append%28%27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%29%0Ascript.append%28%27%23SBATCH -A mc4s9np%5Cn%27%29%0Ascript.append%28%27%23SBATCH -p RM%5Cn%27%29%0Ascript.append%28%27%23SBATCH -t 0%27 %2B str%28time%29 %2B %27%3A00%3A00%5Cn%27%29%0Ascript.append%28%27%23SBATCH -N 4%5Cn%27%29%0Ascript.append%28%27%23SBATCH --ntasks-per-node 28%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27set %2Bx%5Cn%27%29%0Ascript.append%28%27cd %24SLURM_SUBMIT_DIR%5Cn%27%29%0A%23 script.append%28%27cd %27%2Bdirname%2B%27%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27module load python/2.7.11_gcc%5Cn%27%29%0Ascript.append%28%27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%29%0Ascript.append%28%27..." isIPythonHidden="True" />
+<var name="_oh" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_pydevd_bundle" type="module" qualifier="builtins" value="%3Cmodule %27_pydevd_bundle%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers/pydev/_pydevd_bundle/__init__.py%27&gt;" isContainer="True" />
+<var name="bClusterMode" type="bool" qualifier="builtins" value="False" />
+<var name="bFetchMode" type="bool" qualifier="builtins" value="False" />
+<var name="bcalcsymmetric" type="bool" qualifier="builtins" value="True" />
+<var name="burn" type="int" qualifier="builtins" value="20" />
+<var name="calcsingle" type="bool" qualifier="builtins" value="False" />
+<var name="convergence" type="float" qualifier="builtins" value="2.0" />
+<var name="entr" type="Entropy" qualifier="molgroups.infotheory.entropy" value="%3Cmolgroups.infotheory.entropy.Entropy object at 0x7f9190a2ab90&gt;" isContainer="True" />
+<var name="entropy" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.infotheory.entropy%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/infotheory/entropy.py%27&gt;" isContainer="True" />
+<var name="exit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="fit_object" type="CMolStat" qualifier="molgroups.support.molstat" value="%3Cmolgroups.support.molstat.CMolStat object at 0x7f9190a10f90&gt;" isContainer="True" />
+<var name="fitsource" type="str" qualifier="builtins" value="refl1d" />
+<var name="get_ipython" type="method" qualifier="builtins" value="%3Cbound method InteractiveShell.get_ipython of %3Cipykernel.zmqshell.ZMQInteractiveShell object at 0x7f91b8837590&gt;&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="miniter" type="int" qualifier="builtins" value="1" />
+<var name="mode" type="str" qualifier="builtins" value="water" />
+<var name="molstat" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.support.molstat%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/support/molstat.py%27&gt;" isContainer="True" />
+<var name="os" type="module" qualifier="builtins" value="%3Cmodule %27os%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/os.py%27&gt;" isContainer="True" />
+<var name="plotlimits_filename" type="str" qualifier="builtins" value="" />
+<var name="pydev_jupyter_vars" type="module" qualifier="builtins" value="%3Cmodule %27pydev_jupyter_vars%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers-pro/jupyter_debug/pydev_jupyter_vars.py%27&gt;" isContainer="True" />
+<var name="quit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="remove_imported_pydev_package" type="function" qualifier="builtins" value="%3Cfunction remove_imported_pydev_package at 0x7f91a8f5b290&gt;" isContainer="True" />
+<var name="runfile" type="str" qualifier="builtins" value="ssblm" />
+<var name="script" type="list" qualifier="builtins" value="%5B%27%23%21/bin/bash%5Cn%27%2C %27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%2C %27%23SBATCH -A mc4s9np%5Cn%27%2C %27%23SBATCH -p RM%5Cn%27%2C %27%23SBATCH -t 02%3A00%3A00%5Cn%27%2C %27%23SBATCH -N 4%5Cn%27%2C %27%23SBATCH --ntasks-per-node 28%5Cn%27%2C %27%5Cn%27%2C %27set %2Bx%5Cn%27%2C %27cd %24SLURM_SUBMIT_DIR%5Cn%27%2C %27%5Cn%27%2C %27module load python/2.7.11_gcc%5Cn%27%2C %27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%2C %27%5Cn%27%2C %27mpirun -np 112 python /home/hoogerhe/src/refl1d/bin/refl1d_cli.py %7Bmcmc_dirname%7D/run.py --fit=dream --mpi --init=lhs --batch --pop=28 --time=1.9 --thin=20 --store=%7Bmcmc_dirname%7D/save --burn=4000 --steps=200%5Cn%27%5D" isContainer="True" shape="15" />
+<var name="setupdir" type="str" qualifier="builtins" value="/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0" />
+<var name="shutil" type="module" qualifier="builtins" value="%3Cmodule %27shutil%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/shutil.py%27&gt;" isContainer="True" />
+<var name="steps" type="int" qualifier="builtins" value="5" />
+<var name="store" type="str" qualifier="builtins" value="save" />
+<var name="sys" type="module" qualifier="builtins" value="%3Cmodule %27sys%27 %28built-in%29&gt;" isContainer="True" />
+<var name="time" type="int" qualifier="builtins" value="2" />
+<var name="upper_info_plotlevel" type="NoneType" qualifier="builtins" value="None" />
+</xml>
+# -p /Users/frank/Dropbox/My Mac (PN115993.campus.nist.gov)/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/ssblm.py --fit=dream --parallel --init=lhs --store=T --burn=20 --steps=5 --overwrite --seed=456673
+-- Model 0 sim0
+.probe
+  .back_absorption = back_absorption sim0 = 1
+  .background = background_0 = 0 in [-1e-07,1e-05]
+  .intensity = 1 in [0.9,1.05]
+  .sample_broadening = 0 in [-0.005,0.02]
+  .theta_offset = 0 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox_interface = 5 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox_interface = 5 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = rho_siox = 3.5 in [3.1,5.1]
+      .thickness = siox_thickness = 30 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = rho_tiox = 2 in [1.163,3.163]
+      .thickness = tiox_thickness = 100 in [66.379,266.38]
+    [3]
+      .bulknsld = rho_solv_0 = 6.34 in [5.3,6.5]
+      .global_rough = tiox_roughness = 5 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner_acyl_chain_thickness = 10 in [8,16]
+      .l_lipid2 = outer_acyl_chain_thickness = 10 in [8,16]
+      .l_submembrane = submembrane_thickness = 10 in [0,50]
+      .rho_substrate = rho_tiox = 2 in [1.163,3.163]
+      .sigma = bilayer_roughness = 5 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume_fraction_bilayer = 0.9 in [0,1]
+    [4]
+      .interface = d2o interface = 5
+      .material
+        .irho = d2o irho = 0
+        .rho = rho_solv_0 = 6.34 in [5.3,6.5]
+      .thickness = d2o thickness = 0
+  .thickness = stack thickness = 280
+
+[chisq=315.67(14), nllf=20360.5]
+-- Model 1 sim1
+.probe
+  .back_absorption = back_absorption sim1 = 1
+  .background = background_1 = 0 in [-1e-07,1e-05]
+  .intensity = 1 in [0.9,1.05]
+  .sample_broadening = 0 in [-0.005,0.02]
+  .theta_offset = 0 in [-0.015,0.005]
+.sample
+  .layers
+    [0]
+      .interface = siox_interface = 5 in [2,9]
+      .material
+        .irho = silicon irho = 0
+        .rho = silicon rho = 2.069
+      .thickness = silicon thickness = 0
+    [1]
+      .interface = siox_interface = 5 in [2,9]
+      .material
+        .irho = siox irho = 0
+        .rho = rho_siox = 3.5 in [3.1,5.1]
+      .thickness = siox_thickness = 30 in [5,40]
+    [2]
+      .interface = tiox interface = 0
+      .material
+        .irho = tiox irho = 0
+        .rho = rho_tiox = 2 in [1.163,3.163]
+      .thickness = tiox_thickness = 100 in [66.379,266.38]
+    [3]
+      .bulknsld = rho_solv_1 = -0.56 in [-0.6,0.6]
+      .global_rough = tiox_roughness = 5 in [2,9]
+      .interface = bilayer interface = 0
+      .l_lipid1 = inner_acyl_chain_thickness = 10 in [8,16]
+      .l_lipid2 = outer_acyl_chain_thickness = 10 in [8,16]
+      .l_submembrane = submembrane_thickness = 10 in [0,50]
+      .rho_substrate = rho_tiox = 2 in [1.163,3.163]
+      .sigma = bilayer_roughness = 5 in [2,9]
+      .thickness = bilayer thickness = 150
+      .vf_bilayer = volume_fraction_bilayer = 0.9 in [0,1]
+    [4]
+      .interface = h2o interface = 5
+      .material
+        .irho = h2o irho = 0
+        .rho = rho_solv_1 = -0.56 in [-0.6,0.6]
+      .thickness = h2o thickness = 0
+  .thickness = stack thickness = 280
+
+[chisq=31.23(14), nllf=2014.23]
+[overall chisq=186.456(84), nllf=22374.7]
+# steps: 5, # draws: 900
+<xml><var name="In" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="10" isIPythonHidden="True" />
+<var name="Out" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="___" type="str" qualifier="builtins" value="" isIPythonHidden="True" />
+<var name="__builtin__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__builtins__" type="module" qualifier="builtins" value="%3Cmodule %27builtins%27 %28built-in%29&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="__doc__" type="str" qualifier="builtins" value="Automatically created module for IPython interactive environment" isIPythonHidden="True" />
+<var name="__loader__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__name__" type="str" qualifier="builtins" value="__main__" isIPythonHidden="True" />
+<var name="__package__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="__spec__" type="NoneType" qualifier="builtins" value="None" isIPythonHidden="True" />
+<var name="_dh" type="list" qualifier="builtins" value="%5B%27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d%27%5D" isContainer="True" shape="1" isIPythonHidden="True" />
+<var name="_exit_code" type="int" qualifier="builtins" value="0" />
+<var name="_i" type="str" qualifier="builtins" value="setupdir = %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0%27%0Astore = %22save%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_i1" type="str" qualifier="builtins" value="%21pwd%0Aimport shutil%0Aimport os%0A%0Afrom molgroups.support import molstat%0Afrom molgroups.infotheory import entropy" isIPythonHidden="True" />
+<var name="_i2" type="str" qualifier="builtins" value="%25%25writefile ssblm.py%0A%23%23 === Import section ===%0Aimport sys%0A%23 append path to your molgroups%2C or just link molgroups to your same directory%0Aimport numpy as np%0Afrom molgroups import mol%0Afrom molgroups import lipids%0Afrom molgroups import components as cmp%0Afrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%0Afrom refl1d.flayer import FunctionalProfile%0A%0A%23%23 === Film structure definition section ===%0A%0A%23%23%23 Bilayer profile definition function%0A%0Adef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%0A    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%0A    %0A    %23 Set unused parameters%0A    l_siox = 0.0 %23 could make a parameter in the future%0A    rho_siox = 0.0%0A%0A    %23 Scale all SLDs from Refl1D units %281e-6 Ang%5E-2%29 to molgroups units %28Ang%5E-2%29%0A    bulknsld %2A= 1e-6%0A    rho_substrate %2A= 1e-6%0A%0A    blm.fnSet%28sigma=sigma%2C bulknsld=bulknsld%2C global_rough=global_rou..." isIPythonHidden="True" />
+<var name="_i3" type="str" qualifier="builtins" value="shutil.copyfile%28%27ch060.refl%27%2C %27sim1.dat%27%29%0Ashutil.copyfile%28%27ch061.refl%27%2C %27sim0.dat%27%29%0A%0Asetupdir = os.getcwd%28%29%0Astore = %22T%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0A%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_i4" type="str" qualifier="builtins" value="%25%25writefile entropypar.dat%0Ai background_0 1.03489e-06 -1e-07 1e-05%0Ai intensity 1.0 0.9 1.05%0Ai sample_broadening 0 -0.005 0.02%0Ai theta_offset 0.0 -0.015 0.005%0Ai siox_interface 6.85069 2 9%0Ai rho_siox 3.39556 3.1 5.1%0Ai siox_thickness 14.9832 5 40%0Ai rho_tiox 2.32129 1.163 3.163 -1 10 1%0Ai tiox_thickness 110.913 66.379 266.38%0Ai tiox_roughness 6.8149 2 9%0Ad inner_acyl_chain_thickness 11.1605 8 16%0Ad outer_acyl_chain_thickness 13.6487 8 16%0Ad submembrane_thickness 13.9116 0 50%0Ad bilayer_roughness 4.84472 2 9%0Ad volume_fraction_bilayer 0.906858 0 1%0Ai rho_solv_0 6.21572 5.3 6.5%0Ai background_1 3.95582e-06 -1e-07 1e-05%0Ai rho_solv_1 -0.550133 -0.6 0.6%0An prefactor 2.58496" isIPythonHidden="True" />
+<var name="_i5" type="str" qualifier="builtins" value="%23 general fit setup%0Asetupdir = os.getcwd%28%29%0Arunfile = %22ssblm%22%0Astore = %27T%27%0Afitsource = %22refl1d%22%0A%0A%23 particular entropy setup%0Aburn = 4000%0Asteps = 200%0Aconvergence = 2.0%0Aminiter = 1%0Amode = %27water%27%0AbClusterMode = False%0AbFetchMode = False%0Atime = 2%0Abcalcsymmetric = True%0Aupper_info_plotlevel = None%0Aplotlimits_filename = %22%22%0Acalcsingle = False%0A%0A%23 setup batchscript for SLURM %28if used%29%0Ascript = %5B%5D%0Ascript.append%28%27%23%21/bin/bash%5Cn%27%29%0Ascript.append%28%27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%29%0Ascript.append%28%27%23SBATCH -A mc4s9np%5Cn%27%29%0Ascript.append%28%27%23SBATCH -p RM%5Cn%27%29%0Ascript.append%28%27%23SBATCH -t 0%27 %2B str%28time%29 %2B %27%3A00%3A00%5Cn%27%29%0Ascript.append%28%27%23SBATCH -N 4%5Cn%27%29%0Ascript.append%28%27%23SBATCH --ntasks-per-node 28%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27set %2Bx%5Cn%27%29%0Ascript.append%28%27cd %24SLURM_SUBMIT_DIR%5Cn%27%29%0A%23 script.append%28%27cd %27%2Bdirname%2B%27%5Cn%27%29%0Ascript.append%28%27%5Cn%27%29%0Ascript.append%28%27module load python/2.7.11_gcc%5Cn%27%29%0Ascript.append%28%27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%29%0Ascript.append%28%27..." isIPythonHidden="True" />
+<var name="_i6" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_i7" type="str" qualifier="builtins" value="entr.run_optimization%28%29" isIPythonHidden="True" />
+<var name="_i8" type="str" qualifier="builtins" value="setupdir = %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d/iteration_0%27%0Astore = %22save%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_i9" type="str" qualifier="builtins" value="shutil.copyfile%28%27ch060.refl%27%2C %27sim1.dat%27%29%0Ashutil.copyfile%28%27ch061.refl%27%2C %27sim0.dat%27%29%0A%0Asetupdir = os.getcwd%28%29%0Astore = %22T%22%0Arunfile = %22ssblm%22%0Afitsource = %22refl1d%22%0Aif not os.path.isdir%28store%29%3A%0A    os.mkdir%28store%29%0Aburn = 20%0Asteps = 5%0A%0Afit_object = molstat.CMolStat%28fitsource=fitsource%2C spath=setupdir%2C mcmcpath=store%2C runfile=runfile%2C state=None%2C problem=None%29%0Afit_object.Interactor.fnRunMCMC%28burn%2C steps%2C batch=False%29" isIPythonHidden="True" />
+<var name="_ih" type="list" qualifier="builtins" value="%5B%27%27%2C %22get_ipython%28%29.system%28%27pwd%27%29%5Cnimport shutil%5Cnimport os%5Cn%5Cnfrom molgroups.support import molstat%5Cnfrom molgroups.infotheory import entropy%22%2C %27get_ipython%28%29.run_cell_magic%28%5C%27writefile%5C%27%2C %5C%27ssblm.py%5C%27%2C %5C%27%23%23 === Import section ===%5C%5Cnimport sys%5C%5Cn%23 append path to your molgroups%2C or just link molgroups to your same directory%5C%5Cnimport numpy as np%5C%5Cnfrom molgroups import mol%5C%5Cnfrom molgroups import lipids%5C%5Cnfrom molgroups import components as cmp%5C%5Cnfrom refl1d.names import load4%2C Parameter%2C SLD%2C Slab%2C Stack%2C Experiment%2C FitProblem%5C%5Cnfrom refl1d.flayer import FunctionalProfile%5C%5Cn%5C%5Cn%23%23 === Film structure definition section ===%5C%5Cn%5C%5Cn%23%23%23 Bilayer profile definition function%5C%5Cn%5C%5Cndef bilayer%28z%2C sigma%2C bulknsld%2C global_rough%2C rho_substrate%2C l_submembrane%2C l_lipid1%2C l_lipid2%2C vf_bilayer%29%3A%5C%5Cn    %22%22%22 Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero %22%22%22%5C%5Cn    %5C%5Cn    %23 Set unused parameters%5C%5Cn    l_siox = 0.0 %23 could make a parameter in the futu..." isContainer="True" shape="10" isIPythonHidden="True" />
+<var name="_ii" type="str" qualifier="builtins" value="entr.run_optimization%28%29" isIPythonHidden="True" />
+<var name="_iii" type="str" qualifier="builtins" value="entr = entropy.Entropy%28%0A    fitsource=fitsource%2C%0A    spath=setupdir%2C%0A    mcmcpath=store%2C%0A    runfile=runfile%2C%0A    mcmcburn=burn%2C %0A    mcmcsteps=steps%2C %0A    convergence=convergence%2C %0A    miniter=miniter%2C %0A    mode=mode%2C                      %0A    bClusterMode=bClusterMode%2C %0A    bFetchMode=bFetchMode%2C %0A    calc_symmetric=bcalcsymmetric%2C%0A    upper_info_plotlevel=upper_info_plotlevel%2C %0A    plotlimits_filename=plotlimits_filename%2C%0A    slurmscript=script%0A%29" isIPythonHidden="True" />
+<var name="_oh" type="dict" qualifier="builtins" value="%7B%7D" isContainer="True" shape="0" isIPythonHidden="True" />
+<var name="_pydevd_bundle" type="module" qualifier="builtins" value="%3Cmodule %27_pydevd_bundle%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers/pydev/_pydevd_bundle/__init__.py%27&gt;" isContainer="True" />
+<var name="bClusterMode" type="bool" qualifier="builtins" value="False" />
+<var name="bFetchMode" type="bool" qualifier="builtins" value="False" />
+<var name="bcalcsymmetric" type="bool" qualifier="builtins" value="True" />
+<var name="burn" type="int" qualifier="builtins" value="20" />
+<var name="calcsingle" type="bool" qualifier="builtins" value="False" />
+<var name="convergence" type="float" qualifier="builtins" value="2.0" />
+<var name="entr" type="Entropy" qualifier="molgroups.infotheory.entropy" value="%3Cmolgroups.infotheory.entropy.Entropy object at 0x7f9190a2ab90&gt;" isContainer="True" />
+<var name="entropy" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.infotheory.entropy%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/infotheory/entropy.py%27&gt;" isContainer="True" />
+<var name="exit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="fit_object" type="CMolStat" qualifier="molgroups.support.molstat" value="%3Cmolgroups.support.molstat.CMolStat object at 0x7f9191a1d490&gt;" isContainer="True" />
+<var name="fitsource" type="str" qualifier="builtins" value="refl1d" />
+<var name="get_ipython" type="method" qualifier="builtins" value="%3Cbound method InteractiveShell.get_ipython of %3Cipykernel.zmqshell.ZMQInteractiveShell object at 0x7f91b8837590&gt;&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="miniter" type="int" qualifier="builtins" value="1" />
+<var name="mode" type="str" qualifier="builtins" value="water" />
+<var name="molstat" type="module" qualifier="builtins" value="%3Cmodule %27molgroups.support.molstat%27 from %27/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/molgroups/support/molstat.py%27&gt;" isContainer="True" />
+<var name="os" type="module" qualifier="builtins" value="%3Cmodule %27os%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/os.py%27&gt;" isContainer="True" />
+<var name="plotlimits_filename" type="str" qualifier="builtins" value="" />
+<var name="pydev_jupyter_vars" type="module" qualifier="builtins" value="%3Cmodule %27pydev_jupyter_vars%27 from %27/Applications/PyCharm.app/Contents/plugins/python/helpers-pro/jupyter_debug/pydev_jupyter_vars.py%27&gt;" isContainer="True" />
+<var name="quit" type="ZMQExitAutocall" qualifier="IPython.core.autocall" value="%3CIPython.core.autocall.ZMQExitAutocall object at 0x7f91b88377d0&gt;" isContainer="True" isIPythonHidden="True" />
+<var name="remove_imported_pydev_package" type="function" qualifier="builtins" value="%3Cfunction remove_imported_pydev_package at 0x7f91a8f5b290&gt;" isContainer="True" />
+<var name="runfile" type="str" qualifier="builtins" value="ssblm" />
+<var name="script" type="list" qualifier="builtins" value="%5B%27%23%21/bin/bash%5Cn%27%2C %27%23SBATCH --job-name=entro %7Bmcmc_iteration%7D%5Cn%27%2C %27%23SBATCH -A mc4s9np%5Cn%27%2C %27%23SBATCH -p RM%5Cn%27%2C %27%23SBATCH -t 02%3A00%3A00%5Cn%27%2C %27%23SBATCH -N 4%5Cn%27%2C %27%23SBATCH --ntasks-per-node 28%5Cn%27%2C %27%5Cn%27%2C %27set %2Bx%5Cn%27%2C %27cd %24SLURM_SUBMIT_DIR%5Cn%27%2C %27%5Cn%27%2C %27module load python/2.7.11_gcc%5Cn%27%2C %27export PYTHONPATH=/home/hoogerhe/bin/lib/python2.7/site-packages%3A/home/hoogerhe/src/bumps%5Cn%27%2C %27%5Cn%27%2C %27mpirun -np 112 python /home/hoogerhe/src/refl1d/bin/refl1d_cli.py %7Bmcmc_dirname%7D/run.py --fit=dream --mpi --init=lhs --batch --pop=28 --time=1.9 --thin=20 --store=%7Bmcmc_dirname%7D/save --burn=4000 --steps=200%5Cn%27%5D" isContainer="True" shape="15" />
+<var name="setupdir" type="str" qualifier="builtins" value="/Users/frank/Dropbox/My Mac %28PN115993.campus.nist.gov%29/Documents/programming/molgroups/examples/information_theory/entropy_gridsearch_singlethread/refl1d" />
+<var name="shutil" type="module" qualifier="builtins" value="%3Cmodule %27shutil%27 from %27/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/shutil.py%27&gt;" isContainer="True" />
+<var name="steps" type="int" qualifier="builtins" value="5" />
+<var name="store" type="str" qualifier="builtins" value="T" />
+<var name="sys" type="module" qualifier="builtins" value="%3Cmodule %27sys%27 %28built-in%29&gt;" isContainer="True" />
+<var name="time" type="int" qualifier="builtins" value="2" />
+<var name="upper_info_plotlevel" type="NoneType" qualifier="builtins" value="None" />
+</xml>
