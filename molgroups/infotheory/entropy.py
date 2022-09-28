@@ -3,9 +3,7 @@ from __future__ import division
 __all__ = ["entropy"]
 
 import numpy as np
-import rs
-import matplotlib.pyplot as plt
-import matplotlib
+from molgroups.support import molstat
 import pandas
 import itertools
 from numpy import mean, std, exp, log, sqrt, log2, pi, e, ndarray
@@ -118,6 +116,9 @@ def running_sqstd(current_sqstd, n, new_point, previous_mean, current_mean):
 
 def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="./plot", ymin=None, ymax=None, levels=5,
                  niceticks=False):
+    import matplotlib.pyplot as plt
+    import matplotlib
+
     if ymin is None:
         ymin = np.amin(y)
     if ymax is None:
@@ -142,6 +143,9 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="./
 
 
 def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='./plot', zmin=None, zmax=None, levels=20):
+    import matplotlib.pyplot as plt
+    import matplotlib
+
     if zmin is None:
         zmin = np.amin(z)
     if zmax is None:
@@ -230,7 +234,7 @@ class Entropy:
         self.plotlimits_filename = plotlimits_filename
         self.slurmscript = slurmscript
 
-        self.molstat = rs.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
+        self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
         # all parameters from entropypar.dat
         header_names = ['type', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim', 'step_sim']
@@ -418,6 +422,8 @@ class Entropy:
         return
 
     def plot_results(self):
+        import matplotlib.pyplot as plt
+        import matplotlib
 
         if not path.isdir('plots'):
             mkdir('plots')
@@ -792,8 +798,8 @@ class Entropy:
                 # run a new fit, preparations are done in the root directory and the new fit is copied into the
                 # iteration directory, preparations in the iterations directory are not possible, because it would
                 # be lacking a results directory, which is needed for restoring a state/parameters
-                molstat_iter = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                           runfile=self.runfile, load_state=False)
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile, load_state=False)
                 self.molstat.Interactor.fnBackup(target=self.spath + '/' 'simbackup')
                 pre, qrange = set_sim_pars_for_index(it)
                 self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
@@ -807,8 +813,8 @@ class Entropy:
             # Do not run entropy calculation when on cluster.
             bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')
             if not self.bClusterMode and bPriorResultExists:
-                molstat_iter = rs.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                           runfile=self.runfile)
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile)
                 calc_entropy_for_index(molstat_iter, itindex)
 
             # delete big files except in Cluster mode. They are needed there for future fetching

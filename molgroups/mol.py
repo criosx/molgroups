@@ -7,7 +7,7 @@ from scipy.ndimage.interpolation import shift
 from copy import deepcopy
 
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
-from . import components as cmp
+from molgroups import components as cmp
 
 D2O_SLD *= 1e-6
 H2O_SLD *= 1e-6
@@ -982,13 +982,13 @@ class ssBLM(BLM):
         return self.substrate.fnGetLowerLimit()
         # does this make sense since this goes to negative z and isn't intended to be used?
 
-    def fnSet(self, global_rough=2.0, rho_substrate=2.07e-6, rho_siox=3.55e-6, l_siox=20, l_submembrane=10, ** kwargs):
+    def fnSet(self, global_rough=2.0, rho_substrate=2.07e-6, rho_siox=3.55e-6, l_siox=20, l_submembrane=10, **kwargs):
         self.global_rough = global_rough
         self.rho_substrate = rho_substrate
         self.rho_siox = rho_siox
         self.l_siox = l_siox
         self.l_submembrane = l_submembrane
-        super().fnSet(** kwargs)
+        super().fnSet(**kwargs)
 
 
 class tBLM(BLM):

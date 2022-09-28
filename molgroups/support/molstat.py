@@ -216,16 +216,22 @@ class CMolStat:
     def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
             maxvalue = max(lList)
-            imax = lList.index(maxvalue)
+
+            if isinstance(lList, list):
+                imax = lList.index(maxvalue)
+                length = len(lList)
+            else:
+                imax = numpy.argmax(lList)
+                length = lList.shape[0]
+
             ifwhmplus = ifwhmminus = imax
-            while lList[ifwhmplus] > (maxvalue / 2) and ifwhmplus < (len(lList) - 1):
+            while lList[ifwhmplus] > (maxvalue / 2) and ifwhmplus < (length - 1):
                 ifwhmplus += 1
             while lList[ifwhmminus] > (maxvalue / 2) and ifwhmminus > 0:
                 ifwhmminus -= 1
             return imax, maxvalue, ifwhmminus, ifwhmplus
 
         self.fnLoadStatData()
-
         # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
         # after such an analysis has been done separately
         try:
@@ -371,7 +377,8 @@ class CMolStat:
             if 'protein' in l_molgroups:
                 total_components = total_components + mgdict['protein']['areaaxis']
                 for i in range(len(total_components)):
-                    total_components[i] = min(total_components[i], vf_bilayer * mgdict['normarea']['areaaxis'][i])
+                    total_components[i] = min(total_components[i], vf_bilayer *
+                                              mgdict['bilayer.normarea']['areaaxis'][i])
 
             # calculate water and protein fractions if bilayer is present
             if 'bilayer.headgroup1_1' in l_molgroups:
