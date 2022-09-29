@@ -534,7 +534,7 @@ class CRefl1DInteractor(CBumpsInteractor):
         sys.argv = ['-p', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
         if batch:
             sys.argv.append('--batch')
-        sys.argv.append('--store=' + os.path.join(self.spath, self.mcmcpath))
+        sys.argv.append('--store=' + self.mcmcpath)
         sys.argv.append('--burn=' + str(burn))
         sys.argv.append('--steps=' + str(steps))
         sys.argv.append('--overwrite')
