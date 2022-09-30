@@ -520,8 +520,8 @@ class CBumpsInteractor(CDataInteractor):
         problem = load_model(model_file)
         mapper = MPMapper.start_mapper(problem, None, cpus=0)
         monitors = None if not batch else []
-        driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=problem, init='lhs', samples=steps, burn=burn,
-                           monitors=monitors)
+        driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=problem, init='lhs', steps=steps, burn=burn,
+                           monitors=monitors, xtol=1e-6, ftol=1e-8)
         x, fx = driver.fit()
 
         if 'models' in dir(problem):
