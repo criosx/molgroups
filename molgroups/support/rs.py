@@ -8,8 +8,6 @@ from time import time, gmtime, sleep, ctime
 import numpy
 import os
 
-from molgroups.support import general
-from molgroups.support import rsdi
 from molgroups.support import molstat
 
 def Auto(convergence=0.001):  # automatic fit

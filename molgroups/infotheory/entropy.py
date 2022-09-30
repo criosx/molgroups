@@ -105,6 +105,12 @@ def nice_interval(start=0, stop=1, step=None, numsteps=10):
     return np.arange(new_start, new_stop+0.05*new_step, new_step)
 
 
+def rm_file(filename):
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
+
 def running_mean(current_mean, n, new_point):
     # see Tony Finch, Incremental calculation of weighted mean and variance
     return current_mean * (n - 1) / n + new_point * (1 / n)
@@ -825,12 +831,12 @@ class Entropy:
 
             # delete big files except in Cluster mode. They are needed there for future fetching
             if self.deldir and not self.bClusterMode:
-                os.remove(path.join(path1, self.runfile+'-point.mc'))
-                os.remove(path.join(path1, self.runfile+'-chain.mc'))
-                os.remove(path.join(path1, self.runfile+'-stats.mc'))
-                os.remove(path.join(path1, self.runfile+'-point.mc.gz'))
-                os.remove(path.join(path1, self.runfile+'-chain.mc.gz'))
-                os.remove(path.join(path1, self.runfile+'-stats.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-point.mc'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc'))
+                rm_file(path.join(path1, self.runfile+'-point.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
 
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False

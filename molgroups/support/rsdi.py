@@ -470,6 +470,74 @@ class CBumpsInteractor(CDataInteractor):
         z, rho, irho = M.sld, [], []
         return z, rho, irho
 
+    def fnRunMCMC(self, burn, steps, batch=False, none_pool=False):
+        # Original Method of Calling the Shell
+        """
+        lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+           lCommand.append('--batch')
+        lCommand.append('--store=' + self.mcmcpath)
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        lCommand.append('--overwrite')
+        call(lCommand)
+        """
+
+        # Command line Python implementation
+        """
+        # There is a bug in bumps that prevents running sequential fits because the pool object is terminated
+        # from a previous fit but not None. Bumps expects it to be None or will not initiate a new pool.        
+        if none_pool:
+            from bumps.mapper import MPMapper
+            # MPMapper.pool.terminate()  # not always required
+            MPMapper.pool = None
+
+        sys.argv = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+            sys.argv.append('--batch')
+        sys.argv.append('--store=' + self.mcmcpath)
+        sys.argv.append('--burn=' + str(burn))
+        sys.argv.append('--steps=' + str(steps))
+        sys.argv.append('--overwrite')
+
+        main.cli()
+        """
+
+        # Calling refl1d functions directly
+        from bumps.cli import load_model
+        from bumps.mapper import MPMapper
+        from bumps.fitters import fit, FitDriver, DreamFit
+
+        model_file = os.path.join(self.spath, self.runfile) + '.py'
+        mcmcpath = os.path.join(self.spath, self.mcmcpath)
+
+        if not os.path.isdir(mcmcpath):
+            os.mkdir(mcmcpath)
+
+        # save model file in output directory
+        shutil.copy(model_file, mcmcpath)
+
+        problem = load_model(model_file)
+        mapper = MPMapper.start_mapper(problem, None, cpus=0)
+        monitors = None if not batch else []
+        driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=problem, init='lhs', samples=steps, burn=burn,
+                           monitors=monitors)
+        x, fx = driver.fit()
+
+        if 'models' in dir(problem):
+            for M in problem.models:
+                M.fitness.save(os.path.join(mcmcpath, self.runfile))
+                break
+        else:
+            problem.fitness.save(os.path.join(mcmcpath, self.runfile))
+
+        driver.save(os.path.join(mcmcpath, self.runfile))
+        driver.show()
+        if batch:
+            driver.plot(os.path.join(mcmcpath, self.runfile))
+        else:
+            driver.plot(os.path.join(mcmcpath, self.runfile))
+
     def fnSaveMolgroups(self, problem):
         # saves bilayer and protein information from a bumps / refl1d problem object into a mol.dat file
         # sequentially using the methods provided in molgroups
@@ -518,28 +586,6 @@ class CRefl1DInteractor(CBumpsInteractor):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
-    def fnRunMCMC(self, burn, steps, batch=False):
-        # Previous Method of Calling the Shell
-        '''
-        lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        if batch:
-           lCommand.append('--batch')
-        lCommand.append('--store=' + self.mcmcpath)
-        lCommand.append('--burn=' + str(burn))
-        lCommand.append('--steps=' + str(steps))
-        lCommand.append('--overwrite')
-        call(lCommand)
-        '''
-
-        sys.argv = ['-p', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        if batch:
-            sys.argv.append('--batch')
-        sys.argv.append('--store=' + self.mcmcpath)
-        sys.argv.append('--burn=' + str(burn))
-        sys.argv.append('--steps=' + str(steps))
-        sys.argv.append('--overwrite')
-
-        main.cli()
 
     def fnSimulateData(self, diNewPars):
         liParameters = list(self.diParameters.keys())
