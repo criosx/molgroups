@@ -470,7 +470,7 @@ class CBumpsInteractor(CDataInteractor):
         z, rho, irho = M.sld, [], []
         return z, rho, irho
 
-    def fnRunMCMC(self, burn, steps, batch=False, none_pool=False):
+    def fnRunMCMC(self, burn, steps, batch=False):
         # Original Method of Calling the Shell
         """
         lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
@@ -1021,14 +1021,7 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRunMCMC(self, burn, steps, batch=False, compile_setup=True):
         if compile_setup:
             self.fnMake()
-        lCommand = ['refl1d_cli.py', os.path.join(self.spath, self.runfile) + '.py', '--fit=dream', '--parallel',
-                    '--init=lhs']
-        if batch:
-            lCommand.append('--batch')
-        lCommand.append('--store=' + self.spath+'/save')
-        lCommand.append('--burn=' + str(burn))
-        lCommand.append('--steps=' + str(steps))
-        call(lCommand)
+        CRefl1DInteractor.fnRunMCMC(self, burn=burn, steps=steps, batch=batch)
 
     def fnSaveMolgroups(self, problem):
         # should call the setup.cc function that saves mol.dat
@@ -1076,7 +1069,7 @@ class CGaReflInteractor(CRefl1DInteractor):
             del simdata['R']
             simdata = simdata.rename(columns={'fit': 'R'})
             simdata = simdata[['Q', 'R', 'dR']]
-            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None)
+            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None, header=False)
             i += 1
 
     @staticmethod
