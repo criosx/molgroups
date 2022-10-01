@@ -11,10 +11,8 @@ import pandas
 import shutil
 import glob
 import os
-import sys
 
 from molgroups.support import general
-from refl1d import main
 
 class CDataInteractor:
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
@@ -485,6 +483,7 @@ class CBumpsInteractor(CDataInteractor):
 
         # Command line Python implementation
         """
+        from refl1d import main
         # There is a bug in bumps that prevents running sequential fits because the pool object is terminated
         # from a previous fit but not None. Bumps expects it to be None or will not initiate a new pool.        
         if none_pool:
@@ -504,7 +503,7 @@ class CBumpsInteractor(CDataInteractor):
         """
 
         # Calling refl1d functions directly
-        from bumps.cli import load_model
+        from bumps.cli import load_model, save_best
         from bumps.mapper import MPMapper
         from bumps.fitters import fit, FitDriver, DreamFit
 
@@ -524,6 +523,11 @@ class CBumpsInteractor(CDataInteractor):
                            monitors=monitors, xtol=1e-6, ftol=1e-8)
         x, fx = driver.fit()
 
+        # .err and .par files
+        problem.output_path = os.path.join(mcmcpath, self.runfile)
+        save_best(driver, problem, x)
+
+        # don't know what files
         if 'models' in dir(problem):
             for M in problem.models:
                 M.fitness.save(os.path.join(mcmcpath, self.runfile))
@@ -531,11 +535,14 @@ class CBumpsInteractor(CDataInteractor):
         else:
             problem.fitness.save(os.path.join(mcmcpath, self.runfile))
 
+        # .mcmc and .point files
         driver.save(os.path.join(mcmcpath, self.runfile))
+
+        # stat table and yet other files
         driver.show()
-        if batch:
-            driver.plot(os.path.join(mcmcpath, self.runfile))
-        else:
+
+        # plots and other files
+        if not batch:
             driver.plot(os.path.join(mcmcpath, self.runfile))
 
     def fnSaveMolgroups(self, problem):
@@ -564,14 +571,14 @@ class CRefl1DInteractor(CBumpsInteractor):
         """
         Scans self.runfile file for parameter with name sname and replaces the
         lower and upper fit limits by the given values.
-        Currently expects the parameter to be defined using the Parameter() method and not just .range()
+        Currently, expects the parameter to be defined using the Parameter() method and not just .range()
         on any object variable.
         """
 
         file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
         data = file.readlines()
         file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
             newdata.append(smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 '
@@ -585,7 +592,6 @@ class CRefl1DInteractor(CBumpsInteractor):
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
-
 
     def fnSimulateData(self, diNewPars):
         liParameters = list(self.diParameters.keys())
@@ -603,7 +609,7 @@ class CRefl1DInteractor(CBumpsInteractor):
             p = [diNewPars[parameter] for parameter in liParameters]
             self.problem.setp(p)
             self.problem.model_update()
-            # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better
+            # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
 
             i = 0
             if 'models' in dir(self.problem):
@@ -612,8 +618,7 @@ class CRefl1DInteractor(CBumpsInteractor):
                     qvec, refl = M.fitness.reflectivity()
                     comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
                     simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
-                                              names=['Q', 'R', 'dR', 'dQ'],
-                                              skip_blank_lines=True, comment='#')
+                                              names=['Q', 'R', 'dR', 'dQ'], skip_blank_lines=True, comment='#')
                     simdata['R'] = refl
                     simdata['Q'] = qvec
                     simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
@@ -625,8 +630,7 @@ class CRefl1DInteractor(CBumpsInteractor):
                 qvec, refl = self.problem.fitness.reflectivity()
                 comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
                 simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
-                                          names=['Q', 'R', 'dR', 'dQ'],
-                                          skip_blank_lines=True, comment='#')
+                                          names=['Q', 'R', 'dR', 'dQ'], skip_blank_lines=True, comment='#')
                 simdata['R'] = refl
                 simdata['Q'] = qvec
                 simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
