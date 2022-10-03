@@ -1,12 +1,11 @@
 ## === Import section ===
 import sys
 # append path to your molgroups, or just link molgroups to your same directory
-sys.path.append("../../../../../molgroups/molgroups")
-sys.path.append("../../../../molgroups/molgroups")
 import numpy as np
-import mol as mol
-import components as cmp
-from refl1d.names import load4, Parameter, SLD, Slab, Experiment, FitProblem
+from molgroups import mol
+from molgroups import lipids
+from molgroups import components as cmp
+from refl1d.names import load4, Parameter, SLD, Slab, Stack, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
 ## === Film structure definition section ===
@@ -24,7 +23,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     bulknsld *= 1e-6
     rho_substrate *= 1e-6
 
-    blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer)
+    blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate, rho_siox=rho_siox, l_siox=l_siox,
+              l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2, vf_bilayer=vf_bilayer)
     
     # Calculate scattering properties of volume occupied by bilayer
     normarea, area, nsl = blm.fnWriteProfile(z)
@@ -45,8 +45,7 @@ l_tiox = Parameter(name='total_tiox_thickness', value=120).range(50, 150)
 l_submembrane = Parameter(name='submembrane_thickness', value=10).range(0, 50)
 
 ### Define bilayer object
-DOPC = cmp.Lipid(name='DOPC', headgroup=mol.PC, tails=[cmp.oleoyl, cmp.oleoyl], methyls=cmp.methyl)
-blm = mol.ssBLM(lipids=[DOPC], lipid_nf=[1.0])
+blm = mol.ssBLM(lipids=[lipids.DOPC], lipid_nf=[1.0])
 
 ### Define molgroups space.
 dimension=300       # Number of steps
@@ -148,5 +147,4 @@ problem.name = "DOPC bilayer on TiOx substrate"
 problem.bilayers = [blm]
 problem.dimension = dimension
 problem.stepsize = stepsize
-
 

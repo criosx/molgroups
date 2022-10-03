@@ -11,10 +11,8 @@ import pandas
 import shutil
 import glob
 import os
-import sys
 
 from molgroups.support import general
-from refl1d import main
 
 class CDataInteractor:
     def __init__(self, spath='.', mcmcpath='.', runfile=''):
@@ -338,7 +336,7 @@ class CBumpsInteractor(CDataInteractor):
         self.problem.setp(p)
 
         # from bumps.cli import load_best
-        # load_best(problem, self.mcmcpath+'/'+self.runfile+'.par')
+        # load_best(problem, os.path.join(self.mcmcpath, self.runfile) + '.par')
 
         # distinguish between fitproblem and multifitproblem
         if "models" in dir(self.problem):
@@ -388,8 +386,8 @@ class CBumpsInteractor(CDataInteractor):
         if skip_entries is None:
             skip_entries = []
 
-        if path.isfile(self.spath+'/'+self.mcmcpath+"/sErr.dat") or path.isfile(self.spath+'/'+self.mcmcpath+
-                                                                                "/isErr.dat"):
+        if path.isfile(os.path.join(self.spath, self.mcmcpath, "sErr.dat")) or \
+                path.isfile(os.path.join(self.spath, self.mcmcpath, "isErr.dat")):
             diStatRawData = self.fnLoadsErr()
         else:
             points, lParName, logp = self.fnLoadMCMCResults()
@@ -412,7 +410,7 @@ class CBumpsInteractor(CDataInteractor):
                         #     points[j, i] *= 1E-6
                         diStatRawData["Parameters"][parname]["Values"].append(points[j, i])
 
-            self.fnSaveSingleColumnsFromStatDict(self.spath+'/'+self.mcmcpath + "/sErr.dat",
+            self.fnSaveSingleColumnsFromStatDict(os.path.join(self.spath, self.mcmcpath, "sErr.dat"),
                                                  diStatRawData["Parameters"], skip_entries)
 
         return diStatRawData
@@ -449,12 +447,12 @@ class CBumpsInteractor(CDataInteractor):
 
     def fnRestoreState(self):
         import bumps.dream.state
-        fulldir = self.spath + '/' + self.mcmcpath
-        if path.isfile(fulldir + "/" + self.runfile + '.py'):
-            state = bumps.dream.state.load_state(fulldir + "/" + self.runfile)
+        fulldir = os.path.join(self.spath, self.mcmcpath)
+        if path.isfile(os.path.join(fulldir, self.runfile) + '.py'):
+            state = bumps.dream.state.load_state(os.path.join(fulldir, self.runfile))
             state.mark_outliers()  # ignore outlier chains
         else:
-            print("No file: " + fulldir + "/" + self.runfile + '.py')
+            print("No file: " + os.path.join(fulldir, self.runfile) + '.py')
             print("No state to reload.")
             state = None
         return state
@@ -469,6 +467,83 @@ class CBumpsInteractor(CDataInteractor):
         # Returns currently profile for zeroth model if multiproblem fit
         z, rho, irho = M.sld, [], []
         return z, rho, irho
+
+    def fnRunMCMC(self, burn, steps, batch=False):
+        # Original Method of Calling the Shell
+        """
+        lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+           lCommand.append('--batch')
+        lCommand.append('--store=' + self.mcmcpath)
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        lCommand.append('--overwrite')
+        call(lCommand)
+        """
+
+        # Command line Python implementation
+        """
+        from refl1d import main
+        # There is a bug in bumps that prevents running sequential fits because the pool object is terminated
+        # from a previous fit but not None. Bumps expects it to be None or will not initiate a new pool.        
+        if none_pool:
+            from bumps.mapper import MPMapper
+            # MPMapper.pool.terminate()  # not always required
+            MPMapper.pool = None
+
+        sys.argv = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+            sys.argv.append('--batch')
+        sys.argv.append('--store=' + self.mcmcpath)
+        sys.argv.append('--burn=' + str(burn))
+        sys.argv.append('--steps=' + str(steps))
+        sys.argv.append('--overwrite')
+
+        main.cli()
+        """
+
+        # Calling refl1d functions directly
+        from bumps.cli import load_model, save_best
+        from bumps.mapper import MPMapper
+        from bumps.fitters import fit, FitDriver, DreamFit
+
+        model_file = os.path.join(self.spath, self.runfile) + '.py'
+        mcmcpath = os.path.join(self.spath, self.mcmcpath)
+
+        if not os.path.isdir(mcmcpath):
+            os.mkdir(mcmcpath)
+
+        # save model file in output directory
+        shutil.copy(model_file, mcmcpath)
+
+        problem = load_model(model_file)
+        mapper = MPMapper.start_mapper(problem, None, cpus=0)
+        monitors = None if not batch else []
+        driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=problem, init='lhs', steps=steps, burn=burn,
+                           monitors=monitors, xtol=1e-6, ftol=1e-8)
+        x, fx = driver.fit()
+
+        # .err and .par files
+        problem.output_path = os.path.join(mcmcpath, self.runfile)
+        save_best(driver, problem, x)
+
+        # don't know what files
+        if 'models' in dir(problem):
+            for M in problem.models:
+                M.fitness.save(os.path.join(mcmcpath, self.runfile))
+                break
+        else:
+            problem.fitness.save(os.path.join(mcmcpath, self.runfile))
+
+        # .mcmc and .point files
+        driver.save(os.path.join(mcmcpath, self.runfile))
+
+        # stat table and yet other files
+        driver.show()
+
+        # plots and other files
+        if not batch:
+            driver.plot(os.path.join(mcmcpath, self.runfile))
 
     def fnSaveMolgroups(self, problem):
         # saves bilayer and protein information from a bumps / refl1d problem object into a mol.dat file
@@ -496,20 +571,20 @@ class CRefl1DInteractor(CBumpsInteractor):
         """
         Scans self.runfile file for parameter with name sname and replaces the
         lower and upper fit limits by the given values.
-        Currently expects the parameter to be defined using the Parameter() method and not just .range()
+        Currently, expects the parameter to be defined using the Parameter() method and not just .range()
         on any object variable.
         """
 
-        file = open(self.spath+'/'+self.runfile+'.py', 'r+')
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
         data = file.readlines()
         file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'" + sname + ".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
             newdata.append(smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 '
                                       + str(fupperlimit) + r'\4', line))
 
-        file = open(self.spath+'/'+self.runfile+'.py', 'w')
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'w')
         file.writelines(newdata)
         file.close()
 
@@ -517,27 +592,6 @@ class CRefl1DInteractor(CBumpsInteractor):
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
-
-    def fnRunMCMC(self, burn, steps, batch=False):
-        # Previous Method of Calling the Shell
-        # lCommand = ['refl1d', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        # if batch:
-        #    lCommand.append('--batch')
-        # lCommand.append('--store=' + self.mcmcpath)
-        # lCommand.append('--burn=' + str(burn))
-        # lCommand.append('--steps=' + str(steps))
-        # lCommand.append('--overwrite')
-        # call(lCommand)
-
-        sys.argv = ['-p', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        if batch:
-            sys.argv.append('--batch')
-        sys.argv.append('--store=' + self.mcmcpath)
-        sys.argv.append('--burn=' + str(burn))
-        sys.argv.append('--steps=' + str(steps))
-        sys.argv.append('--overwrite')
-
-        main.cli()
 
     def fnSimulateData(self, diNewPars):
         liParameters = list(self.diParameters.keys())
@@ -555,7 +609,7 @@ class CRefl1DInteractor(CBumpsInteractor):
             p = [diNewPars[parameter] for parameter in liParameters]
             self.problem.setp(p)
             self.problem.model_update()
-            # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better
+            # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
 
             i = 0
             if 'models' in dir(self.problem):
@@ -564,8 +618,7 @@ class CRefl1DInteractor(CBumpsInteractor):
                     qvec, refl = M.fitness.reflectivity()
                     comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
                     simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
-                                              names=['Q', 'R', 'dR', 'dQ'],
-                                              skip_blank_lines=True, comment='#')
+                                              names=['Q', 'R', 'dR', 'dQ'], skip_blank_lines=True, comment='#')
                     simdata['R'] = refl
                     simdata['Q'] = qvec
                     simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
@@ -577,8 +630,7 @@ class CRefl1DInteractor(CBumpsInteractor):
                 qvec, refl = self.problem.fitness.reflectivity()
                 comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
                 simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
-                                          names=['Q', 'R', 'dR', 'dQ'],
-                                          skip_blank_lines=True, comment='#')
+                                          names=['Q', 'R', 'dR', 'dQ'], skip_blank_lines=True, comment='#')
                 simdata['R'] = refl
                 simdata['Q'] = qvec
                 simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
@@ -973,13 +1025,7 @@ class CGaReflInteractor(CRefl1DInteractor):
     def fnRunMCMC(self, burn, steps, batch=False, compile_setup=True):
         if compile_setup:
             self.fnMake()
-        lCommand = ['refl1d_cli.py', self.spath+'/'+self.runfile+'.py', '--fit=dream', '--parallel', '--init=lhs']
-        if batch:
-            lCommand.append('--batch')
-        lCommand.append('--store=' + self.spath+'/save')
-        lCommand.append('--burn=' + str(burn))
-        lCommand.append('--steps=' + str(steps))
-        call(lCommand)
+        CRefl1DInteractor.fnRunMCMC(self, burn=burn, steps=steps, batch=batch)
 
     def fnSaveMolgroups(self, problem):
         # should call the setup.cc function that saves mol.dat
@@ -1027,7 +1073,7 @@ class CGaReflInteractor(CRefl1DInteractor):
             del simdata['R']
             simdata = simdata.rename(columns={'fit': 'R'})
             simdata = simdata[['Q', 'R', 'dR']]
-            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None)
+            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None, header=False)
             i += 1
 
     @staticmethod

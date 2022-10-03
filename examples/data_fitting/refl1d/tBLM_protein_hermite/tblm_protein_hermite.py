@@ -8,13 +8,13 @@ from refl1d.flayer import FunctionalProfile
 
 # === Constant definition section ===
 # Canvas
-DIMENSION = 450
+DIMENSION = 300
 STEPSIZE = 0.5
 
 # Hermite Spline
-CONTROLPOINTS = 8
+CONTROLPOINTS = 6
 SPACING = 15.0
-PENETRATION = 42
+PENETRATION = 12
 dDp = [None] * CONTROLPOINTS
 dVf = [None] * CONTROLPOINTS
 
@@ -108,11 +108,16 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
-    # export objects for post analysis, needs to be from this function
+    # export objects for post analysis, needs to be in this function
+
+    # for plotting best-fits
     problem.bilayers = [blm]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    # for statistical analysis of molgroups
+    moldict1 = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    moldict2 = protein.fnWritePar2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
+    problem.moldat = {**moldict1, **moldict2}
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6

@@ -33,6 +33,8 @@ public:
 protected:
     virtual double CatmullInterpolate(double t, double pm1, double p0, double p1, double p2);
     virtual double fnTriCubicCatmullInterpolate(double p[4][4][4],double t[3]);
+    virtual double fnQuadCubicCatmullInterpolate(double p[4][4][4][4],double t[4]);
+
 };
 
 //------------------------------------------------------------------------------------------------------
@@ -71,6 +73,28 @@ public:
     virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double sigma1, sigma2, nsldbulk_store;
+};
+
+//------------------------------------------------------------------------------------------------------
+class BoxErrLinearSLD : public nSLDObj
+{
+public:
+    BoxErrLinearSLD() {};
+    BoxErrLinearSLD(double z, double sigma1, double sigma2, double length, double vol, double nSLD1, double nSLD2, double numberfraction);
+    virtual ~BoxErrLinearSLD();
+    virtual double fnGetLowerLimit();
+    virtual double fnGetUpperLimit();
+    virtual double fnGetArea(double z);
+    virtual double fnGetnSLD(double z);
+    virtual double fnGetnSL(double z);
+    virtual void   fnSetSigma(double sigma);
+    virtual void   fnSetSigma(double sigma1, double sigma2);
+    virtual void   fnSetnSLD(double nSLD);
+    virtual void   fnSetnSLD(double nSLD1, double nSLD2);
+    virtual void   fnSetZ(double dz);
+    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    
+    double sigma1, sigma2, nSLD1, nSLD2;
 };
 
 //------------------------------------------------------------------------------------------------------
@@ -133,6 +157,7 @@ public:
     virtual double fnGetnSLD(double dz);
     virtual double fnGetLowerLimit();
     virtual double fnGetUpperLimit();
+    virtual double fnGetVolume(double dz1, double dz2);
     virtual void fnSet(double _startposition, double _protonexchange, double _nsldbulksolvent, double _nf, double _normarea);
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetSigma(double _sigma);
@@ -191,6 +216,47 @@ private:
     int fn3Cto1C(int c1, int c2, int c3);
     
 	
+};
+//---------------------------------------------------------------------------------------------------------
+class DiscreteEulerSigma: public nSLDObj
+{
+    
+public:
+    
+    DiscreteEulerSigma(double dstartposition, double dnormarea, double dBetaStart, double dBetaEnd, double dBetaInc,
+                  double dGammaStart, double dGammaEnd, double dGammaInc, double dSigmaStart, double dSigmaEnd,
+                  double dSigmaInc, const char* strFileNameRoot,
+                  const char* strFileNameBeta, const char* strFileNameGamma, const char* strFileNameEnding);
+    virtual ~DiscreteEulerSigma();
+    virtual double fnGetArea(double dz);
+    virtual double fnGetnSLD(double dz);
+    virtual double fnGetLowerLimit();
+    virtual double fnGetUpperLimit();
+    virtual double fnGetVolume(double dz1, double dz2);
+    virtual void fnSetNormarea(double dnormarea);
+    virtual void fnSetSigma(double sigma) {dSigma=sigma;}
+    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    
+    
+    double dStartPosition, dProtExchange, dnSLDBulkSolvent;
+    double dBeta, dGamma;                                         //Euler angles
+    char* strFileNameRoot[30], strFileNameBeta[30], strFileNameGamma[30], strFileNameEnding[30];
+    double * area;
+    double * nSLProt;
+    double * nSLDeut;
+    double * zcoord;
+    double nf, dSigma;                                          //number of proteins per unit area
+
+    
+private:
+    int iNumberOfBeta, iNumberOfGamma, iNumberOfPoints, iNumberOfSigma;
+    double dBetaStart, dBetaEnd, dBetaInc, dGammaStart, dGammaEnd, dGammaInc;
+    double dZSpacing, normarea;
+    double dSigmaStart, dSigmaEnd, dSigmaInc;
+    
+    long int fn4Cto1C(int c1, int c2, int c3, int c4);
+    
+    
 };
 
 //---------------------------------------------------------------------------------------------------------
@@ -807,6 +873,26 @@ public:
 
 //------------------------------------------------------------------------------------------------------
 //tethered lipid bilayer, quaternary lipid bilayer
+//inner and outer lipid leaflet have separate nf_lipidx and nf_chol values
+class tBLM_quaternary_chol_2leaflet: public tBLM_quaternary_chol
+{
+public:
+    tBLM_quaternary_chol_2leaflet();
+    virtual ~tBLM_quaternary_chol_2leaflet() {};
+    virtual void   fnAdjustParameters();
+    using tBLM_quaternary_chol::fnSet;
+    virtual void   fnSet(double sigma, double global_rough, double rho_substrate, double dbulknsld, double nf_tether, double mult_tether, double l_tether, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid_3=0, double nf_chol=0, double nf_lipid_2_inner=0, double nf_lipid_3_inner=0, double nf_chol_inner=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
+        
+    //primary fit parameters
+    double nf_lipid_2_inner;
+    double nf_lipid_3_inner;
+    double nf_chol_inner;
+    
+    //other parameters
+};
+
+//------------------------------------------------------------------------------------------------------
+//tethered lipid bilayer, quaternary lipid bilayer
 //there will be a domains implemented in a way that 
 //there is a separate set of nf_..._domain parameters for 
 //the second domain, and that there is a frac_domain parameter
@@ -867,6 +953,13 @@ class BLM_POPC_POPE_PIP_chol: public BLM_quaternary
 public:
     BLM_POPC_POPE_PIP_chol();
     virtual ~BLM_POPC_POPE_PIP_chol() {};
+};
+
+class BLM_DMPC_d54DMPC_PIP_chol: public BLM_quaternary
+{
+public:
+    BLM_DMPC_d54DMPC_PIP_chol();
+    virtual ~BLM_DMPC_d54DMPC_PIP_chol() {};
 };
 
 
@@ -965,6 +1058,27 @@ public:
     virtual ~ssBLM_POPC_PIP() {};
 };
 
+class ssBLM_POPC_DPPC: public ssBLM_quaternary
+{
+public:
+    ssBLM_POPC_DPPC();
+    virtual ~ssBLM_POPC_DPPC() {};
+};
+
+class ssBLM_DOPC_DPPC: public ssBLM_quaternary
+{
+public:
+    ssBLM_DOPC_DPPC();
+    virtual ~ssBLM_DOPC_DPPC() {};
+};
+
+class ssBLM_DPPC_d62DPPC: public ssBLM_quaternary
+{
+public:
+    ssBLM_DPPC_d62DPPC();
+    virtual ~ssBLM_DPPC_d62DPPC() {};
+};
+
 class ssBLM_POPC_POPS_PIP_chol: public ssBLM_quaternary
 {
 public:
@@ -1032,13 +1146,18 @@ public:
     tBLM_HC18_d31POPC();
     virtual ~tBLM_HC18_d31POPC() {};
 };
+class tBLM_WC14_DPPC: public tBLM_quaternary_chol
+{
+public:
+    tBLM_WC14_DPPC();
+    virtual ~tBLM_WC14_DPPC() {};
+};
 class tBLM_WC14_DOPC: public tBLM_quaternary_chol
 {
 public:
     tBLM_WC14_DOPC();
     virtual ~tBLM_WC14_DOPC() {};
 };
-
 class tBLM_WC14_DPhyPC: public tBLM_quaternary_chol
 {
 public:
@@ -1073,11 +1192,23 @@ public:
     tBLM_HC18_d31POPC_POPS();
     virtual ~tBLM_HC18_d31POPC_POPS() {};
 };
+class tBLM_HC18_DOPC_DOPG: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_DOPC_DOPG();
+    virtual ~tBLM_HC18_DOPC_DOPG() {};
+};
 class tBLM_HC18_DOPC_DOPS: public tBLM_quaternary_chol
 {
 public:
     tBLM_HC18_DOPC_DOPS();
     virtual ~tBLM_HC18_DOPC_DOPS() {};
+};
+class tBLM_HC18_DOPC_LPSshort: public tBLM_quaternary_chol        // see STN antimicrobial Mar 2017
+{
+public:
+    tBLM_HC18_DOPC_LPSshort();
+    virtual ~tBLM_HC18_DOPC_LPSshort() {};
 };
 class tBLM_HC18_DOPC_DGSNTA: public tBLM_quaternary_chol
 {
@@ -1106,7 +1237,6 @@ public:
     tBLM_WC14_DMPC_DMPG();
     virtual ~tBLM_WC14_DMPC_DMPG() {};
 };
-
 
 class tBLM_WC14_DOPC_DOPS: public tBLM_quaternary_chol
 {
@@ -1172,6 +1302,39 @@ public:
     virtual ~tBLM_HC18_POPC_POPG_CHOL() {};
 };
 
+class tBLM_WC14_POPC_POPS_POPA: public tBLM_quaternary_chol
+{
+public:
+    tBLM_WC14_POPC_POPS_POPA();
+    virtual ~tBLM_WC14_POPC_POPS_POPA() {};
+};
+
+class tBLM_WC14_POPC_d31POPC_POPA: public tBLM_quaternary_chol
+{
+public:
+    tBLM_WC14_POPC_d31POPC_POPA();
+    virtual ~tBLM_WC14_POPC_d31POPC_POPA() {};
+};
+
+class tBLM_WC14_DMPC_DMPG_d54DMPC: public tBLM_quaternary_chol
+{
+public:
+    tBLM_WC14_DMPC_DMPG_d54DMPC();
+    virtual ~tBLM_WC14_DMPC_DMPG_d54DMPC() {};
+};
+
+//-----------------------------------------------------------------------------------------------------------
+// tBLM Library -- tBLM_ternary 2 leaflet
+//-----------------------------------------------------------------------------------------------------------
+
+class tBLM_WC14_DMPC_DMPG_d54DMPC_2leaflet: public tBLM_quaternary_chol_2leaflet
+{
+public:
+    tBLM_WC14_DMPC_DMPG_d54DMPC_2leaflet();
+    virtual ~tBLM_WC14_DMPC_DMPG_d54DMPC_2leaflet() {};
+};
+
+
 //-----------------------------------------------------------------------------------------------------------
 // tBLM Library -- tBLM_quaternary
 //-----------------------------------------------------------------------------------------------------------
@@ -1187,6 +1350,42 @@ class tBLM_HC18_POPC_POPS_PIP_CHOL: public tBLM_quaternary_chol
 public:
     tBLM_HC18_POPC_POPS_PIP_CHOL();
     virtual ~tBLM_HC18_POPC_POPS_PIP_CHOL() {};
+};
+class tBLM_HC18_POPC_POPG_Cardiolipin18T1_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_POPC_POPG_Cardiolipin18T1_CHOL();
+    virtual ~tBLM_HC18_POPC_POPG_Cardiolipin18T1_CHOL() {};
+};
+class tBLM_HC18_POPC_POPE_Cardiolipin18T1_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_POPC_POPE_Cardiolipin18T1_CHOL();
+    virtual ~tBLM_HC18_POPC_POPE_Cardiolipin18T1_CHOL() {};
+};
+class tBLM_HC18_POPC_POPE_KDO2_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_POPC_POPE_KDO2_CHOL();
+    virtual ~tBLM_HC18_POPC_POPE_KDO2_CHOL() {};
+};
+class tBLM_HC18_DOPC_POPG_Cardiolipin18T1_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_DOPC_POPG_Cardiolipin18T1_CHOL();
+    virtual ~tBLM_HC18_DOPC_POPG_Cardiolipin18T1_CHOL() {};
+};
+class tBLM_HC18_DOPC_CERNP_STEARIC_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_DOPC_CERNP_STEARIC_CHOL();
+    virtual ~tBLM_HC18_DOPC_CERNP_STEARIC_CHOL() {};
+};
+class tBLM_HC18_DOPC_CERNP_LIGNOCERIC_CHOL: public tBLM_quaternary_chol
+{
+public:
+    tBLM_HC18_DOPC_CERNP_LIGNOCERIC_CHOL();
+    virtual ~tBLM_HC18_DOPC_CERNP_LIGNOCERIC_CHOL() {};
 };
 
 //-----------------------------------------------------------------------------------------------------------
