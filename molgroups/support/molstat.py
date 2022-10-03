@@ -11,9 +11,10 @@ from time import sleep
 import numpy
 import pandas
 import os
+import pathlib
 
 from molgroups.support import general
-from molgroups.support import rsdi
+
 
 
 class CMolStat:
@@ -71,13 +72,17 @@ class CMolStat:
 
         self.Interactor = None
         if self.fitsource == "bumps":
-            self.Interactor = rsdi.CBumpsInteractor(spath, mcmcpath, runfile, state, problem, load_state=load_state)
+            from molgroups.support import api_bumps
+            self.Interactor = api_bumps.CBumpsAPI(spath, mcmcpath, runfile, state, problem, load_state=load_state)
         elif self.fitsource == 'refl1d':
-            self.Interactor = rsdi.CRefl1DInteractor(spath, mcmcpath, runfile, load_state=load_state)
+            from molgroups.support import api_refl1d
+            self.Interactor = api_refl1d.CRefl1DAPI(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'garefl':
-            self.Interactor = rsdi.CGaReflInteractor(spath, mcmcpath, runfile, load_state=load_state)
+            from molgroups.support import api_garefl
+            self.Interactor = api_garefl.CGaReflAPI(spath, mcmcpath, runfile, load_state=load_state)
         elif self.fitsource == 'SASView':
-            self.Interactor = rsdi.CSASViewInteractor(spath, mcmcpath, runfile, load_state=load_state)
+            from molgroups.support import api_sasview
+            self.Interactor = api_sasview.CSASViewAPI(spath, mcmcpath, runfile, load_state=load_state)
 
         self.save_stat_data = save_stat_data
 
@@ -1747,16 +1752,15 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
+    def fnSimulateData(self, basefilename='sim.dat', qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
                        tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5, cbmatmax=1.25e-6,
                        mode='water', pre=1, qrange=0):
-
         # simulates reflectivity based on a parameter file called simpar.dat
         # requires a compiled and ready to go fit whose fit parameters are modified and fixed
         # data files currently need to be named sim#.dat
         # The method is designed to be useable with reflectivity and SANS.
 
-        # Load Parameters and modify setup.cc
+        # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
 
         try:
@@ -1772,35 +1776,24 @@ class CMolStat:
             for parameter in liParameters:
                 diAddition[parameter] = simpar[simpar.par == parameter].iloc[0][1]
 
+            # load all data files into a list of Pandas dataframes
+            # each element is itself a list of [comments, simdata]
+            liData = self.Interactor.fnLoadData(basefilename)
+
             # if q-range is changing, back up original sim dat or reload previously backed up data
-            # to always work with the same set of original data
+            # to always work with the same set of original data and extend the q-range to qrange
+            # TODO: Backup does not seem to be implemented. I do not find a reload, either
             if qrange != 0:
                 self.Interactor.fnBackupSimdat()
-
-            # extend simulated data to q-range as defined
-            i = 0
-            while path.isfile(f'{self.spath}/sim{i}.dat') and qrange != 0:
-                comments = general.extract_comments_from_file(f'{self.spath}/sim{i}.dat', "#")
-                simdata = pandas.read_csv(f'{self.spath}/sim{i}.dat', sep='\s+', skip_blank_lines=True,
-                                          comment='#')
-                # first cut data at qrange
-                simdata = simdata[(simdata.Q <= qrange)]
-                # now add data points in case the q-range is too short
-                while simdata['Q'].iloc[-1] < qrange:
-                    newframe = pandas.DataFrame(simdata[-1:], columns=simdata.columns)
-                    newframe['Q'].iloc[-1] = 2 * simdata['Q'].iloc[-1] - simdata['Q'].iloc[-2]
-                    simdata = simdata.append(newframe)
-                simdata.to_csv(f'{self.spath}/sim{i}.dat', sep=' ', index=None)
-                general.add_comments_to_start_of_file(f'{self.spath}/sim{i}.dat', comments)
-                i += 1
+                liData = self.Interactor.fnExtendQRange(liData, qrange)
 
             # simulate data, works on sim.dat files
-            self.Interactor.fnSimulateData(diAddition)
+            self.Interactor.fnSimulateData(diAddition, liData)
+
             # simulate error bars, works on sim.dat files
-            self.Interactor.fnSimulateErrorBars(simpar, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max, s2min=s2min,
+            self.Interactor.fnSimulateErrorBars(simpar, liData, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max, s2min=s2min,
                                                 s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin, rhomin=rhomin,
-                                                rhomax=rhomax, cbmatmin=cbmatmin, cbmatmax=cbmatmax, mode=mode,
-                                                pre=pre)
+                                                rhomax=rhomax, cbmatmin=cbmatmin, cbmatmax=cbmatmax, mode=mode, pre=pre)
         finally:
             pass
 
