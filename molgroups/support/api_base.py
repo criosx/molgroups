@@ -169,7 +169,11 @@ class CBaseAPI:
                 data = pandas.read_xml(os.path.join(self.spath, stem + suffix), comment='#')
             else:
                 data = pandas.read_csv(os.path.join(self.spath, stem + suffix), sep='\s+', skip_blank_lines=True,
-                                       comment='#')
+                                       comment='#', header=None)
+                # if there was a header move it from first row to header
+                if any(data.iloc[0].apply(lambda x: isinstance(x, str))):
+                    data = data[1:].reset_index(drop=True).rename(columns=data.iloc[0])
+                    data = data.astype(float)
             return [comments, data]
 
         stem = pathlib.Path(filename).stem
@@ -182,6 +186,7 @@ class CBaseAPI:
             while True:
                 if os.path.isfile(os.path.join(self.spath, stem + str(i) + suffix)):
                     liData.append(_load(stem + str(i), suffix))
+                    i += 1
                 else:
                     break
         return liData
@@ -280,25 +285,26 @@ class CBaseAPI:
     def fnRemoveBackup(self):  # deletes the backup directory
         raise NotImplementedError()
 
-    def fnSaveData(self, stem, suffix, liData):
+    def fnSaveData(self, basefilename, liData):
         """
         Saves all frames and comments in liData to files with the basefilenam filename.
         Each list element is itself a list of [comments, simdata]. It will save n files with the name
         basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
         """
-
         def _save(stem, suffix, frame, comment):
             if suffix == '.xml':
                 frame.to_xml(os.path.join(self.spath, stem + suffix), index=None)
             else:
-                frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None)
+                frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None, header=None)
             general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
 
+        stem = pathlib.Path(basefilename).stem
+        suffix = pathlib.Path(basefilename).suffix
         if len(liData) == 1:
             _save(stem, suffix, liData[0][1], liData[0][0])
         else:
             for i in range(len(liData)):
-                _save(stem + str(i), suffix, liData[0][1], liData[0][0])
+                _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
     @staticmethod
     def fnSaveSingleColumns(sFilename, data):
@@ -338,7 +344,7 @@ class CBaseAPI:
 
         File.close()
 
-    def fnSimulateData(self, liExpression):
+    def fnSimulateData(self, diExpression, liData):
         raise NotImplementedError()
 
     def fnWriteConstraint2Runfile(self, liExpression):

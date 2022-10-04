@@ -40,6 +40,22 @@ class CBumpsAPI(api_base.CBaseAPI):
         for file in glob.glob(origin + r'/*.pyc'):
             shutil.copy(file, target)
 
+    def fnLoadData(self, filename):
+        """
+        Load all data files with the basefilenam filename into a list of Pandas dataframes.
+        Each list element is itself a list of [comments, simdata]. It will load n files with the name
+        basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
+        """
+        liData = super().fnLoadData(filename)
+        for i in range(len(liData)):
+            simdata = liData[i][1]
+            if len(simdata.columns) == 3:
+                simdata.columns = ['Q', 'R', 'dR']
+            elif len(simdata.columns) == 4:
+                simdata.columns = ['Q', 'R', 'dR', 'dQ']
+
+        return liData
+
     def fnLoadMCMCResults(self):
         # load Parameter
         if self.diParameters == {}:

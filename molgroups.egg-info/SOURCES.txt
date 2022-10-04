@@ -13,7 +13,11 @@ molgroups.egg-info/top_level.txt
 molgroups/infotheory/__init__.py
 molgroups/infotheory/entropy.py
 molgroups/support/__init__.py
+molgroups/support/api_base.py
+molgroups/support/api_bumps.py
+molgroups/support/api_garefl.py
+molgroups/support/api_refl1d.py
+molgroups/support/api_sasview.py
 molgroups/support/general.py
 molgroups/support/molstat.py
 molgroups/support/rs.py
-molgroups/support/rsdi.py

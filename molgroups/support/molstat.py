@@ -1771,29 +1771,26 @@ class CMolStat:
             # this could be done fileless
             simpar = pandas.read_csv(self.spath + '/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
-
             diAddition = {}
             for parameter in liParameters:
                 diAddition[parameter] = simpar[simpar.par == parameter].iloc[0][1]
-
             # load all data files into a list of Pandas dataframes
             # each element is itself a list of [comments, simdata]
             liData = self.Interactor.fnLoadData(basefilename)
-
             # if q-range is changing, back up original sim dat or reload previously backed up data
             # to always work with the same set of original data and extend the q-range to qrange
             # TODO: Backup does not seem to be implemented. I do not find a reload, either
             if qrange != 0:
                 self.Interactor.fnBackupSimdat()
                 liData = self.Interactor.fnExtendQRange(liData, qrange)
-
             # simulate data, works on sim.dat files
-            self.Interactor.fnSimulateData(diAddition, liData)
-
+            liData = self.Interactor.fnSimulateData(diAddition, liData)
             # simulate error bars, works on sim.dat files
-            self.Interactor.fnSimulateErrorBars(simpar, liData, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max, s2min=s2min,
-                                                s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin, rhomin=rhomin,
-                                                rhomax=rhomax, cbmatmin=cbmatmin, cbmatmax=cbmatmax, mode=mode, pre=pre)
+            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max,
+                                                         s2min=s2min, s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin,
+                                                         rhomin=rhomin, rhomax=rhomax, cbmatmin=cbmatmin,
+                                                         cbmatmax=cbmatmax, mode=mode, pre=pre)
+            self.Interactor.fnSaveData(basefilename, liData)
         finally:
             pass
 

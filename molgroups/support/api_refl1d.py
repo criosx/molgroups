@@ -45,16 +45,7 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
-    def fnSimulateData(self, diNewPars):
-        def sim_data(qvec, scatt, i=0):
-            comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
-            simdata = pandas.read_csv(self.spath + '/sim' + str(i) + '.dat', sep='\s+', header=None,
-                                      names=['Q', 'R', 'dR', 'dQ'], skip_blank_lines=True, comment='#')
-            simdata['R'] = scatt
-            simdata['Q'] = qvec
-            simdata.to_csv('sim' + str(i) + '.dat', sep=' ', index=None, header=None)
-            general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
-
+    def fnSimulateData(self, diNewPars, liData):
         liParameters = list(self.diParameters.keys())
         # sort by number of appereance in runfile
         liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
@@ -76,19 +67,23 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
             for M in self.problem.models:
                 M.chisq()
                 qvec, scatt = M.fitness.reflectivity()
-                sim_data(qvec, scatt, i)
+                liData[i][1]['R'] = scatt
+                liData[i][1]['Q'] = qvec
                 i += 1
         else:
             self.problem.chisq()
             qvec, scatt = self.problem.fitness.reflectivity()
-            sim_data(qvec, scatt)
+            liData[0][1]['R'] = scatt
+            liData[0][1]['Q'] = qvec
 
-    def fnSimulateErrorBars(self, simpar, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
+        return liData
+
+    def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
                             tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
                             cbmatmax=1.25e-6, mode='water', pre=1):
-        i = 0
+
         last_defined_rho_solv = 0
-        while path.isfile(self.spath+'/sim' + str(i) + '.dat'):
+        for i in range(len(liData)):
             # add error bars
             c1 = s1max / qmax
             c2 = s2max / qmax
@@ -112,14 +107,7 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
 
                 cbmat = (rhosolv - rhomin) / (rhomax - rhomin) * (cbmatmax - cbmatmin) + cbmatmin
 
-            comments = general.extract_comments_from_file(self.spath + '/sim' + str(i) + '.dat', "#")
-            simdata = pandas.read_csv(self.spath+'/sim' + str(i) + '.dat', sep='\s+', skip_blank_lines=True,
-                                      comment='#', header=None)
-
-            if len(simdata.columns) == 3:
-                simdata.columns = ['Q', 'R', 'dR']
-            elif len(simdata.columns) == 4:
-                simdata.columns = ['Q', 'R', 'dR', 'dQ']
+            simdata = liData[i][1]
             simdata['dR'] = 0.0
 
             for index in simdata.index:
@@ -132,7 +120,5 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
                 # modify reflectivity within error bars
                 simdata['R'][index] = simdata['R'][index] + normalvariate(0, 1) * dR
 
-            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None, header=None)
-            general.add_comments_to_start_of_file(self.spath + '/sim' + str(i) + '.dat', comments)
-            i += 1
+        return liData
 

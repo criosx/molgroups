@@ -353,7 +353,7 @@ class CGaReflAPI(api_refl1d.CRefl1DAPI):
         # TODO: Needs testing
         problem.active_model.fitness.output_model()
 
-    def fnSimulateData(self, diAddition):
+    def fnSimulateData(self, diAddition, liData):
         # change dir of parname:parvalue into list of expressions to be inserted into setup.cc
         liExpression = []
         for parameter in diAddition:
@@ -390,12 +390,12 @@ class CGaReflAPI(api_refl1d.CRefl1DAPI):
             simdata = pandas.read_csv(self.spath+'/fit' + str(i) + '.dat', sep='\s+', header=None,
                                       names=['Q', 'dQ', 'R', 'dR', 'fit'],
                                       skip_blank_lines=True, comment='#')
-            del simdata['dQ']
-            del simdata['R']
-            simdata = simdata.rename(columns={'fit': 'R'})
-            simdata = simdata[['Q', 'R', 'dR']]
-            simdata.to_csv(self.spath+'/sim' + str(i) + '.dat', sep=' ', index=None, header=False)
+            # simdata.drop(columns=['R'])
+            # simdata = simdata.rename(columns={'fit': 'R'})
+            liData[i][1]['R'] = simdata['fit']
             i += 1
+
+        return liData
 
     @staticmethod
     def fnTruncateParDat():
