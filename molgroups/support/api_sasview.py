@@ -22,6 +22,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             ds = sasmodels.data.load_data(os.path.join(self.spath, stem + suffix))
             data = pandas.DataFrame({'Q': ds.x, 'I': ds.y, 'dI': ds.dy, 'dQ': ds.dx})
             return [[], data]
+
         stem = pathlib.Path(filename).stem
         suffix = pathlib.Path(filename).suffix
         liData = []
