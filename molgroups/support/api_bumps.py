@@ -96,8 +96,7 @@ class CBumpsAPI(api_base.CBaseAPI):
                 pnamekeys.append(par.name)
         else:
             overall = self.problem.chisq()
-            # TODO: Not sure this is for bumps(diffraction) or strictly for single model fitproblems
-            pnamekeys = list(self.problem.model_parameters().keys())
+            pnamekeys = self.problem.labels()
 
         # Do not accept parameter names with spaces, replace with underscore
         for i in range(len(pnamekeys)):
@@ -178,6 +177,10 @@ class CBumpsAPI(api_base.CBaseAPI):
         if path.isdir(target):
             for file in glob.glob(target + r'/*.*'):
                 shutil.copy(file, origin)
+
+    def fnRestoreFit(self):
+        self.fnRestoreFitProblem()
+        self.fnRestoreState()
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem

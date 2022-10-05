@@ -1,0 +1,1493 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SASroot xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:cansas1d:1.1" version="1.1" xsi:schemaLocation="urn:cansas1d:1.1 http://www.cansas.org/formats/1.1/cansas1d.xsd">
+  <SASentry>
+    <Title>100LysNaCl_sub.abs</Title>
+    <Run name="None">None</Run>
+    <SASdata>
+      <Idata>
+        <Q unit="A^{-1}">0.003361</Q>
+        <I unit="cm^{-1}">2.158</I>
+        <Idev unit="cm^{-1}">0.1316</Idev>
+        <Qdev unit="A^{-1}">0.001038</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.003756</Q>
+        <I unit="cm^{-1}">2.097</I>
+        <Idev unit="cm^{-1}">0.1104</Idev>
+        <Qdev unit="A^{-1}">0.00104</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.004151</Q>
+        <I unit="cm^{-1}">1.776</I>
+        <Idev unit="cm^{-1}">0.08865</Idev>
+        <Qdev unit="A^{-1}">0.001048</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.004547</Q>
+        <I unit="cm^{-1}">1.636</I>
+        <Idev unit="cm^{-1}">0.07802</Idev>
+        <Qdev unit="A^{-1}">0.00106</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.004942</Q>
+        <I unit="cm^{-1}">1.574</I>
+        <Idev unit="cm^{-1}">0.0647</Idev>
+        <Qdev unit="A^{-1}">0.001064</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.005338</Q>
+        <I unit="cm^{-1}">1.512</I>
+        <Idev unit="cm^{-1}">0.06539</Idev>
+        <Qdev unit="A^{-1}">0.001068</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.005733</Q>
+        <I unit="cm^{-1}">1.395</I>
+        <Idev unit="cm^{-1}">0.05382</Idev>
+        <Qdev unit="A^{-1}">0.001074</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.006128</Q>
+        <I unit="cm^{-1}">1.32</I>
+        <Idev unit="cm^{-1}">0.05097</Idev>
+        <Qdev unit="A^{-1}">0.001079</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.006524</Q>
+        <I unit="cm^{-1}">1.286</I>
+        <Idev unit="cm^{-1}">0.04469</Idev>
+        <Qdev unit="A^{-1}">0.001086</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.006919</Q>
+        <I unit="cm^{-1}">1.193</I>
+        <Idev unit="cm^{-1}">0.04745</Idev>
+        <Qdev unit="A^{-1}">0.001093</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.007314</Q>
+        <I unit="cm^{-1}">1.207</I>
+        <Idev unit="cm^{-1}">0.04253</Idev>
+        <Qdev unit="A^{-1}">0.0011</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.00771</Q>
+        <I unit="cm^{-1}">1.149</I>
+        <Idev unit="cm^{-1}">0.03976</Idev>
+        <Qdev unit="A^{-1}">0.001108</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.008105</Q>
+        <I unit="cm^{-1}">1.2</I>
+        <Idev unit="cm^{-1}">0.0383</Idev>
+        <Qdev unit="A^{-1}">0.001116</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0085</Q>
+        <I unit="cm^{-1}">1.126</I>
+        <Idev unit="cm^{-1}">0.03609</Idev>
+        <Qdev unit="A^{-1}">0.001125</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.008896</Q>
+        <I unit="cm^{-1}">1.132</I>
+        <Idev unit="cm^{-1}">0.03523</Idev>
+        <Qdev unit="A^{-1}">0.001134</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.009291</Q>
+        <I unit="cm^{-1}">1.047</I>
+        <Idev unit="cm^{-1}">0.03348</Idev>
+        <Qdev unit="A^{-1}">0.001144</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.009637</Q>
+        <I unit="cm^{-1}">1.079</I>
+        <Idev unit="cm^{-1}">0.01225</Idev>
+        <Qdev unit="A^{-1}">0.00208</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.009686</Q>
+        <I unit="cm^{-1}">1.036</I>
+        <Idev unit="cm^{-1}">0.03235</Idev>
+        <Qdev unit="A^{-1}">0.001153</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01008</Q>
+        <I unit="cm^{-1}">1.09</I>
+        <Idev unit="cm^{-1}">0.02952</Idev>
+        <Qdev unit="A^{-1}">0.001164</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01048</Q>
+        <I unit="cm^{-1}">1.12</I>
+        <Idev unit="cm^{-1}">0.034</Idev>
+        <Qdev unit="A^{-1}">0.001174</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01087</Q>
+        <I unit="cm^{-1}">1.047</I>
+        <Idev unit="cm^{-1}">0.02947</Idev>
+        <Qdev unit="A^{-1}">0.001185</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01092</Q>
+        <I unit="cm^{-1}">1.04</I>
+        <Idev unit="cm^{-1}">0.01255</Idev>
+        <Qdev unit="A^{-1}">0.002083</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01127</Q>
+        <I unit="cm^{-1}">1.1</I>
+        <Idev unit="cm^{-1}">0.03298</Idev>
+        <Qdev unit="A^{-1}">0.001196</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01166</Q>
+        <I unit="cm^{-1}">1.051</I>
+        <Idev unit="cm^{-1}">0.02731</Idev>
+        <Qdev unit="A^{-1}">0.001208</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01206</Q>
+        <I unit="cm^{-1}">1.062</I>
+        <Idev unit="cm^{-1}">0.02967</Idev>
+        <Qdev unit="A^{-1}">0.00122</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01221</Q>
+        <I unit="cm^{-1}">1.026</I>
+        <Idev unit="cm^{-1}">0.01133</Idev>
+        <Qdev unit="A^{-1}">0.002091</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01245</Q>
+        <I unit="cm^{-1}">1.094</I>
+        <Idev unit="cm^{-1}">0.0309</Idev>
+        <Qdev unit="A^{-1}">0.001232</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01285</Q>
+        <I unit="cm^{-1}">1.059</I>
+        <Idev unit="cm^{-1}">0.03051</Idev>
+        <Qdev unit="A^{-1}">0.001244</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01324</Q>
+        <I unit="cm^{-1}">1.01</I>
+        <Idev unit="cm^{-1}">0.02737</Idev>
+        <Qdev unit="A^{-1}">0.001257</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01349</Q>
+        <I unit="cm^{-1}">1.02</I>
+        <Idev unit="cm^{-1}">0.01067</Idev>
+        <Qdev unit="A^{-1}">0.002118</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01364</Q>
+        <I unit="cm^{-1}">1.025</I>
+        <Idev unit="cm^{-1}">0.02754</Idev>
+        <Qdev unit="A^{-1}">0.00127</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01403</Q>
+        <I unit="cm^{-1}">1.049</I>
+        <Idev unit="cm^{-1}">0.02499</Idev>
+        <Qdev unit="A^{-1}">0.001283</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01443</Q>
+        <I unit="cm^{-1}">1.027</I>
+        <Idev unit="cm^{-1}">0.02631</Idev>
+        <Qdev unit="A^{-1}">0.001296</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01478</Q>
+        <I unit="cm^{-1}">0.998</I>
+        <Idev unit="cm^{-1}">0.009721</Idev>
+        <Qdev unit="A^{-1}">0.002184</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01483</Q>
+        <I unit="cm^{-1}">1.014</I>
+        <Idev unit="cm^{-1}">0.0249</Idev>
+        <Qdev unit="A^{-1}">0.00131</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01522</Q>
+        <I unit="cm^{-1}">1.043</I>
+        <Idev unit="cm^{-1}">0.02757</Idev>
+        <Qdev unit="A^{-1}">0.001324</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01562</Q>
+        <I unit="cm^{-1}">1.002</I>
+        <Idev unit="cm^{-1}">0.02396</Idev>
+        <Qdev unit="A^{-1}">0.001338</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01601</Q>
+        <I unit="cm^{-1}">1.04</I>
+        <Idev unit="cm^{-1}">0.02297</Idev>
+        <Qdev unit="A^{-1}">0.001352</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01606</Q>
+        <I unit="cm^{-1}">0.978</I>
+        <Idev unit="cm^{-1}">0.009757</Idev>
+        <Qdev unit="A^{-1}">0.002225</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01641</Q>
+        <I unit="cm^{-1}">1.018</I>
+        <Idev unit="cm^{-1}">0.02505</Idev>
+        <Qdev unit="A^{-1}">0.001366</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0168</Q>
+        <I unit="cm^{-1}">1.005</I>
+        <Idev unit="cm^{-1}">0.02252</Idev>
+        <Qdev unit="A^{-1}">0.001381</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0172</Q>
+        <I unit="cm^{-1}">1.017</I>
+        <Idev unit="cm^{-1}">0.02564</Idev>
+        <Qdev unit="A^{-1}">0.001396</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01735</Q>
+        <I unit="cm^{-1}">0.984</I>
+        <Idev unit="cm^{-1}">0.009579</Idev>
+        <Qdev unit="A^{-1}">0.002254</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01759</Q>
+        <I unit="cm^{-1}">0.991</I>
+        <Idev unit="cm^{-1}">0.02385</Idev>
+        <Qdev unit="A^{-1}">0.001411</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01799</Q>
+        <I unit="cm^{-1}">0.996</I>
+        <Idev unit="cm^{-1}">0.02331</Idev>
+        <Qdev unit="A^{-1}">0.001426</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01838</Q>
+        <I unit="cm^{-1}">1.0</I>
+        <Idev unit="cm^{-1}">0.0214</Idev>
+        <Qdev unit="A^{-1}">0.001442</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01863</Q>
+        <I unit="cm^{-1}">0.97</I>
+        <Idev unit="cm^{-1}">0.008312</Idev>
+        <Qdev unit="A^{-1}">0.002285</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01878</Q>
+        <I unit="cm^{-1}">1.008</I>
+        <Idev unit="cm^{-1}">0.02216</Idev>
+        <Qdev unit="A^{-1}">0.001457</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01917</Q>
+        <I unit="cm^{-1}">0.958</I>
+        <Idev unit="cm^{-1}">0.02166</Idev>
+        <Qdev unit="A^{-1}">0.001473</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01957</Q>
+        <I unit="cm^{-1}">1.017</I>
+        <Idev unit="cm^{-1}">0.02161</Idev>
+        <Qdev unit="A^{-1}">0.001489</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01991</Q>
+        <I unit="cm^{-1}">0.959</I>
+        <Idev unit="cm^{-1}">0.008556</Idev>
+        <Qdev unit="A^{-1}">0.002317</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.01996</Q>
+        <I unit="cm^{-1}">1.003</I>
+        <Idev unit="cm^{-1}">0.02151</Idev>
+        <Qdev unit="A^{-1}">0.001505</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02036</Q>
+        <I unit="cm^{-1}">0.982</I>
+        <Idev unit="cm^{-1}">0.02219</Idev>
+        <Qdev unit="A^{-1}">0.001521</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02075</Q>
+        <I unit="cm^{-1}">0.994</I>
+        <Idev unit="cm^{-1}">0.0209</Idev>
+        <Qdev unit="A^{-1}">0.001538</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02115</Q>
+        <I unit="cm^{-1}">1.003</I>
+        <Idev unit="cm^{-1}">0.02298</Idev>
+        <Qdev unit="A^{-1}">0.001554</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0212</Q>
+        <I unit="cm^{-1}">0.957</I>
+        <Idev unit="cm^{-1}">0.008304</Idev>
+        <Qdev unit="A^{-1}">0.002351</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02154</Q>
+        <I unit="cm^{-1}">0.95</I>
+        <Idev unit="cm^{-1}">0.02123</Idev>
+        <Qdev unit="A^{-1}">0.001571</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02194</Q>
+        <I unit="cm^{-1}">0.963</I>
+        <Idev unit="cm^{-1}">0.02004</Idev>
+        <Qdev unit="A^{-1}">0.001587</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02233</Q>
+        <I unit="cm^{-1}">0.967</I>
+        <Idev unit="cm^{-1}">0.02176</Idev>
+        <Qdev unit="A^{-1}">0.001604</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02248</Q>
+        <I unit="cm^{-1}">0.962</I>
+        <Idev unit="cm^{-1}">0.007858</Idev>
+        <Qdev unit="A^{-1}">0.002387</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02273</Q>
+        <I unit="cm^{-1}">0.989</I>
+        <Idev unit="cm^{-1}">0.01999</Idev>
+        <Qdev unit="A^{-1}">0.001621</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02312</Q>
+        <I unit="cm^{-1}">0.956</I>
+        <Idev unit="cm^{-1}">0.02077</Idev>
+        <Qdev unit="A^{-1}">0.001638</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02352</Q>
+        <I unit="cm^{-1}">0.955</I>
+        <Idev unit="cm^{-1}">0.02012</Idev>
+        <Qdev unit="A^{-1}">0.001656</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02377</Q>
+        <I unit="cm^{-1}">0.963</I>
+        <Idev unit="cm^{-1}">0.008375</Idev>
+        <Qdev unit="A^{-1}">0.002425</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02392</Q>
+        <I unit="cm^{-1}">0.984</I>
+        <Idev unit="cm^{-1}">0.02279</Idev>
+        <Qdev unit="A^{-1}">0.001673</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02431</Q>
+        <I unit="cm^{-1}">0.953</I>
+        <Idev unit="cm^{-1}">0.02227</Idev>
+        <Qdev unit="A^{-1}">0.00169</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02471</Q>
+        <I unit="cm^{-1}">0.976</I>
+        <Idev unit="cm^{-1}">0.021</Idev>
+        <Qdev unit="A^{-1}">0.001708</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02505</Q>
+        <I unit="cm^{-1}">0.958</I>
+        <Idev unit="cm^{-1}">0.008105</Idev>
+        <Qdev unit="A^{-1}">0.002464</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0251</Q>
+        <I unit="cm^{-1}">0.975</I>
+        <Idev unit="cm^{-1}">0.02101</Idev>
+        <Qdev unit="A^{-1}">0.001726</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0255</Q>
+        <I unit="cm^{-1}">0.968</I>
+        <Idev unit="cm^{-1}">0.02511</Idev>
+        <Qdev unit="A^{-1}">0.001743</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02589</Q>
+        <I unit="cm^{-1}">0.954</I>
+        <Idev unit="cm^{-1}">0.02363</Idev>
+        <Qdev unit="A^{-1}">0.001761</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02629</Q>
+        <I unit="cm^{-1}">0.948</I>
+        <Idev unit="cm^{-1}">0.02586</Idev>
+        <Qdev unit="A^{-1}">0.001779</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02634</Q>
+        <I unit="cm^{-1}">0.932</I>
+        <Idev unit="cm^{-1}">0.00743</Idev>
+        <Qdev unit="A^{-1}">0.002505</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02668</Q>
+        <I unit="cm^{-1}">0.915</I>
+        <Idev unit="cm^{-1}">0.02657</Idev>
+        <Qdev unit="A^{-1}">0.001797</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02708</Q>
+        <I unit="cm^{-1}">0.977</I>
+        <Idev unit="cm^{-1}">0.02785</Idev>
+        <Qdev unit="A^{-1}">0.001815</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02747</Q>
+        <I unit="cm^{-1}">0.946</I>
+        <Idev unit="cm^{-1}">0.03404</Idev>
+        <Qdev unit="A^{-1}">0.001834</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02762</Q>
+        <I unit="cm^{-1}">0.941</I>
+        <Idev unit="cm^{-1}">0.006756</Idev>
+        <Qdev unit="A^{-1}">0.002547</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02787</Q>
+        <I unit="cm^{-1}">0.947</I>
+        <Idev unit="cm^{-1}">0.0333</Idev>
+        <Qdev unit="A^{-1}">0.001852</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02826</Q>
+        <I unit="cm^{-1}">0.944</I>
+        <Idev unit="cm^{-1}">0.03343</Idev>
+        <Qdev unit="A^{-1}">0.00187</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02866</Q>
+        <I unit="cm^{-1}">0.952</I>
+        <Idev unit="cm^{-1}">0.03455</Idev>
+        <Qdev unit="A^{-1}">0.001889</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0289</Q>
+        <I unit="cm^{-1}">0.952</I>
+        <Idev unit="cm^{-1}">0.006214</Idev>
+        <Qdev unit="A^{-1}">0.00259</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.02905</Q>
+        <I unit="cm^{-1}">0.949</I>
+        <Idev unit="cm^{-1}">0.03756</Idev>
+        <Qdev unit="A^{-1}">0.001907</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03019</Q>
+        <I unit="cm^{-1}">0.921</I>
+        <Idev unit="cm^{-1}">0.007431</Idev>
+        <Qdev unit="A^{-1}">0.002635</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03147</Q>
+        <I unit="cm^{-1}">0.928</I>
+        <Idev unit="cm^{-1}">0.006203</Idev>
+        <Qdev unit="A^{-1}">0.00268</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03275</Q>
+        <I unit="cm^{-1}">0.935</I>
+        <Idev unit="cm^{-1}">0.006208</Idev>
+        <Qdev unit="A^{-1}">0.002727</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03404</Q>
+        <I unit="cm^{-1}">0.935</I>
+        <Idev unit="cm^{-1}">0.006825</Idev>
+        <Qdev unit="A^{-1}">0.002775</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03532</Q>
+        <I unit="cm^{-1}">0.916</I>
+        <Idev unit="cm^{-1}">0.006222</Idev>
+        <Qdev unit="A^{-1}">0.002824</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0366</Q>
+        <I unit="cm^{-1}">0.93</I>
+        <Idev unit="cm^{-1}">0.006259</Idev>
+        <Qdev unit="A^{-1}">0.002874</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03789</Q>
+        <I unit="cm^{-1}">0.915</I>
+        <Idev unit="cm^{-1}">0.005042</Idev>
+        <Qdev unit="A^{-1}">0.002925</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.03917</Q>
+        <I unit="cm^{-1}">0.907</I>
+        <Idev unit="cm^{-1}">0.005675</Idev>
+        <Qdev unit="A^{-1}">0.002976</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04045</Q>
+        <I unit="cm^{-1}">0.912</I>
+        <Idev unit="cm^{-1}">0.005235</Idev>
+        <Qdev unit="A^{-1}">0.003028</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04173</Q>
+        <I unit="cm^{-1}">0.898</I>
+        <Idev unit="cm^{-1}">0.005949</Idev>
+        <Qdev unit="A^{-1}">0.003081</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04302</Q>
+        <I unit="cm^{-1}">0.896</I>
+        <Idev unit="cm^{-1}">0.005106</Idev>
+        <Qdev unit="A^{-1}">0.003135</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0443</Q>
+        <I unit="cm^{-1}">0.89</I>
+        <Idev unit="cm^{-1}">0.00554</Idev>
+        <Qdev unit="A^{-1}">0.00319</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04558</Q>
+        <I unit="cm^{-1}">0.88</I>
+        <Idev unit="cm^{-1}">0.005728</Idev>
+        <Qdev unit="A^{-1}">0.003245</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04686</Q>
+        <I unit="cm^{-1}">0.88</I>
+        <Idev unit="cm^{-1}">0.005808</Idev>
+        <Qdev unit="A^{-1}">0.003301</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04815</Q>
+        <I unit="cm^{-1}">0.8726</I>
+        <Idev unit="cm^{-1}">0.005205</Idev>
+        <Qdev unit="A^{-1}">0.003357</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04879</Q>
+        <I unit="cm^{-1}">0.8608</I>
+        <Idev unit="cm^{-1}">0.002758</Idev>
+        <Qdev unit="A^{-1}">0.006374</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.04943</Q>
+        <I unit="cm^{-1}">0.8608</I>
+        <Idev unit="cm^{-1}">0.005025</Idev>
+        <Qdev unit="A^{-1}">0.003414</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05071</Q>
+        <I unit="cm^{-1}">0.856</I>
+        <Idev unit="cm^{-1}">0.004735</Idev>
+        <Qdev unit="A^{-1}">0.003471</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05199</Q>
+        <I unit="cm^{-1}">0.8531</I>
+        <Idev unit="cm^{-1}">0.004821</Idev>
+        <Qdev unit="A^{-1}">0.003529</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05327</Q>
+        <I unit="cm^{-1}">0.846</I>
+        <Idev unit="cm^{-1}">0.005051</Idev>
+        <Qdev unit="A^{-1}">0.003587</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05391</Q>
+        <I unit="cm^{-1}">0.8392</I>
+        <Idev unit="cm^{-1}">0.002957</Idev>
+        <Qdev unit="A^{-1}">0.006382</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05455</Q>
+        <I unit="cm^{-1}">0.848</I>
+        <Idev unit="cm^{-1}">0.00479</Idev>
+        <Qdev unit="A^{-1}">0.003646</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05583</Q>
+        <I unit="cm^{-1}">0.8342</I>
+        <Idev unit="cm^{-1}">0.004671</Idev>
+        <Qdev unit="A^{-1}">0.003705</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05711</Q>
+        <I unit="cm^{-1}">0.833</I>
+        <Idev unit="cm^{-1}">0.004861</Idev>
+        <Qdev unit="A^{-1}">0.003765</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05839</Q>
+        <I unit="cm^{-1}">0.8151</I>
+        <Idev unit="cm^{-1}">0.00409</Idev>
+        <Qdev unit="A^{-1}">0.003825</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05903</Q>
+        <I unit="cm^{-1}">0.8122</I>
+        <Idev unit="cm^{-1}">0.002994</Idev>
+        <Qdev unit="A^{-1}">0.006407</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.05967</Q>
+        <I unit="cm^{-1}">0.8118</I>
+        <Idev unit="cm^{-1}">0.004508</Idev>
+        <Qdev unit="A^{-1}">0.003885</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06095</Q>
+        <I unit="cm^{-1}">0.8005</I>
+        <Idev unit="cm^{-1}">0.004257</Idev>
+        <Qdev unit="A^{-1}">0.003946</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06223</Q>
+        <I unit="cm^{-1}">0.7994</I>
+        <Idev unit="cm^{-1}">0.004347</Idev>
+        <Qdev unit="A^{-1}">0.004007</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06351</Q>
+        <I unit="cm^{-1}">0.7891</I>
+        <Idev unit="cm^{-1}">0.004079</Idev>
+        <Qdev unit="A^{-1}">0.004068</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06415</Q>
+        <I unit="cm^{-1}">0.7813</I>
+        <Idev unit="cm^{-1}">0.002806</Idev>
+        <Qdev unit="A^{-1}">0.006486</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06479</Q>
+        <I unit="cm^{-1}">0.7879</I>
+        <Idev unit="cm^{-1}">0.004277</Idev>
+        <Qdev unit="A^{-1}">0.00413</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06607</Q>
+        <I unit="cm^{-1}">0.776</I>
+        <Idev unit="cm^{-1}">0.00392</Idev>
+        <Qdev unit="A^{-1}">0.004192</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06735</Q>
+        <I unit="cm^{-1}">0.763</I>
+        <Idev unit="cm^{-1}">0.004476</Idev>
+        <Qdev unit="A^{-1}">0.004254</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06863</Q>
+        <I unit="cm^{-1}">0.7554</I>
+        <Idev unit="cm^{-1}">0.003987</Idev>
+        <Qdev unit="A^{-1}">0.004317</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06927</Q>
+        <I unit="cm^{-1}">0.7489</I>
+        <Idev unit="cm^{-1}">0.003007</Idev>
+        <Qdev unit="A^{-1}">0.00675</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.06991</Q>
+        <I unit="cm^{-1}">0.7461</I>
+        <Idev unit="cm^{-1}">0.004078</Idev>
+        <Qdev unit="A^{-1}">0.004379</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07118</Q>
+        <I unit="cm^{-1}">0.742</I>
+        <Idev unit="cm^{-1}">0.004082</Idev>
+        <Qdev unit="A^{-1}">0.004442</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07246</Q>
+        <I unit="cm^{-1}">0.7262</I>
+        <Idev unit="cm^{-1}">0.003886</Idev>
+        <Qdev unit="A^{-1}">0.004505</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07374</Q>
+        <I unit="cm^{-1}">0.7263</I>
+        <Idev unit="cm^{-1}">0.003878</Idev>
+        <Qdev unit="A^{-1}">0.004569</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07438</Q>
+        <I unit="cm^{-1}">0.7132</I>
+        <Idev unit="cm^{-1}">0.002724</Idev>
+        <Qdev unit="A^{-1}">0.007059</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07502</Q>
+        <I unit="cm^{-1}">0.7133</I>
+        <Idev unit="cm^{-1}">0.003803</Idev>
+        <Qdev unit="A^{-1}">0.004632</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07629</Q>
+        <I unit="cm^{-1}">0.7049</I>
+        <Idev unit="cm^{-1}">0.003914</Idev>
+        <Qdev unit="A^{-1}">0.004696</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07757</Q>
+        <I unit="cm^{-1}">0.6881</I>
+        <Idev unit="cm^{-1}">0.00366</Idev>
+        <Qdev unit="A^{-1}">0.00476</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07885</Q>
+        <I unit="cm^{-1}">0.6883</I>
+        <Idev unit="cm^{-1}">0.004039</Idev>
+        <Qdev unit="A^{-1}">0.004824</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.07948</Q>
+        <I unit="cm^{-1}">0.6779</I>
+        <Idev unit="cm^{-1}">0.002665</Idev>
+        <Qdev unit="A^{-1}">0.007232</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08012</Q>
+        <I unit="cm^{-1}">0.6777</I>
+        <Idev unit="cm^{-1}">0.004272</Idev>
+        <Qdev unit="A^{-1}">0.004888</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0814</Q>
+        <I unit="cm^{-1}">0.6636</I>
+        <Idev unit="cm^{-1}">0.004503</Idev>
+        <Qdev unit="A^{-1}">0.004953</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08267</Q>
+        <I unit="cm^{-1}">0.6543</I>
+        <Idev unit="cm^{-1}">0.004713</Idev>
+        <Qdev unit="A^{-1}">0.005018</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08395</Q>
+        <I unit="cm^{-1}">0.6445</I>
+        <Idev unit="cm^{-1}">0.004859</Idev>
+        <Qdev unit="A^{-1}">0.005082</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08458</Q>
+        <I unit="cm^{-1}">0.6403</I>
+        <Idev unit="cm^{-1}">0.002769</Idev>
+        <Qdev unit="A^{-1}">0.007407</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08522</Q>
+        <I unit="cm^{-1}">0.6418</I>
+        <Idev unit="cm^{-1}">0.005181</Idev>
+        <Qdev unit="A^{-1}">0.005147</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.0865</Q>
+        <I unit="cm^{-1}">0.6327</I>
+        <Idev unit="cm^{-1}">0.005441</Idev>
+        <Qdev unit="A^{-1}">0.005212</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08777</Q>
+        <I unit="cm^{-1}">0.6201</I>
+        <Idev unit="cm^{-1}">0.005605</Idev>
+        <Qdev unit="A^{-1}">0.005278</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.08968</Q>
+        <I unit="cm^{-1}">0.603</I>
+        <Idev unit="cm^{-1}">0.002685</Idev>
+        <Qdev unit="A^{-1}">0.007587</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.09477</Q>
+        <I unit="cm^{-1}">0.5653</I>
+        <Idev unit="cm^{-1}">0.002463</Idev>
+        <Qdev unit="A^{-1}">0.007774</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.09986</Q>
+        <I unit="cm^{-1}">0.5366</I>
+        <Idev unit="cm^{-1}">0.002131</Idev>
+        <Qdev unit="A^{-1}">0.007966</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1049</Q>
+        <I unit="cm^{-1}">0.5033</I>
+        <Idev unit="cm^{-1}">0.00188</Idev>
+        <Qdev unit="A^{-1}">0.008163</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.11</Q>
+        <I unit="cm^{-1}">0.4716</I>
+        <Idev unit="cm^{-1}">0.001871</Idev>
+        <Qdev unit="A^{-1}">0.008364</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1151</Q>
+        <I unit="cm^{-1}">0.4394</I>
+        <Idev unit="cm^{-1}">0.001809</Idev>
+        <Qdev unit="A^{-1}">0.00857</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1201</Q>
+        <I unit="cm^{-1}">0.4115</I>
+        <Idev unit="cm^{-1}">0.001703</Idev>
+        <Qdev unit="A^{-1}">0.00878</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1252</Q>
+        <I unit="cm^{-1}">0.3843</I>
+        <Idev unit="cm^{-1}">0.001923</Idev>
+        <Qdev unit="A^{-1}">0.008993</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1302</Q>
+        <I unit="cm^{-1}">0.3575</I>
+        <Idev unit="cm^{-1}">0.001637</Idev>
+        <Qdev unit="A^{-1}">0.00921</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1353</Q>
+        <I unit="cm^{-1}">0.3321</I>
+        <Idev unit="cm^{-1}">0.00154</Idev>
+        <Qdev unit="A^{-1}">0.009429</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1403</Q>
+        <I unit="cm^{-1}">0.3129</I>
+        <Idev unit="cm^{-1}">0.00136</Idev>
+        <Qdev unit="A^{-1}">0.009651</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1453</Q>
+        <I unit="cm^{-1}">0.2894</I>
+        <Idev unit="cm^{-1}">0.001267</Idev>
+        <Qdev unit="A^{-1}">0.009876</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1504</Q>
+        <I unit="cm^{-1}">0.2688</I>
+        <Idev unit="cm^{-1}">0.001286</Idev>
+        <Qdev unit="A^{-1}">0.0101</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1554</Q>
+        <I unit="cm^{-1}">0.2503</I>
+        <Idev unit="cm^{-1}">0.001142</Idev>
+        <Qdev unit="A^{-1}">0.01033</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1604</Q>
+        <I unit="cm^{-1}">0.2307</I>
+        <Idev unit="cm^{-1}">0.001343</Idev>
+        <Qdev unit="A^{-1}">0.01056</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1654</Q>
+        <I unit="cm^{-1}">0.2124</I>
+        <Idev unit="cm^{-1}">0.001165</Idev>
+        <Qdev unit="A^{-1}">0.0108</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1703</Q>
+        <I unit="cm^{-1}">0.1947</I>
+        <Idev unit="cm^{-1}">0.001224</Idev>
+        <Qdev unit="A^{-1}">0.01103</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1753</Q>
+        <I unit="cm^{-1}">0.1816</I>
+        <Idev unit="cm^{-1}">0.001125</Idev>
+        <Qdev unit="A^{-1}">0.01127</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1803</Q>
+        <I unit="cm^{-1}">0.1681</I>
+        <Idev unit="cm^{-1}">0.001079</Idev>
+        <Qdev unit="A^{-1}">0.0115</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1852</Q>
+        <I unit="cm^{-1}">0.1509</I>
+        <Idev unit="cm^{-1}">0.001112</Idev>
+        <Qdev unit="A^{-1}">0.01174</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1902</Q>
+        <I unit="cm^{-1}">0.1387</I>
+        <Idev unit="cm^{-1}">0.001022</Idev>
+        <Qdev unit="A^{-1}">0.01198</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.1951</Q>
+        <I unit="cm^{-1}">0.1253</I>
+        <Idev unit="cm^{-1}">0.000965</Idev>
+        <Qdev unit="A^{-1}">0.01222</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2</Q>
+        <I unit="cm^{-1}">0.1126</I>
+        <Idev unit="cm^{-1}">0.000879</Idev>
+        <Qdev unit="A^{-1}">0.01246</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2049</Q>
+        <I unit="cm^{-1}">0.1023</I>
+        <Idev unit="cm^{-1}">0.0009016</Idev>
+        <Qdev unit="A^{-1}">0.0127</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2098</Q>
+        <I unit="cm^{-1}">0.0919</I>
+        <Idev unit="cm^{-1}">0.0007853</Idev>
+        <Qdev unit="A^{-1}">0.01295</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2147</Q>
+        <I unit="cm^{-1}">0.084</I>
+        <Idev unit="cm^{-1}">0.0008016</Idev>
+        <Qdev unit="A^{-1}">0.01319</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2196</Q>
+        <I unit="cm^{-1}">0.0743</I>
+        <Idev unit="cm^{-1}">0.0007492</Idev>
+        <Qdev unit="A^{-1}">0.01343</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2245</Q>
+        <I unit="cm^{-1}">0.0664</I>
+        <Idev unit="cm^{-1}">0.0007778</Idev>
+        <Qdev unit="A^{-1}">0.01368</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2293</Q>
+        <I unit="cm^{-1}">0.0594</I>
+        <Idev unit="cm^{-1}">0.0007941</Idev>
+        <Qdev unit="A^{-1}">0.01392</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2342</Q>
+        <I unit="cm^{-1}">0.0518</I>
+        <Idev unit="cm^{-1}">0.0007801</Idev>
+        <Qdev unit="A^{-1}">0.01416</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.239</Q>
+        <I unit="cm^{-1}">0.0473</I>
+        <Idev unit="cm^{-1}">0.0006999</Idev>
+        <Qdev unit="A^{-1}">0.01441</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2438</Q>
+        <I unit="cm^{-1}">0.0425</I>
+        <Idev unit="cm^{-1}">0.0007494</Idev>
+        <Qdev unit="A^{-1}">0.01465</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2486</Q>
+        <I unit="cm^{-1}">0.0368</I>
+        <Idev unit="cm^{-1}">0.0007491</Idev>
+        <Qdev unit="A^{-1}">0.0149</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2534</Q>
+        <I unit="cm^{-1}">0.0339</I>
+        <Idev unit="cm^{-1}">0.0006969</Idev>
+        <Qdev unit="A^{-1}">0.01514</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2582</Q>
+        <I unit="cm^{-1}">0.03</I>
+        <Idev unit="cm^{-1}">0.0007244</Idev>
+        <Qdev unit="A^{-1}">0.01539</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.263</Q>
+        <I unit="cm^{-1}">0.027</I>
+        <Idev unit="cm^{-1}">0.0007079</Idev>
+        <Qdev unit="A^{-1}">0.01563</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2677</Q>
+        <I unit="cm^{-1}">0.0228</I>
+        <Idev unit="cm^{-1}">0.0007234</Idev>
+        <Qdev unit="A^{-1}">0.01588</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2724</Q>
+        <I unit="cm^{-1}">0.0214</I>
+        <Idev unit="cm^{-1}">0.0006979</Idev>
+        <Qdev unit="A^{-1}">0.01612</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2772</Q>
+        <I unit="cm^{-1}">0.0186</I>
+        <Idev unit="cm^{-1}">0.0006773</Idev>
+        <Qdev unit="A^{-1}">0.01637</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2819</Q>
+        <I unit="cm^{-1}">0.0166</I>
+        <Idev unit="cm^{-1}">0.0006793</Idev>
+        <Qdev unit="A^{-1}">0.01661</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2866</Q>
+        <I unit="cm^{-1}">0.0162</I>
+        <Idev unit="cm^{-1}">0.0006562</Idev>
+        <Qdev unit="A^{-1}">0.01686</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2913</Q>
+        <I unit="cm^{-1}">0.0139</I>
+        <Idev unit="cm^{-1}">0.0007073</Idev>
+        <Qdev unit="A^{-1}">0.0171</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.2959</Q>
+        <I unit="cm^{-1}">0.0149</I>
+        <Idev unit="cm^{-1}">0.0006041</Idev>
+        <Qdev unit="A^{-1}">0.01734</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3006</Q>
+        <I unit="cm^{-1}">0.0122</I>
+        <Idev unit="cm^{-1}">0.0006856</Idev>
+        <Qdev unit="A^{-1}">0.01759</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3052</Q>
+        <I unit="cm^{-1}">0.0111</I>
+        <Idev unit="cm^{-1}">0.0006656</Idev>
+        <Qdev unit="A^{-1}">0.01783</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3098</Q>
+        <I unit="cm^{-1}">0.0102</I>
+        <Idev unit="cm^{-1}">0.0006728</Idev>
+        <Qdev unit="A^{-1}">0.01807</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3144</Q>
+        <I unit="cm^{-1}">0.0107</I>
+        <Idev unit="cm^{-1}">0.0007035</Idev>
+        <Qdev unit="A^{-1}">0.01831</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.319</Q>
+        <I unit="cm^{-1}">0.0109</I>
+        <Idev unit="cm^{-1}">0.0006977</Idev>
+        <Qdev unit="A^{-1}">0.01855</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3236</Q>
+        <I unit="cm^{-1}">0.009</I>
+        <Idev unit="cm^{-1}">0.0007099</Idev>
+        <Qdev unit="A^{-1}">0.01879</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3282</Q>
+        <I unit="cm^{-1}">0.0094</I>
+        <Idev unit="cm^{-1}">0.0007595</Idev>
+        <Qdev unit="A^{-1}">0.01903</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3327</Q>
+        <I unit="cm^{-1}">0.0074</I>
+        <Idev unit="cm^{-1}">0.0008249</Idev>
+        <Qdev unit="A^{-1}">0.01927</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3372</Q>
+        <I unit="cm^{-1}">0.008</I>
+        <Idev unit="cm^{-1}">0.0007826</Idev>
+        <Qdev unit="A^{-1}">0.01951</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3417</Q>
+        <I unit="cm^{-1}">0.0075</I>
+        <Idev unit="cm^{-1}">0.0007938</Idev>
+        <Qdev unit="A^{-1}">0.01975</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3462</Q>
+        <I unit="cm^{-1}">0.0074</I>
+        <Idev unit="cm^{-1}">0.0007755</Idev>
+        <Qdev unit="A^{-1}">0.01999</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3507</Q>
+        <I unit="cm^{-1}">0.0071</I>
+        <Idev unit="cm^{-1}">0.0007251</Idev>
+        <Qdev unit="A^{-1}">0.02023</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3552</Q>
+        <I unit="cm^{-1}">0.0068</I>
+        <Idev unit="cm^{-1}">0.0007373</Idev>
+        <Qdev unit="A^{-1}">0.02046</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3596</Q>
+        <I unit="cm^{-1}">0.0067</I>
+        <Idev unit="cm^{-1}">0.0006994</Idev>
+        <Qdev unit="A^{-1}">0.0207</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3641</Q>
+        <I unit="cm^{-1}">0.0058</I>
+        <Idev unit="cm^{-1}">0.0007586</Idev>
+        <Qdev unit="A^{-1}">0.02094</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3685</Q>
+        <I unit="cm^{-1}">0.0071</I>
+        <Idev unit="cm^{-1}">0.0007368</Idev>
+        <Qdev unit="A^{-1}">0.02117</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3729</Q>
+        <I unit="cm^{-1}">0.0072</I>
+        <Idev unit="cm^{-1}">0.0007315</Idev>
+        <Qdev unit="A^{-1}">0.02141</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3773</Q>
+        <I unit="cm^{-1}">0.0062</I>
+        <Idev unit="cm^{-1}">0.0007528</Idev>
+        <Qdev unit="A^{-1}">0.02164</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3816</Q>
+        <I unit="cm^{-1}">0.0059</I>
+        <Idev unit="cm^{-1}">0.0008525</Idev>
+        <Qdev unit="A^{-1}">0.02187</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.386</Q>
+        <I unit="cm^{-1}">0.006</I>
+        <Idev unit="cm^{-1}">0.000785</Idev>
+        <Qdev unit="A^{-1}">0.0221</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3903</Q>
+        <I unit="cm^{-1}">0.0066</I>
+        <Idev unit="cm^{-1}">0.0007805</Idev>
+        <Qdev unit="A^{-1}">0.02234</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3946</Q>
+        <I unit="cm^{-1}">0.004</I>
+        <Idev unit="cm^{-1}">0.000729</Idev>
+        <Qdev unit="A^{-1}">0.02257</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.3989</Q>
+        <I unit="cm^{-1}">0.0075</I>
+        <Idev unit="cm^{-1}">0.0007457</Idev>
+        <Qdev unit="A^{-1}">0.0228</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4032</Q>
+        <I unit="cm^{-1}">0.0044</I>
+        <Idev unit="cm^{-1}">0.0007431</Idev>
+        <Qdev unit="A^{-1}">0.02302</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4074</Q>
+        <I unit="cm^{-1}">0.0053</I>
+        <Idev unit="cm^{-1}">0.0007862</Idev>
+        <Qdev unit="A^{-1}">0.02325</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4117</Q>
+        <I unit="cm^{-1}">0.0073</I>
+        <Idev unit="cm^{-1}">0.0008167</Idev>
+        <Qdev unit="A^{-1}">0.02348</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4159</Q>
+        <I unit="cm^{-1}">0.0057</I>
+        <Idev unit="cm^{-1}">0.0007265</Idev>
+        <Qdev unit="A^{-1}">0.02371</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4201</Q>
+        <I unit="cm^{-1}">0.0034</I>
+        <Idev unit="cm^{-1}">0.0007946</Idev>
+        <Qdev unit="A^{-1}">0.02393</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4243</Q>
+        <I unit="cm^{-1}">0.0046</I>
+        <Idev unit="cm^{-1}">0.0008015</Idev>
+        <Qdev unit="A^{-1}">0.02416</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4285</Q>
+        <I unit="cm^{-1}">0.005</I>
+        <Idev unit="cm^{-1}">0.0007888</Idev>
+        <Qdev unit="A^{-1}">0.02438</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4326</Q>
+        <I unit="cm^{-1}">0.0045</I>
+        <Idev unit="cm^{-1}">0.0008439</Idev>
+        <Qdev unit="A^{-1}">0.02461</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4368</Q>
+        <I unit="cm^{-1}">0.0043</I>
+        <Idev unit="cm^{-1}">0.0008031</Idev>
+        <Qdev unit="A^{-1}">0.02483</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4409</Q>
+        <I unit="cm^{-1}">0.0042</I>
+        <Idev unit="cm^{-1}">0.000748</Idev>
+        <Qdev unit="A^{-1}">0.02505</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.445</Q>
+        <I unit="cm^{-1}">0.0049</I>
+        <Idev unit="cm^{-1}">0.0008519</Idev>
+        <Qdev unit="A^{-1}">0.02527</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4491</Q>
+        <I unit="cm^{-1}">0.0052</I>
+        <Idev unit="cm^{-1}">0.0007835</Idev>
+        <Qdev unit="A^{-1}">0.02549</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4531</Q>
+        <I unit="cm^{-1}">0.0059</I>
+        <Idev unit="cm^{-1}">0.0008015</Idev>
+        <Qdev unit="A^{-1}">0.02571</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4572</Q>
+        <I unit="cm^{-1}">0.0039</I>
+        <Idev unit="cm^{-1}">0.0008071</Idev>
+        <Qdev unit="A^{-1}">0.02593</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4612</Q>
+        <I unit="cm^{-1}">0.0045</I>
+        <Idev unit="cm^{-1}">0.0008259</Idev>
+        <Qdev unit="A^{-1}">0.02615</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4652</Q>
+        <I unit="cm^{-1}">0.0043</I>
+        <Idev unit="cm^{-1}">0.0009637</Idev>
+        <Qdev unit="A^{-1}">0.02636</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4692</Q>
+        <I unit="cm^{-1}">0.0054</I>
+        <Idev unit="cm^{-1}">0.0007438</Idev>
+        <Qdev unit="A^{-1}">0.02658</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4732</Q>
+        <I unit="cm^{-1}">0.0049</I>
+        <Idev unit="cm^{-1}">0.0006976</Idev>
+        <Qdev unit="A^{-1}">0.02679</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4771</Q>
+        <I unit="cm^{-1}">0.0047</I>
+        <Idev unit="cm^{-1}">0.0009111</Idev>
+        <Qdev unit="A^{-1}">0.02701</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4811</Q>
+        <I unit="cm^{-1}">0.0061</I>
+        <Idev unit="cm^{-1}">0.0008632</Idev>
+        <Qdev unit="A^{-1}">0.02722</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.485</Q>
+        <I unit="cm^{-1}">0.0045</I>
+        <Idev unit="cm^{-1}">0.0008002</Idev>
+        <Qdev unit="A^{-1}">0.02743</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4889</Q>
+        <I unit="cm^{-1}">0.003</I>
+        <Idev unit="cm^{-1}">0.000772</Idev>
+        <Qdev unit="A^{-1}">0.02764</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4928</Q>
+        <I unit="cm^{-1}">0.0056</I>
+        <Idev unit="cm^{-1}">0.0008664</Idev>
+        <Qdev unit="A^{-1}">0.02785</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.4966</Q>
+        <I unit="cm^{-1}">0.0045</I>
+        <Idev unit="cm^{-1}">0.0008168</Idev>
+        <Qdev unit="A^{-1}">0.02806</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5005</Q>
+        <I unit="cm^{-1}">0.0041</I>
+        <Idev unit="cm^{-1}">0.0009011</Idev>
+        <Qdev unit="A^{-1}">0.02827</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5043</Q>
+        <I unit="cm^{-1}">0.0016</I>
+        <Idev unit="cm^{-1}">0.0008374</Idev>
+        <Qdev unit="A^{-1}">0.02848</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5081</Q>
+        <I unit="cm^{-1}">0.0041</I>
+        <Idev unit="cm^{-1}">0.0008501</Idev>
+        <Qdev unit="A^{-1}">0.02868</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5119</Q>
+        <I unit="cm^{-1}">0.005</I>
+        <Idev unit="cm^{-1}">0.0008393</Idev>
+        <Qdev unit="A^{-1}">0.02889</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5157</Q>
+        <I unit="cm^{-1}">0.0051</I>
+        <Idev unit="cm^{-1}">0.0007232</Idev>
+        <Qdev unit="A^{-1}">0.02909</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5194</Q>
+        <I unit="cm^{-1}">0.004</I>
+        <Idev unit="cm^{-1}">0.0009879</Idev>
+        <Qdev unit="A^{-1}">0.0293</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5232</Q>
+        <I unit="cm^{-1}">0.0044</I>
+        <Idev unit="cm^{-1}">0.00102</Idev>
+        <Qdev unit="A^{-1}">0.0295</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5269</Q>
+        <I unit="cm^{-1}">0.0019</I>
+        <Idev unit="cm^{-1}">0.0009871</Idev>
+        <Qdev unit="A^{-1}">0.0297</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5306</Q>
+        <I unit="cm^{-1}">0.0036</I>
+        <Idev unit="cm^{-1}">0.001342</Idev>
+        <Qdev unit="A^{-1}">0.0299</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5343</Q>
+        <I unit="cm^{-1}">0.0019</I>
+        <Idev unit="cm^{-1}">0.001051</Idev>
+        <Qdev unit="A^{-1}">0.0301</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5379</Q>
+        <I unit="cm^{-1}">0.0054</I>
+        <Idev unit="cm^{-1}">0.001314</Idev>
+        <Qdev unit="A^{-1}">0.0303</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5416</Q>
+        <I unit="cm^{-1}">0.0018</I>
+        <Idev unit="cm^{-1}">0.001529</Idev>
+        <Qdev unit="A^{-1}">0.0305</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5452</Q>
+        <I unit="cm^{-1}">0.0014</I>
+        <Idev unit="cm^{-1}">0.001708</Idev>
+        <Qdev unit="A^{-1}">0.0307</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5488</Q>
+        <I unit="cm^{-1}">0.0047</I>
+        <Idev unit="cm^{-1}">0.001501</Idev>
+        <Qdev unit="A^{-1}">0.03089</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5524</Q>
+        <I unit="cm^{-1}">0.002</I>
+        <Idev unit="cm^{-1}">0.001946</Idev>
+        <Qdev unit="A^{-1}">0.03109</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.556</Q>
+        <I unit="cm^{-1}">0.007</I>
+        <Idev unit="cm^{-1}">0.001912</Idev>
+        <Qdev unit="A^{-1}">0.03128</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5595</Q>
+        <I unit="cm^{-1}">0.005</I>
+        <Idev unit="cm^{-1}">0.001829</Idev>
+        <Qdev unit="A^{-1}">0.03147</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5631</Q>
+        <I unit="cm^{-1}">0.0049</I>
+        <Idev unit="cm^{-1}">0.002043</Idev>
+        <Qdev unit="A^{-1}">0.03167</Qdev>
+      </Idata>
+      <Idata>
+        <Q unit="A^{-1}">0.5666</Q>
+        <I unit="cm^{-1}">0.0034</I>
+        <Idev unit="cm^{-1}">0.003456</Idev>
+        <Qdev unit="A^{-1}">0.03186</Qdev>
+      </Idata>
+    </SASdata>
+    <SASsample name="">
+      <ID></ID>
+    </SASsample>
+    <SASinstrument>
+      <name></name>
+      <SASsource>
+        <radiation>neutron</radiation>
+      </SASsource>
+      <SAScollimation/>
+      <SASdetector>
+        <name></name>
+      </SASdetector>
+    </SASinstrument>
+    <SASnote>Data file generated by SasView v5.0.4</SASnote>
+  </SASentry>
+</SASroot>

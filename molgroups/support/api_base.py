@@ -156,41 +156,6 @@ class CBaseAPI:
 
         return data
 
-    def fnLoadData(self, filename):
-        """
-        Load all data files with the basefilenam filename into a list of Pandas dataframes.
-        Each list element is itself a list of [comments, simdata]. It will load n files with the name
-        basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
-        """
-
-        def _load(stem, suffix):
-            comments = general.extract_comments_from_file(os.path.join(self.spath, stem + suffix), "#")
-            if suffix == '.xml':
-                data = pandas.read_xml(os.path.join(self.spath, stem + suffix), comment='#')
-            else:
-                data = pandas.read_csv(os.path.join(self.spath, stem + suffix), sep='\s+', skip_blank_lines=True,
-                                       comment='#', header=None)
-                # if there was a header move it from first row to header
-                if any(data.iloc[0].apply(lambda x: isinstance(x, str))):
-                    data = data[1:].reset_index(drop=True).rename(columns=data.iloc[0])
-                    data = data.astype(float)
-            return [comments, data]
-
-        stem = pathlib.Path(filename).stem
-        suffix = pathlib.Path(filename).suffix
-        liData = []
-        if os.path.isfile(os.path.join(self.spath, stem + suffix)):
-            liData.append(_load(stem, suffix))
-        else:
-            i = 0
-            while True:
-                if os.path.isfile(os.path.join(self.spath, stem + str(i) + suffix)):
-                    liData.append(_load(stem + str(i), suffix))
-                    i += 1
-                else:
-                    break
-        return liData
-
     @staticmethod
     def fnLoadSingleRows(sFileName, data=None, exceptions=None):
         file = open(sFileName, "r")
@@ -211,10 +176,8 @@ class CBaseAPI:
     @staticmethod
     def fnMCModifyFile(filelist):
         """
-        reads original reflectivity files
-        and modifies them with normal deviates
-        works also with any other 3 or 4
-        column file types
+        reads original reflectivity files and modifies them with normal deviates
+        works also with any other 3 or 4 column file types
         """
 
         seed()  # initialize random number generator
@@ -251,7 +214,7 @@ class CBaseAPI:
                             newdata.append(newline)  # add line to new data file
                         except:
                             print('-----------------------------------')
-                            print('Data file %s corrupt.' % (reflfile))
+                            print('Data file %s corrupt.' % reflfile)
                             print('File was identified being NIST type')
                             print('-----------------------------------')
                             raise RuntimeError('Corrupt Data file.')
@@ -267,14 +230,14 @@ class CBaseAPI:
                             newdata.append(newline)  # add line to new data file
                         except:
                             print('-----------------------------------')
-                            print('Data file %s corrupt.' % (reflfile))
+                            print('Data file %s corrupt.' % reflfile)
                             print('File was identified being ISIS type.')
                             print('-----------------------------------')
                             raise RuntimeError('Corrupt Data file.')
 
                     else:
                         print('-----------------------------------------------------')
-                        print('Filetype not recognized or contains errors: %s' % (reflfile))
+                        print('Filetype not recognized or contains errors: %s' % reflfile)
                         print('-----------------------------------------------------')
                         raise RuntimeError('Corrupt Data file.')
 
@@ -282,29 +245,11 @@ class CBaseAPI:
             file.writelines(newdata)  # working directory
             file.close()
 
-    def fnRemoveBackup(self):  # deletes the backup directory
+    def fnRestoreFit(self):
         raise NotImplementedError()
 
-    def fnSaveData(self, basefilename, liData):
-        """
-        Saves all frames and comments in liData to files with the basefilenam filename.
-        Each list element is itself a list of [comments, simdata]. It will save n files with the name
-        basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
-        """
-        def _save(stem, suffix, frame, comment):
-            if suffix == '.xml':
-                frame.to_xml(os.path.join(self.spath, stem + suffix), index=None)
-            else:
-                frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None, header=None)
-            general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
-
-        stem = pathlib.Path(basefilename).stem
-        suffix = pathlib.Path(basefilename).suffix
-        if len(liData) == 1:
-            _save(stem, suffix, liData[0][1], liData[0][0])
-        else:
-            for i in range(len(liData)):
-                _save(stem + str(i), suffix, liData[i][1], liData[i][0])
+    def fnRemoveBackup(self):  # deletes the backup directory
+        raise NotImplementedError()
 
     @staticmethod
     def fnSaveSingleColumns(sFilename, data):

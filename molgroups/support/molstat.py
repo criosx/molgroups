@@ -1745,6 +1745,20 @@ class CMolStat:
         if self.save_stat_data:
             self.fnSaveObject(self.diStatResults, f'{self.spath}/{self.mcmcpath}/StatDataPython.dat')
 
+    def fnRestoreFit(self):
+        self.Interactor.fnRestoreFit()
+
+    def fnRunFit(self, burn=2000, steps=500, batch=False):
+        path1 = os.path.join(self.spath, self.mcmcpath)
+        if os.path.isfile(os.path.join(path1, "sErr.dat")):
+            os.remove(os.path.join(path1, "sErr.dat"))
+        if os.path.isfile(os.path.join(path1,  "isErr.dat")):
+            os.remove(os.path.join(path1,  "isErr.dat"))
+        if os.path.isfile(os.path.join(path1,  "StatDataPython.dat")):
+            os.remove(os.path.join(path1,  "StatDataPython.dat"))
+
+        self.Interactor.fnRunMCMC(burn, steps, batch=False)
+
     @staticmethod
     def fnSaveObject(save_object, sFileName):
         import pickle
@@ -1752,14 +1766,12 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, basefilename='sim.dat', qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397, tmin=18,
-                       tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5, cbmatmax=1.25e-6,
-                       mode='water', pre=1, qrange=0):
-        # simulates reflectivity based on a parameter file called simpar.dat
-        # requires a compiled and ready to go fit whose fit parameters are modified and fixed
-        # data files currently need to be named sim#.dat
-        # The method is designed to be useable with reflectivity and SANS.
-
+    def fnSimulateData(self, basefilename='sim.dat', qrange=0, **kwargs):
+        """
+        simulates reflectivity based on a parameter file called simpar.dat
+        requires a compiled and ready to go fit whose fit parameters are modified and fixed
+        The basename can refer to a set of files with integer indizes before the suffix
+        """
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
 
@@ -1780,16 +1792,14 @@ class CMolStat:
             # if q-range is changing, back up original sim dat or reload previously backed up data
             # to always work with the same set of original data and extend the q-range to qrange
             # TODO: Backup does not seem to be implemented. I do not find a reload, either
+            # TODO: Make sure that data is simulated for the extended q-range using bumps
             if qrange != 0:
                 self.Interactor.fnBackupSimdat()
                 liData = self.Interactor.fnExtendQRange(liData, qrange)
             # simulate data, works on sim.dat files
             liData = self.Interactor.fnSimulateData(diAddition, liData)
             # simulate error bars, works on sim.dat files
-            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, qmin=qmin, qmax=qmax, s1min=s1min, s1max=s1max,
-                                                         s2min=s2min, s2max=s2max, tmin=tmin, tmax=tmax, nmin=nmin,
-                                                         rhomin=rhomin, rhomax=rhomax, cbmatmin=cbmatmin,
-                                                         cbmatmax=cbmatmax, mode=mode, pre=pre)
+            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, **kwargs)
             self.Interactor.fnSaveData(basefilename, liData)
         finally:
             pass

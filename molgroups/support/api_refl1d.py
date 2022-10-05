@@ -1,6 +1,6 @@
 from __future__ import print_function
 from math import fabs, pow, sqrt
-from os import path
+import pathlib
 from random import seed, normalvariate, random
 from re import VERBOSE, IGNORECASE, compile
 import pandas
@@ -18,6 +18,38 @@ from molgroups.support import api_bumps
 class CRefl1DAPI(api_bumps.CBumpsAPI):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
         super().__init__(spath, mcmcpath, runfile, load_state=load_state)
+
+    def fnLoadData(self, filename):
+        """
+        Load all data files with the basefilenam filename into a list of Pandas dataframes.
+        Each list element is itself a list of [comments, simdata]. It will load n files with the name
+        basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
+        """
+
+        def _load(stem, suffix):
+            comments = general.extract_comments_from_file(os.path.join(self.spath, stem + suffix), "#")
+            data = pandas.read_csv(os.path.join(self.spath, stem + suffix), sep='\s+', skip_blank_lines=True,
+                                   comment='#', header=None)
+            # if there was a header move it from first row to header
+            if any(data.iloc[0].apply(lambda x: isinstance(x, str))):
+                data = data[1:].reset_index(drop=True).rename(columns=data.iloc[0])
+                data = data.astype(float)
+            return [comments, data]
+
+        stem = pathlib.Path(filename).stem
+        suffix = pathlib.Path(filename).suffix
+        liData = []
+        if os.path.isfile(os.path.join(self.spath, stem + suffix)):
+            liData.append(_load(stem, suffix))
+        else:
+            i = 0
+            while True:
+                if os.path.isfile(os.path.join(self.spath, stem + str(i) + suffix)):
+                    liData.append(_load(stem + str(i), suffix))
+                    i += 1
+                else:
+                    break
+        return liData
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
         """
@@ -45,42 +77,28 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
         z, rho, irho = M.fitness.smooth_profile()
         return z, rho, irho
 
-    def fnSimulateData(self, diNewPars, liData):
-        liParameters = list(self.diParameters.keys())
-        # sort by number of appereance in runfile
-        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-        for element in liParameters:
-            if element not in list(diNewPars.keys()):
-                print('Parameter '+element+' not specified.')
-                # check failed -> exit method
-                return
-            else:
-                print(element + ' ' + str(diNewPars[element]))
+    def fnSaveData(self, basefilename, liData):
+        """
+        Saves all frames and comments in liData to files with the basefilenam filename.
+        Each list element is itself a list of [comments, simdata]. It will save n files with the name
+        basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
+        """
+        def _save(stem, suffix, frame, comment):
+            frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None, header=None)
+            general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
 
-        p = [diNewPars[parameter] for parameter in liParameters]
-        self.problem.setp(p)
-        self.problem.model_update()
-
-        # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
-        if 'models' in dir(self.problem):
-            i = 0
-            for M in self.problem.models:
-                M.chisq()
-                qvec, scatt = M.fitness.reflectivity()
-                liData[i][1]['R'] = scatt
-                liData[i][1]['Q'] = qvec
-                i += 1
+        stem = pathlib.Path(basefilename).stem
+        suffix = pathlib.Path(basefilename).suffix
+        if len(liData) == 1:
+            _save(stem, suffix, liData[0][1], liData[0][0])
         else:
-            self.problem.chisq()
-            qvec, scatt = self.problem.fitness.reflectivity()
-            liData[0][1]['R'] = scatt
-            liData[0][1]['Q'] = qvec
+            for i in range(len(liData)):
+                _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
-        return liData
 
-    def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108, s2max=4.397,
-                            tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6, cbmatmin=1.1e-5,
-                            cbmatmax=1.25e-6, mode='water', pre=1):
+    def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
+                            s2max=4.397, tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6,
+                            cbmatmin=1.1e-5, cbmatmax=1.25e-6, mode='water', pre=1):
 
         last_defined_rho_solv = 0
         for i in range(len(liData)):
@@ -121,4 +139,38 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
                 simdata['R'][index] = simdata['R'][index] + normalvariate(0, 1) * dR
 
         return liData
+
+    def fnSimulateData(self, diNewPars, liData, data_column='R'):
+        liParameters = list(self.diParameters.keys())
+        # sort by number of appereance in runfile
+        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+        for element in liParameters:
+            if element not in list(diNewPars.keys()):
+                print('Parameter '+element+' not specified.')
+                # check failed -> exit method
+                return
+            else:
+                print(element + ' ' + str(diNewPars[element]))
+
+        p = [diNewPars[parameter] for parameter in liParameters]
+        self.problem.setp(p)
+        self.problem.model_update()
+
+        # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
+        if 'models' in dir(self.problem):
+            i = 0
+            for M in self.problem.models:
+                M.chisq()
+                qvec, scatt = M.fitness.reflectivity()
+                liData[i][1][data_column] = scatt
+                liData[i][1]['Q'] = qvec
+                i += 1
+        else:
+            self.problem.chisq()
+            qvec, scatt = self.problem.fitness.reflectivity()
+            liData[0][1][data_column] = scatt
+            liData[0][1]['Q'] = qvec
+
+        return liData
+
 
