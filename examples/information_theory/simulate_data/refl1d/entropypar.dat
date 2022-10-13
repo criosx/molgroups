@@ -1,0 +1,19 @@
+i background_0 1.03489e-06 -1e-07 1e-05
+i intensity 1.0 0.9 1.05
+i sample_broadening 0 -0.005 0.02
+i theta_offset 0.0 -0.015 0.005
+i siox_interface 6.85069 2 9
+i rho_siox 3.39556 3.1 5.1
+i siox_thickness 14.9832 5 40
+i rho_tiox 2.32129 1.163 3.163 -1 10 1
+i tiox_thickness 110.913 66.379 266.38
+i tiox_roughness 6.8149 2 9
+d inner_acyl_chain_thickness 11.1605 8 16
+d outer_acyl_chain_thickness 13.6487 8 16
+d submembrane_thickness 13.9116 0 50
+d bilayer_roughness 4.84472 2 9
+d volume_fraction_bilayer 0.906858 0 1
+i rho_solv_0 6.21572 5.3 6.5
+i background_1 3.95582e-06 -1e-07 1e-05
+i rho_solv_1 -0.550133 -0.6 0.6
+n prefactor 2.58496

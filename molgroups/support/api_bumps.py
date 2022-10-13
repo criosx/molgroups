@@ -1,0 +1,291 @@
+from __future__ import print_function
+from math import fabs, pow, sqrt
+from os import path
+from random import seed, normalvariate, random
+from re import VERBOSE, IGNORECASE, compile
+from sys import exit, stdout
+from subprocess import call, Popen
+from time import sleep
+import numpy
+import pandas
+import shutil
+import glob
+import os
+
+from molgroups.support import general
+from molgroups.support import api_base
+
+
+# Garefl methods will be used if a storage directory for a Markov Chain Monte Carlo (MCMC)
+# error analysis cannot be found.
+# The MCMC directory is called 'MCMC'
+class CBumpsAPI(api_base.CBaseAPI):
+    def __init__(self, spath=".", mcmcpath=".", runfile="", state=None, problem=None, load_state=True):
+        super().__init__(spath, mcmcpath, runfile)
+        if load_state:
+            self.state = self.fnRestoreState() if state is None else state
+        self.problem = self.fnRestoreFitProblem() if problem is None else problem
+
+    def fnBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if not path.isdir(target):
+            os.mkdir(target)
+        for file in glob.glob(origin + r'/*.dat'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.py'):
+            shutil.copy(file, target)
+        for file in glob.glob(origin + r'/*.pyc'):
+            shutil.copy(file, target)
+
+    def fnLoadMCMCResults(self):
+        # load Parameter
+        if self.diParameters == {}:
+            self.diParameters, _ = self.fnLoadParameters()
+        lParName = self.diParameters.keys()
+
+        # parvars is a list of variables(parameters) to return for each point
+        parvars = [i for i in range(len(lParName))]
+        draw = self.state.draw(1, parvars, None)
+        points = draw.points
+        logp = draw.logp
+
+        return points, lParName, logp
+
+    # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
+    # [values,var_numbers].
+    def fnLoadParameters(self):
+        if self.state is None:
+            self.state = self.fnRestoreState()
+
+        p = self.state.best()[0]
+        self.problem.setp(p)
+
+        # from bumps.cli import load_best
+        # load_best(problem, os.path.join(self.mcmcpath, self.runfile) + '.par')
+
+        # distinguish between fitproblem and multifitproblem
+        if "models" in dir(self.problem):
+            i = 0
+            overall = 0.0
+            for M in self.problem.models:
+                overall += M.chisq()
+                i += 1
+            overall /= float(i)
+            pnamekeys = []
+            pars = self.problem._parameters
+            for par in pars:
+                pnamekeys.append(par.name)
+        else:
+            overall = self.problem.chisq()
+            pnamekeys = self.problem.labels()
+
+        # Do not accept parameter names with spaces, replace with underscore
+        for i in range(len(pnamekeys)):
+            pnamekeys[i] = pnamekeys[i].replace(" ", "_")
+
+        for element in pnamekeys:
+            self.diParameters[element] = {}
+        bounds = self.problem.bounds()
+
+        for key in pnamekeys:
+            parindex = pnamekeys.index(key)
+            self.diParameters[key]["number"] = parindex
+            self.diParameters[key]["lowerlimit"] = float(bounds[0][parindex])
+            self.diParameters[key]["upperlimit"] = float(bounds[1][parindex])
+            self.diParameters[key]["value"] = float(p[parindex])
+            self.diParameters[key]["relval"] = (
+                self.diParameters[key]["value"] - self.diParameters[key]["lowerlimit"]
+            ) / (
+                self.diParameters[key]["upperlimit"]
+                - self.diParameters[key]["lowerlimit"]
+            )
+            # TODO: Do we still need this? Set to dummy value
+            self.diParameters[key]["variable"] = key
+            # TODO: Do we still need this? Would have to figure out how to get the confidence limits from state
+            self.diParameters[key]["error"] = 0.01
+
+        return self.diParameters, overall
+
+    def fnLoadStatData(self, dSparse=0, rescale_small_numbers=True, skip_entries=None):
+        if skip_entries is None:
+            skip_entries = []
+
+        if path.isfile(os.path.join(self.spath, self.mcmcpath, "sErr.dat")) or \
+                path.isfile(os.path.join(self.spath, self.mcmcpath, "isErr.dat")):
+            diStatRawData = self.fnLoadsErr()
+        else:
+            points, lParName, logp = self.fnLoadMCMCResults()
+            diStatRawData = {"Parameters": {}}
+            diStatRawData["Parameters"]["Chisq"] = {}
+            # TODO: Work on better chisq handling
+            diStatRawData["Parameters"]["Chisq"]["Values"] = []
+            for parname in lParName:
+                diStatRawData["Parameters"][parname] = {}
+                diStatRawData["Parameters"][parname]["Values"] = []
+
+            seed()
+            for j in range(len(points[:, 0])):
+                if dSparse == 0 or (dSparse > 1 and j < dSparse) or (1 > dSparse > random()):
+                    diStatRawData["Parameters"]["Chisq"]["Values"].append(logp[j])
+                    for i, parname in enumerate(lParName):
+                        # TODO: this is a hack because Paul does not scale down after scaling up
+                        # Rescaling disabled for bumps/refl1d analysis to achieve consistency
+                        # if ('rho_' in parname or 'background' in parname) and rescale_small_numbers:
+                        #     points[j, i] *= 1E-6
+                        diStatRawData["Parameters"][parname]["Values"].append(points[j, i])
+
+            self.fnSaveSingleColumnsFromStatDict(os.path.join(self.spath, self.mcmcpath, "sErr.dat"),
+                                                 diStatRawData["Parameters"], skip_entries)
+
+        return diStatRawData
+
+    # deletes the backup directory after restoring it
+    def fnRemoveBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            self.fnRestoreBackup(origin, target)
+            shutil.rmtree(target)
+
+    # copies all files from the backup directory (target) to origin
+    def fnRestoreBackup(self, origin=None, target=None):
+        if origin is None:
+            origin = self.spath
+        if target is None:
+            target = self.spath + '/rsbackup'
+        if path.isdir(target):
+            for file in glob.glob(target + r'/*.*'):
+                shutil.copy(file, origin)
+
+    def fnRestoreFit(self):
+        self.fnRestoreFitProblem()
+        self.fnRestoreState()
+
+    def fnRestoreFitProblem(self):
+        from bumps.fitproblem import load_problem
+
+        if path.isfile(self.spath + "/" + self.runfile + ".py"):
+            problem = load_problem(self.spath + "/" + self.runfile + ".py")
+        else:
+            print("No problem to reload.")
+            problem = None
+        return problem
+
+    def fnRestoreState(self):
+        import bumps.dream.state
+        fulldir = os.path.join(self.spath, self.mcmcpath)
+        if path.isfile(os.path.join(fulldir, self.runfile) + '.py'):
+            state = bumps.dream.state.load_state(os.path.join(fulldir, self.runfile))
+            state.mark_outliers()  # ignore outlier chains
+        else:
+            print("No file: " + os.path.join(fulldir, self.runfile) + '.py')
+            print("No state to reload.")
+            state = None
+        return state
+
+    def fnRestoreMolgroups(self, problem):
+        # Populates the diMolgroups dictionary based from a saved molgroups.dat file
+        diMolgroups = self.fnLoadMolgroups(problem=problem)
+        return diMolgroups
+
+    def fnRestoreSmoothProfile(self, M):
+        # TODO: Decide what and if to return SLD profile for Bumps fits
+        # Returns currently profile for zeroth model if multiproblem fit
+        z, rho, irho = M.sld, [], []
+        return z, rho, irho
+
+    def fnRunMCMC(self, burn, steps, batch=False):
+        # Original Method of Calling the Shell
+        """
+        lCommand = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+           lCommand.append('--batch')
+        lCommand.append('--store=' + self.mcmcpath)
+        lCommand.append('--burn=' + str(burn))
+        lCommand.append('--steps=' + str(steps))
+        lCommand.append('--overwrite')
+        call(lCommand)
+        """
+
+        # Command line Python implementation
+        """
+        from refl1d import main
+        # There is a bug in bumps that prevents running sequential fits because the pool object is terminated
+        # from a previous fit but not None. Bumps expects it to be None or will not initiate a new pool.        
+        if none_pool:
+            from bumps.mapper import MPMapper
+            # MPMapper.pool.terminate()  # not always required
+            MPMapper.pool = None
+
+        sys.argv = ['refl1d', os.path.join(self.spath, self.runfile)+'.py', '--fit=dream', '--parallel', '--init=lhs']
+        if batch:
+            sys.argv.append('--batch')
+        sys.argv.append('--store=' + self.mcmcpath)
+        sys.argv.append('--burn=' + str(burn))
+        sys.argv.append('--steps=' + str(steps))
+        sys.argv.append('--overwrite')
+
+        main.cli()
+        """
+
+        # Calling refl1d functions directly
+        from bumps.cli import load_model, save_best
+        from bumps.mapper import MPMapper
+        from bumps.fitters import fit, FitDriver, DreamFit
+
+        model_file = os.path.join(self.spath, self.runfile) + '.py'
+        mcmcpath = os.path.join(self.spath, self.mcmcpath)
+
+        if not os.path.isdir(mcmcpath):
+            os.mkdir(mcmcpath)
+
+        # save model file in output directory
+        shutil.copy(model_file, mcmcpath)
+
+        problem = load_model(model_file)
+        mapper = MPMapper.start_mapper(problem, None, cpus=0)
+        monitors = None if not batch else []
+        driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=problem, init='lhs', steps=steps, burn=burn,
+                           monitors=monitors, xtol=1e-6, ftol=1e-8)
+        x, fx = driver.fit()
+
+        # .err and .par files
+        problem.output_path = os.path.join(mcmcpath, self.runfile)
+        save_best(driver, problem, x)
+
+        # don't know what files
+        if 'models' in dir(problem):
+            for M in problem.models:
+                M.fitness.save(os.path.join(mcmcpath, self.runfile))
+                break
+        else:
+            problem.fitness.save(os.path.join(mcmcpath, self.runfile))
+
+        # .mcmc and .point files
+        driver.save(os.path.join(mcmcpath, self.runfile))
+
+        # stat table and yet other files
+        driver.show()
+
+        # plots and other files
+        if not batch:
+            driver.plot(os.path.join(mcmcpath, self.runfile))
+
+    def fnSaveMolgroups(self, problem):
+        # saves bilayer and protein information from a bumps / refl1d problem object into a mol.dat file
+        # sequentially using the methods provided in molgroups
+        fp = open(self.spath + '/mol.dat', "w")
+        z = numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False)
+        try:
+            problem.extra[0].fnWritePar2File(fp, 'bilayer', z)
+            problem.extra[1].fnWritePar2File(fp, 'protein', z)
+        except:
+            problem.extra.fnWritePar2File(fp, 'bilayer', z)
+        fp.close()
+        stdout.flush()
+
