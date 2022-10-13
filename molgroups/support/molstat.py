@@ -1042,12 +1042,10 @@ class CMolStat:
         self.fnPrintPar()
 
     def fnLoadCovar(self, sPath):
-        # loads a covariance matrix,
-        # calculates the errors and stores
-        # it into self.diParameters
-        # the function fnLoadParameters
-        # must have been already carried out
-
+        """
+        loads a covariance matrix, calculates the errors and stores it into self.diParameters
+        The function fnLoadParameters must have been already carried out
+        """
         if path.isfile(f'{sPath}covar.dat'):
             with open(f'{sPath}covar.dat') as file:
                 data = file.readlines()

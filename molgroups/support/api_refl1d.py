@@ -25,7 +25,6 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
         Each list element is itself a list of [comments, simdata]. It will load n files with the name
         basestem{i}.basesuffix, whereby 'i' is an index from 0 to n-1.
         """
-
         def _load(stem, suffix):
             comments = general.extract_comments_from_file(os.path.join(self.spath, stem + suffix), "#")
             data = pandas.read_csv(os.path.join(self.spath, stem + suffix), sep='\s+', skip_blank_lines=True,
@@ -49,6 +48,14 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
                     i += 1
                 else:
                     break
+
+        for i in range(len(liData)):
+            simdata = liData[i][1]
+            if len(simdata.columns) == 3:
+                simdata.columns = ['Q', 'R', 'dR']
+            elif len(simdata.columns) == 4:
+                simdata.columns = ['Q', 'R', 'dR', 'dQ']
+
         return liData
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
