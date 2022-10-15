@@ -14,7 +14,7 @@ from refl1d.flayer import FunctionalProfile
 
 def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_lipid1, l_lipid2, vf_bilayer):
     """ Fairly generic bilayer. This assumes a stack of materials already existing because siox.l is set to zero """
-    
+
     # Set unused parameters
     l_siox = 0.0 # could make a parameter in the future
     rho_siox = 0.0
@@ -23,13 +23,19 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_submembrane, l_li
     bulknsld *= 1e-6
     rho_substrate *= 1e-6
 
-    blm.fnSet(sigma, bulknsld, global_rough, rho_substrate, rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer)
-    
+    blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate, rho_siox=rho_siox, l_siox=l_siox, l_submembrane=l_submembrane, l_lipid1=l_lipid1, l_lipid2=l_lipid2, vf_bilayer=vf_bilayer)
+
     # Calculate scattering properties of volume occupied by bilayer
     normarea, area, nsl = blm.fnWriteProfile(z)
 
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
+
+    # export objects for post analysis, needs to be from this function
+    problem.bilayers = [blm]
+    problem.dimension = dimension
+    problem.stepsize = stepsize
+    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
 
     # Return nSLD profile in Refl1D units
     return nsld*1e6
@@ -148,5 +154,3 @@ problem.name = "DOPC bilayer on TiOx substrate"
 problem.bilayers = [blm]
 problem.dimension = dimension
 problem.stepsize = stepsize
-
-
