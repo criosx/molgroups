@@ -179,7 +179,8 @@ class CBumpsAPI(api_base.CBaseAPI):
     def fnRestoreState(self):
         import bumps.dream.state
         fulldir = os.path.join(self.spath, self.mcmcpath)
-        if path.isfile(os.path.join(fulldir, self.runfile) + '.py'):
+        if path.isfile(os.path.join(fulldir, self.runfile) + '.py') and path.isfile(os.path.join(fulldir, self.runfile)
+                                                                                    + '-chain.mc.gz'):
             state = bumps.dream.state.load_state(os.path.join(fulldir, self.runfile))
             state.mark_outliers()  # ignore outlier chains
         else:
