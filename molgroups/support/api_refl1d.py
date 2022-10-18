@@ -102,7 +102,6 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
             for i in range(len(liData)):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
-
     def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
                             s2max=4.397, tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6,
                             cbmatmin=1.1e-5, cbmatmax=1.25e-6, mode='water', pre=1):

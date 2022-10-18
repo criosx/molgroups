@@ -1766,9 +1766,9 @@ class CMolStat:
 
     def fnSimulateData(self, basefilename='sim.dat', qrange=0, **kwargs):
         """
-        simulates reflectivity based on a parameter file called simpar.dat
-        requires a compiled and ready to go fit whose fit parameters are modified and fixed
-        The basename can refer to a set of files with integer indizes before the suffix
+        simulates scattering based on a parameter file called simpar.dat
+        requires a ready-to-go fit whose fit parameters are modified and fixed
+        The basename can refer to a set of data files with integer indizes before the suffix
         """
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
@@ -1781,9 +1781,9 @@ class CMolStat:
             # this could be done fileless
             simpar = pandas.read_csv(self.spath + '/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
-            diAddition = {}
+            diModelPars = {}
             for parameter in liParameters:
-                diAddition[parameter] = simpar[simpar.par == parameter].iloc[0][1]
+                diModelPars[parameter] = simpar[simpar.par == parameter].iloc[0][1]
             # load all data files into a list of Pandas dataframes
             # each element is itself a list of [comments, simdata]
             liData = self.Interactor.fnLoadData(basefilename)
@@ -1795,7 +1795,7 @@ class CMolStat:
                 self.Interactor.fnBackupSimdat()
                 liData = self.Interactor.fnExtendQRange(liData, qrange)
             # simulate data, works on sim.dat files
-            liData = self.Interactor.fnSimulateData(diAddition, liData)
+            liData = self.Interactor.fnSimulateData(diModelPars, liData)
             # simulate error bars, works on sim.dat files
             liData = self.Interactor.fnSimulateErrorBars(simpar, liData, **kwargs)
             self.Interactor.fnSaveData(basefilename, liData)

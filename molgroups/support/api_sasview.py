@@ -1,7 +1,11 @@
 from __future__ import print_function
+
+import numpy
 import pandas
 import os
 import pathlib
+
+import shapely.geometry
 
 import sasmodels.data
 
@@ -89,11 +93,114 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
         return liData
 
-    def fnSimulateErrorBars(self, simpar, liData):
+    def fnSimulateErrorBars(self, simpar=None, liData=None, liConfigurations=None, percent_error=0.1):
         """
         Placeholder.
+        Neutron flux can be given per area or already times area, in which the preset of beam_area=1
+        ensures the correct incident intensity.
         """
-        for i in range(len(liData)):
-            liData[i][1]['dI'] = 0.1 * liData[i][1]['I']
+        def _add_default(dictonary, key_value_list):
+            for pair in key_value_list:
+                if not pair[0] in dictonary:
+                    dictonary[pair[0]] = pair[1]
+
+        # if no instrument configurations are given, calculate uncertainties as percent of data value
+        # using the percent_error argument. Exit function afterwards.
+        if liConfigurations is None:
+            for i in range(len(liData)):
+                liData[i][1]['dI'] = percent_error * liData[i][1]['I']
+            return liData
+
+        # list of [n_cell(q), dq/q] tuples for every data set
+        limask = []
+
+        for dataset_n in range(len(liData)):
+            limask.append([])
+
+            for configuration in liConfigurations:
+                # fill in defaults if no preset entries
+                if configuration is None:
+                    configuration = {}
+                kl_list = [
+                    ["pre", 1],
+                    ["neutron_flux", 1e5],
+                    ["beam_area", 1],
+                    ["beam_center_x", 64.5],
+                    ["beam_center_y", 64.5],
+                    ["beamstop_diameter", 25.4],
+                    ["detector_efficiency", 1],
+                    ["detector_sample_distance", 4000],
+                    ["detector_pixel_x", 128],
+                    ["detector_pixel_y", 128],
+                    ["detector_pixelsize_x", 0.00508],
+                    ["detector_pixelsize_y", 0.00508],
+                    ["time", 60],
+                    ["sample_trans", 1],
+                    ["cuvette_trans", 1],
+                    ["dark_count_f", 0],
+                    ["unit_solid_angle", 1],
+                    ["cross_section_cuvette", 0],
+                    ["cross_section_buffer", 0],
+                    ["q_min", 0.001],
+                    ["q_max", 0.4],
+                    ["dq_q", 0.06],
+                    ["lambda", 6],
+                    ["sascalc", False]
+                ]
+                _add_default(configuration, kl_list)
+                # provide compatibility/redundancy between the usages of q_max and qrange
+                if 'qrange' in configuration:
+                    configuration['q_max'] = configuration['qrange']
+
+                if configuration["sascalc"]:
+                    # calculate n_cell(q) and dq/q using Jeff's sascalc implementation
+                    # li_n_cell, li_dq_q = jeff.sascalc(liData, configuration)
+                    # TODO: Update once Jeff's routine is available, until then use this placeholder:
+                    li_n_cell = numpy.full(liData[dataset_n][1]['Q'], 1)
+                    li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
+
+                else:
+                    # estimate n_cell(q) and dq/q from configuration parameters
+
+                    q = liData[dataset_n][1]['Q']
+                    theta = 2 * numpy.arcsin(q * configuration['lambda'] / 4 / numpy.pi)
+                    r = configuration['detector_sample_distance'] * numpy.tan(theta)
+
+                    # create an upper radius for the bin, which is typically the starting value of the next bin,
+                    # the last element being the edge case
+                    r_gradient = numpy.gradient(r)
+                    r_gradient_roll = numpy.roll(r_gradient, -1)
+                    r_gradient_roll[-1] = r_gradient_roll[-2]
+                    r_plus = r + r_gradient + r_gradient_roll
+
+                    omega = 2 * numpy.pi * (1 - numpy.cos(theta))
+                    omega_gradient = numpy.gradient(omega)
+                    omega_gradient_roll = numpy.roll(omega_gradient, -1)
+                    omega_gradient_roll[-1] = omega_gradient_roll[-2]
+                    delta_omega = omega_gradient + omega_gradient_roll
+
+                    # draw detector dimensions and solid angle projections in shapely
+                    dimx = configuration['detector_pixel_x'] * configuration['detector_pixelsize_x']
+                    dimy = configuration['detector_pixel_y'] * configuration['detector_pixelsize_y']
+                    detector = shapely.geometry.Polygon([(-dimx/2, -dimy/2), (dimx/2, -dimy/2), (dimx/2, dimy/2),
+                                                         (-dimx/2, dimy/2)])
+                    cx = configuration["beam_center_x"]
+                    cy = configuration["beam_center_y"]
+                    circle_inner = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in r]
+                    circle_outer = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in r_plus]
+                    omega_circle = [circle_outer[i].difference(circle_inner[i]) for i in range(len(circle_outer))]
+                    omega_circle_area = numpy.array([omega_circle[i].area for i in range(len(omega_circle))])
+
+                    beamstop_circle = shapely.geometry.Point(cx, cy).buffer(configuration["beamstop_diameter"])
+                    detector = detector.difference(beamstop_circle)
+
+                    area_detected = numpy.array([omega_circle[i].intersection(detector).area
+                                                 for i in range(len(omega_circle))])
+
+                    # n_cell(q) is the entire solid angle of this q-value times the fraction that is detected
+                    li_n_cell = delta_omega * (area_detected / omega_circle_area)
+                    li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
+
+                limask[dataset_n].append([li_n_cell, li_dq_q])
 
         return liData
