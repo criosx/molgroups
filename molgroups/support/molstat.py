@@ -1764,9 +1764,9 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, basefilename='sim.dat', qrange=0, **kwargs):
+    def fnSimulateData(self, basefilename='sim.dat', qrange=0, liConfigurations=None):
         """
-        simulates scattering based on a parameter file called simpar.dat
+        Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
         The basename can refer to a set of data files with integer indizes before the suffix
         """
@@ -1797,7 +1797,7 @@ class CMolStat:
             # simulate data, works on sim.dat files
             liData = self.Interactor.fnSimulateData(diModelPars, liData)
             # simulate error bars, works on sim.dat files
-            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, **kwargs)
+            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, liConfigurations)
             self.Interactor.fnSaveData(basefilename, liData)
         finally:
             pass
