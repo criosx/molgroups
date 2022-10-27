@@ -163,8 +163,8 @@ class CBumpsAPI(api_base.CBaseAPI):
                 shutil.copy(file, origin)
 
     def fnRestoreFit(self):
-        self.fnRestoreFitProblem()
-        self.fnRestoreState()
+        self.problem = self.fnRestoreFitProblem()
+        self.state = self.fnRestoreState()
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
@@ -289,4 +289,21 @@ class CBumpsAPI(api_base.CBaseAPI):
             problem.extra.fnWritePar2File(fp, 'bilayer', z)
         fp.close()
         stdout.flush()
+
+    def fnUpdateModelPars(self, diNewPars):
+        liParameters = list(self.diParameters.keys())
+        # sort by number of appereance in runfile
+        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+        for element in liParameters:
+            if element not in list(diNewPars.keys()):
+                print('Parameter ' + element + ' not specified.')
+                # check failed -> exit method
+                return
+            else:
+                print(element + ' ' + str(diNewPars[element]))
+
+        p = [diNewPars[parameter] for parameter in liParameters]
+        self.problem.setp(p)
+        self.problem.model_update()
+
 

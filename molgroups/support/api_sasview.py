@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import copy
 import numpy
 import pandas
 import os
@@ -11,6 +12,7 @@ import sasmodels.data
 
 from molgroups.support import general
 from molgroups.support import api_bumps
+
 
 class CSASViewAPI(api_bumps.CBumpsAPI):
     def __init__(self, spath='.', mcmcpath='.', runfile='', load_state=True):
@@ -62,21 +64,39 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             for i in range(len(liData)):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
-    def fnSimulateData(self, diNewPars, liData, data_column='I'):
-        liParameters = list(self.diParameters.keys())
-        # sort by number of appereance in runfile
-        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-        for element in liParameters:
-            if element not in list(diNewPars.keys()):
-                print('Parameter '+element+' not specified.')
-                # check failed -> exit method
-                return
-            else:
-                print(element + ' ' + str(diNewPars[element]))
+    def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qmin=None,
+                                    qmax=None, liConfigurations=None, lambda_min=0.1):
+        # if qmin and qmax is not given, take from first data set
+        if qmin is None:
+            qmin = liData[0][1]['Q'].iloc[0]
+        if qmax is None:
+            qmax = liData[0][1]['Q'].iloc[-1]
 
-        p = [diNewPars[parameter] for parameter in liParameters]
-        self.problem.setp(p)
-        self.problem.model_update()
+        # Change q-range to ridculuously high value that allows full integration over 4Pi for
+        # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
+        # the uncertainty calculation. This is difficult, as Lambda might vary with every configuration and a
+        # new data simulation would be required. Instead, we simulate over a very large q-range and use only
+        # a part of it during integration on the uncertainty function.
+        # This is only needed for SANS
+
+        liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min)
+        self.fnSaveData(basefilename=basefilename, liData=liData)
+        self.fnRestoreFit()
+
+        # simulate data, works on sim.dat files
+        liData = self.fnSimulateData(diModelPars, liData)
+        # simulate error bars, works on sim.dat files
+        liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
+
+        # recover requested q-range
+        liData = self.fnExtendQRange(liData, qmin=qmin, qmax=qmax)
+
+        return liData
+
+    def fnSimulateData(self, diNewPars=None, liData=None, data_column='I'):
+
+        if diNewPars is not None:
+            self.fnUpdateModelPars(diNewPars)
 
         # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
         if 'models' in dir(self.problem):
@@ -93,7 +113,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
         return liData
 
-    def fnSimulateErrorBars(self, simpar=None, liData=None, liConfigurations=None, percent_error=0.1):
+    @staticmethod
+    def fnSimulateErrorBars(simpar=None, liData=None, liConfigurations=None, percent_error=0.1):
         """
         Calculates uncertainties on a dataset liData given a list of configurations.
 
@@ -124,9 +145,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 if not pair[0] in dictonary:
                     dictonary[pair[0]] = pair[1]
 
-        def _calc_configuration(dataset, configuration):
-
-            # fill in defaults if no preset entries
+        def _configuration_defaults(configuration):
             if configuration is None:
                 configuration = {}
             kl_list = [
@@ -148,20 +167,17 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 ["unit_solid_angle", 1],
                 ["differential_cross_section_cuvette", 0],
                 ["differential_cross_section_buffer", 0],
-                ["q_min", 0.001],
-                ["q_max", 0.4],
                 ["dq_q", 0.06],
                 ["lambda", 6],
                 ["sascalc", False]
             ]
+            # fill in defaults if no preset entries
             _add_default(configuration, kl_list)
 
-            # provide compatibility/redundancy between the usages of q_max and qrange
-            if 'qrange' in configuration:
-                configuration['q_max'] = configuration['qrange']
+            return configuration
 
-            q = dataset[1]['Q']
-            theta = 2 * numpy.arcsin(q * configuration['lambda'] / 4 / numpy.pi)
+        def _calc_configuration(Q, Iq, configuration):
+            theta = 2 * numpy.arcsin(Q * configuration['lambda'] / 4 / numpy.pi)
             r = configuration['detector_sample_distance'] * numpy.tan(theta)
             # create an upper radius for the bin, which is typically the starting value of the next bin,
             # the last element being the edge case, otherwise a single roll would be sufficient
@@ -170,15 +186,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             r_gradient_roll[-1] = r_gradient_roll[-2]
             r_plus = r + r_gradient + r_gradient_roll
             # omega = 2 * numpy.pi * (1 - numpy.cos(theta))
-            omega = (q * configuration['lambda'])**2 / (4 * numpy.pi)
+            omega = (Q * configuration['lambda'])**2 / (4 * numpy.pi)
             delta_omega = numpy.gradient(omega)
-            Sigma = numpy.dot(dataset[q]['I'], delta_omega)
+            Sigma = numpy.dot(Iq, delta_omega)
 
             if configuration["sascalc"]:
                 # calculate n_cell(q) and dq/q using Jeff's sascalc implementation
                 # li_n_cell, li_dq_q = jeff.sascalc(liData, configuration)
                 # TODO: Update once Jeff's routine is available, until then use this placeholder:
-                li_n_cell = numpy.full(dataset[1]['Q'], 1)
+                li_n_cell = numpy.full(Q, 1)
                 li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
             else:
                 # estimate n_cell(q) and dq/q from configuration parameters
@@ -204,29 +220,34 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 li_n_cell = delta_omega * (area_detected / omega_circle_area)
                 li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
 
-            return li_n_cell, li_dq_q, delta_omega, Sigma, configuration
+            return li_n_cell, li_dq_q, delta_omega, Sigma
 
         def _divide(a, b):
             return numpy.divide(a, b, out=numpy.zeros_like(a), where=b != 0)
 
         for dataset_n in range(len(liData)):
+            # prepare data set
             dataset = liData[dataset_n]
+            Q = liData[dataset_n][1]['Q'].to_numpy()
+            Iq = liData[dataset_n][1]['I'].to_numpy()
+            dQ = liData[dataset_n][1]['dQ'].to_numpy().fill(0)
+            dIq = liData[dataset_n][1]['dI'].to_numpy().fill(0)
 
             if liConfigurations is None:
                 # if no instrument configurations are given, calculate uncertainties as percent of data value
                 # using the percent_error argument. Exit function afterwards.
-                dataset[1]['dI'] = percent_error * dataset[1]['I']
+                dIq = percent_error * Iq
             else:
-                # list of [n_cell(q), dq/q] tuples for every data set
-                limask = []
-                counts_sample = numpy.zeros_like(dataset[1]['I'])
-                counts_cuvette = numpy.zeros_like(dataset[1]['I'])
-                counts_dark = numpy.zeros_like(dataset[1]['I'])
+                counts_sample = numpy.zeros_like(Iq)
+                counts_cuvette = numpy.zeros_like(Iq)
+                counts_dark = numpy.zeros_like(Iq)
 
                 for configuration in liConfigurations[dataset_n]:
 
-                    li_n_cell, li_dq_q, d_omeg, Sigma_s_4pi, configuration = _calc_configuration(dataset, configuration)
-                    limask.append([li_n_cell, li_dq_q])
+                    # set unused configuration keys to default values
+                    configuration = _configuration_defaults(configuration)
+
+                    li_n_cell, li_dq_q, d_omeg, Sigma_s_4pi = _calc_configuration(Q, Iq, configuration)
 
                     D = configuration["cuvette_thickness"]
                     neutron_intensity = configuration["neutron_flux"] * configuration["beam_area"]
@@ -246,7 +267,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     I_buffer = neutron_intensity * Sigma_b
 
                     # Sample counts
-                    Sigma_s = dataset[1]['I']
+                    Sigma_s = Iq
                     T_s = numpy.exp(-1 * Sigma_s_4pi * D)
                     I_sample = neutron_intensity * Sigma_s
 
@@ -266,21 +287,21 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     delta_I_s = numpy.sqrt(delta_I_s)
                     delta_I_I = delta_I_s / neutron_intensity
                     delta_I_I = _divide(delta_I_I, li_n_cell)
-                    delta_I_I = _divide(delta_I_I, dataset[1]['I'])
+                    delta_I_I = _divide(delta_I_I, Iq)
 
                     # update current dI and dQ entries in data set with data from this frame
                     # old and new relative uncertainties
-                    r_1 = _divide(dataset[1]['dI'], dataset[1]['I'])
-                    r_2 = _divide(delta_I_I, dataset[1]['I'])
+                    r_1 = _divide(dIq, Iq)
+                    r_2 = _divide(delta_I_I, Iq)
                     # old and new equivalent count numbers (Gaussian amplitudes) associated with those rs
                     N_1 = _divide(numpy.ones_like(r_1), r_1*r_1)
                     N_2 = _divide(numpy.ones_like(r_2), r_2*r_2)
                     # old and new dQ
-                    q_1 = dataset[1]['dQ']
-                    q_2 = li_dq_q * dataset[1]['Q']
-                    # new dI as an update to the old one
-                    dataset[1]['dI'] = _divide(numpy.ones_like(N_1), N_1 + N_2) * dataset[1]['I']
-                    # new dQ as an update to the old one
+                    q_1 = dQ
+                    q_2 = li_dq_q * Q
+
+                    # update data frames
+                    dataset[1]['dI'] = _divide(numpy.ones_like(N_1), N_1 + N_2) * Iq
                     dataset[1]['dQ'] = numpy.sqrt((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2) /
                                                   (N_1 + N_2) * (N_1 + N_2))
 

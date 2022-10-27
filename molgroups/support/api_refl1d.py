@@ -1,10 +1,9 @@
 from __future__ import print_function
 from math import fabs, pow, sqrt
 import pathlib
-from random import seed, normalvariate, random
+from random import normalvariate
 from re import VERBOSE, IGNORECASE, compile
 import pandas
-import shutil
 import os
 
 from molgroups.support import general
@@ -102,7 +101,28 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
             for i in range(len(liData)):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
-    def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
+    def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qmin=None,
+                                    qmax=None, liConfigurations=None, lambda_min=0.1):
+        if not ((qmin is None) and (qmax is None)):
+            # q-range needs to be potentially adjusted, take any missing parameter from first data set
+            if qmin is None:
+                qmin = liData[0][1]['Q'][0]
+            if qmax is None:
+                qmax = liData[0][1]['Q'][-1]
+
+            liData = self.fnExtendQRange(liData=liData, qmin=qmin, qmax=qmax)
+            self.fnSaveData(basefilename=basefilename, liData=liData)
+            self.fnRestoreFit()
+
+        # simulate data, works on sim.dat files
+        liData = self.fnSimulateData(diModelPars, liData)
+        # simulate error bars, works on sim.dat files
+        liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
+
+        return liData
+
+    @staticmethod
+    def fnSimulateErrorBars(simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
                             s2max=4.397, tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6,
                             cbmatmin=1.1e-5, cbmatmax=1.25e-6, mode='water', pre=1):
 
@@ -147,20 +167,7 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
         return liData
 
     def fnSimulateData(self, diNewPars, liData, data_column='R'):
-        liParameters = list(self.diParameters.keys())
-        # sort by number of appereance in runfile
-        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-        for element in liParameters:
-            if element not in list(diNewPars.keys()):
-                print('Parameter '+element+' not specified.')
-                # check failed -> exit method
-                return
-            else:
-                print(element + ' ' + str(diNewPars[element]))
-
-        p = [diNewPars[parameter] for parameter in liParameters]
-        self.problem.setp(p)
-        self.problem.model_update()
+        self.fnUpdateModelPars(diNewPars)
 
         # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
         if 'models' in dir(self.problem):

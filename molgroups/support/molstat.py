@@ -16,7 +16,6 @@ import pathlib
 from molgroups.support import general
 
 
-
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".",
                  runfile="run", state=None, problem=None,
@@ -1764,12 +1763,17 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, basefilename='sim.dat', qrange=0, liConfigurations=None):
+    def fnSimulateData(self, basefilename='sim.dat', qrange=None, qmin=None, qmax=None, liConfigurations=None,
+                       lambda_min=0.1):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
         The basename can refer to a set of data files with integer indizes before the suffix
         """
+        # resolve amiguity / compatibility of the qrange parameter
+        if qrange is not None:
+            qmax = qrange
+
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
 
@@ -1787,18 +1791,12 @@ class CMolStat:
             # load all data files into a list of Pandas dataframes
             # each element is itself a list of [comments, simdata]
             liData = self.Interactor.fnLoadData(basefilename)
-            # if q-range is changing, back up original sim dat or reload previously backed up data
-            # to always work with the same set of original data and extend the q-range to qrange
-            # TODO: Backup does not seem to be implemented. I do not find a reload, either
-            # TODO: Make sure that data is simulated for the extended q-range using bumps
-            if qrange != 0:
-                self.Interactor.fnBackupSimdat()
-                liData = self.Interactor.fnExtendQRange(liData, qrange)
-            # simulate data, works on sim.dat files
-            liData = self.Interactor.fnSimulateData(diModelPars, liData)
-            # simulate error bars, works on sim.dat files
-            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, liConfigurations)
+            liData = self.Interactor.fnSimulateDataPlusErrorBars(liData, diModelPars, simpar=simpar,
+                                                                 basefilename=basefilename, qmin=qmin, qmax=qmax,
+                                                                 liConfigurations=liConfigurations,
+                                                                 lambda_min=lambda_min)
             self.Interactor.fnSaveData(basefilename, liData)
+
         finally:
             pass
 
