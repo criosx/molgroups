@@ -73,28 +73,32 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         if qmax is None:
             qmax = liData[0][1]['Q'].iloc[-1]
 
-        # Change q-range to ridculuously high value that allows full integration over 4Pi for
-        # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
-        # the uncertainty calculation. This is difficult, as Lambda might vary with every configuration and a
-        # new data simulation would be required. Instead, we simulate over a very large q-range and use only
-        # a part of it during integration on the uncertainty function.
-        # This is only needed for SANS
+        # Simulate twice. dQ/Q is only determined when simulating error bars because it needs the configuration
+        # Might make sense to decouple dQ/Q from dIq, but might not be worth it. Neglect further iterations.
+        for _ in range(2):
 
-        liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min, conserve_dq_q=True)
-        self.fnSaveData(basefilename=basefilename, liData=liData)
-        self.fnRestoreFit()
+            # Change q-range to ridculuously high value that allows full integration over 4Pi for
+            # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
+            # the uncertainty calculation. This is difficult, as Lambda might vary with every configuration and a
+            # new data simulation would be required. Instead, we simulate over a very large q-range and use only
+            # a part of it during integration on the uncertainty function.
+            # This is only needed for SANS
 
-        # simulate data, works on sim.dat files
-        liData = self.fnSimulateData(diModelPars, liData)
-        # simulate error bars, works on sim.dat files
-        liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
-        # recover requested q-range
-        liData = self.fnExtendQRange(liData, qmin=qmin, qmax=qmax)
+            liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min, conserve_dq_q=True)
+            self.fnSaveData(basefilename=basefilename, liData=liData)
+            self.fnRestoreFit()
 
-        # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
-        for dataset_n in range(len(liData)):
-            df = liData[dataset_n][1]
-            liData[dataset_n][1] = df[df['dQ'] > 0]
+            # simulate data, works on sim.dat files
+            liData = self.fnSimulateData(diModelPars, liData)
+            # simulate error bars, works on sim.dat files
+            liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
+            # recover requested q-range
+            liData = self.fnExtendQRange(liData, qmin=qmin, qmax=qmax)
+
+            # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
+            for dataset_n in range(len(liData)):
+                df = liData[dataset_n][1]
+                liData[dataset_n][1] = df[df['dQ'] > 0]
 
         return liData
 
