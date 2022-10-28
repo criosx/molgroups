@@ -5,8 +5,9 @@ import numpy
 import pandas
 import os
 import pathlib
-
 import shapely.geometry
+
+import numpy.random
 
 import sasmodels.data
 
@@ -79,7 +80,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # a part of it during integration on the uncertainty function.
         # This is only needed for SANS
 
-        liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min)
+        liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min, conserve_dq_q=True)
         self.fnSaveData(basefilename=basefilename, liData=liData)
         self.fnRestoreFit()
 
@@ -87,9 +88,13 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         liData = self.fnSimulateData(diModelPars, liData)
         # simulate error bars, works on sim.dat files
         liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
-
         # recover requested q-range
         liData = self.fnExtendQRange(liData, qmin=qmin, qmax=qmax)
+
+        # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
+        for dataset_n in range(len(liData)):
+            df = liData[dataset_n][1]
+            liData[dataset_n][1] = df[df['dQ'] > 0]
 
         return liData
 
@@ -150,24 +155,24 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 configuration = {}
             kl_list = [
                 ["pre", 1],
-                ["neutron_flux", 1e5],
+                ["neutron_flux", 6.69e6],
                 ["beam_area", 1],
-                ["beam_center_x", 64.5],
-                ["beam_center_y", 64.5],
-                ["beamstop_diameter", 25.4],
+                ["beam_center_x", 0],
+                ["beam_center_y", 0],
+                ["beamstop_diameter", 2.54],
                 ["detector_efficiency", 1],
                 ["detector_sample_distance", 400],
                 ["detector_pixel_x", 128],
                 ["detector_pixel_y", 128],
-                ["detector_pixelsize_x", 0.00508],
-                ["detector_pixelsize_y", 0.00508],
+                ["detector_pixelsize_x", 0.508],
+                ["detector_pixelsize_y", 0.508],
                 ["time", 60],
                 ["cuvette_thickness", 0.2],
                 ["dark_count_f", 0],
                 ["unit_solid_angle", 1],
                 ["differential_cross_section_cuvette", 0],
                 ["differential_cross_section_buffer", 0],
-                ["dq_q", 0.06],
+                ["dq_q", 0.125],
                 ["lambda", 6],
                 ["sascalc", False]
             ]
@@ -177,6 +182,30 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             return configuration
 
         def _calc_configuration(Q, Iq, configuration):
+
+            # 4PI integration is valid only until q_max given by lambda
+            q_max = 4 * numpy.pi / configuration['lambda']
+            # index for closest q-value to q_max
+            idx = numpy.abs(Q-q_max).argmin()
+            if Q[idx] > q_max and idx > 0:
+                idx -= 1
+            initial_q_length = len(Q)
+            # limit Q and Iq to allowed range
+            Q = Q[0:idx+1]
+            Iq = Iq[0:idx+1]
+            omega = (Q * configuration['lambda'])**2 / (4 * numpy.pi)
+            delta_omega = numpy.gradient(omega)
+            # dot product only over this limited index range
+            Sigma = numpy.dot(Iq, delta_omega)
+
+            # now limit omega to 2Pi for SANS geometry reasons (no backscattering)
+            q_max2 = numpy.sqrt(8) * numpy.pi / configuration['lambda']
+            idx = numpy.abs(Q-q_max2).argmin()
+            if Q[idx] > q_max2 and idx > 0:
+                idx -= 1
+            Q = Q[0:idx+1]
+            Iq = Iq[0:idx+1]
+
             theta = 2 * numpy.arcsin(Q * configuration['lambda'] / 4 / numpy.pi)
             r = configuration['detector_sample_distance'] * numpy.tan(theta)
             # create an upper radius for the bin, which is typically the starting value of the next bin,
@@ -188,14 +217,13 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             # omega = 2 * numpy.pi * (1 - numpy.cos(theta))
             omega = (Q * configuration['lambda'])**2 / (4 * numpy.pi)
             delta_omega = numpy.gradient(omega)
-            Sigma = numpy.dot(Iq, delta_omega)
 
             if configuration["sascalc"]:
                 # calculate n_cell(q) and dq/q using Jeff's sascalc implementation
                 # li_n_cell, li_dq_q = jeff.sascalc(liData, configuration)
                 # TODO: Update once Jeff's routine is available, until then use this placeholder:
-                li_n_cell = numpy.full(Q, 1)
-                li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
+                n_cell = numpy.full(Q, 1)
+                dq_q = numpy.full(n_cell.shape, configuration['dq_q'])
             else:
                 # estimate n_cell(q) and dq/q from configuration parameters
                 # draw detector dimensions and solid angle projections in shapely
@@ -205,8 +233,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                                                      (-dimx/2, dimy/2)])
                 cx = configuration["beam_center_x"]
                 cy = configuration["beam_center_y"]
-                circle_inner = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in r]
-                circle_outer = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in r_plus]
+                circle_inner = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in numpy.nditer(r)]
+                circle_outer = [shapely.geometry.Point(cx, cy).buffer(radius) for radius in numpy.nditer(r_plus)]
                 omega_circle = [circle_outer[i].difference(circle_inner[i]) for i in range(len(circle_outer))]
                 omega_circle_area = numpy.array([omega_circle[i].area for i in range(len(omega_circle))])
 
@@ -217,10 +245,16 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                                              for i in range(len(omega_circle))])
 
                 # n_cell(q) is the entire solid angle of this q-value times the fraction that is detected
-                li_n_cell = delta_omega * (area_detected / omega_circle_area)
-                li_dq_q = numpy.full(li_n_cell.shape, configuration['dq_q'])
+                n_cell = delta_omega * (area_detected / omega_circle_area)
+                dq_q = numpy.full(n_cell.shape, configuration['dq_q'])
 
-            return li_n_cell, li_dq_q, delta_omega, Sigma
+            # pad numpy arrays with zeros back to original length
+            append_array = numpy.zeros(initial_q_length-len(n_cell))
+            n_cell = numpy.append(n_cell, append_array)
+            dq_q = numpy.append(dq_q, append_array)
+            delta_omega = numpy.append(delta_omega, append_array)
+
+            return n_cell, dq_q, delta_omega, Sigma
 
         def _divide(a, b):
             return numpy.divide(a, b, out=numpy.zeros_like(a), where=b != 0)
@@ -228,19 +262,18 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         for dataset_n in range(len(liData)):
             # prepare data set
             dataset = liData[dataset_n]
-            Q = liData[dataset_n][1]['Q'].to_numpy()
-            Iq = liData[dataset_n][1]['I'].to_numpy()
-            dQ = liData[dataset_n][1]['dQ'].to_numpy().fill(0)
-            dIq = liData[dataset_n][1]['dI'].to_numpy().fill(0)
+            Q = liData[dataset_n][1]['Q'].to_numpy(copy=True)
+            Iq = liData[dataset_n][1]['I'].to_numpy(copy=True)
+            dQ = liData[dataset_n][1]['dQ'].to_numpy(copy=True)
+            dIq = liData[dataset_n][1]['dI'].to_numpy(copy=True)
 
             if liConfigurations is None:
                 # if no instrument configurations are given, calculate uncertainties as percent of data value
                 # using the percent_error argument. Exit function afterwards.
                 dIq = percent_error * Iq
             else:
-                counts_sample = numpy.zeros_like(Iq)
-                counts_cuvette = numpy.zeros_like(Iq)
-                counts_dark = numpy.zeros_like(Iq)
+                dQ.fill(0)
+                dIq.fill(0)
 
                 for configuration in liConfigurations[dataset_n]:
 
@@ -275,9 +308,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     Sigma_d = configuration['dark_count_f']
                     I_dark = neutron_intensity * Sigma_d
 
-                    counts_sample += li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c + I_dark
-                    counts_cuvette += li_n_cell * (I_buffer + I_cuvette) * T_b * T_c + I_dark
-                    counts_dark += li_n_cell * I_dark
+                    counts_sample = li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c + I_dark
+                    counts_cuvette = li_n_cell * (I_buffer + I_cuvette) * T_b * T_c + I_dark
+                    counts_dark = li_n_cell * I_dark
 
                     # calculate new relative uncertaint
                     # Approximat Poisson by Gaussian, can be changed
@@ -301,8 +334,17 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     q_2 = li_dq_q * Q
 
                     # update data frames
-                    dataset[1]['dI'] = _divide(numpy.ones_like(N_1), N_1 + N_2) * Iq
-                    dataset[1]['dQ'] = numpy.sqrt((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2) /
-                                                  (N_1 + N_2) * (N_1 + N_2))
+                    dIq = _divide(numpy.ones_like(N_1), numpy.sqrt(N_1 + N_2)) * Iq
+                    dQ = numpy.sqrt(_divide((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2), (N_1 + N_2) * (N_1 + N_2)))
+
+                dataset[1]['dI'] = dIq
+                dataset[1]['dQ'] = dQ
+                dataset[1]['I'] = Iq + numpy.random.normal(size=len(dIq)) * dIq
 
         return liData
+
+
+
+
+
+
