@@ -1763,16 +1763,13 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, basefilename='sim.dat', qrange=None, qmin=None, qmax=None, liConfigurations=None,
-                       lambda_min=0.1):
+    def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
+                       mode='water', lambda_min=0.1):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
         The basename can refer to a set of data files with integer indizes before the suffix
         """
-        # resolve amiguity / compatibility of the qrange parameter
-        if qrange is not None:
-            qmax = qrange
 
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
@@ -1792,9 +1789,10 @@ class CMolStat:
             # each element is itself a list of [comments, simdata]
             liData = self.Interactor.fnLoadData(basefilename)
             liData = self.Interactor.fnSimulateDataPlusErrorBars(liData, diModelPars, simpar=simpar,
-                                                                 basefilename=basefilename, qmin=qmin, qmax=qmax,
-                                                                 liConfigurations=liConfigurations,
-                                                                 lambda_min=lambda_min)
+                                                                 basefilename=basefilename,
+                                                                 liConfigurations=liConfigurations, qmin=qmin,
+                                                                 qmax=qmax, qrangefromfile=qrangefromfile,
+                                                                 lambda_min=lambda_min, mode=mode)
             self.Interactor.fnSaveData(basefilename, liData)
 
         finally:

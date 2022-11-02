@@ -65,40 +65,49 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             for i in range(len(liData)):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
-    def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qmin=None,
-                                    qmax=None, liConfigurations=None, lambda_min=0.1):
+    def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qrange=None,
+                                    liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False, mode='water',
+                                    lambda_min=0.1):
         # if qmin and qmax is not given, take from first data set
-        if qmin is None:
-            qmin = liData[0][1]['Q'].iloc[0]
-        if qmax is None:
-            qmax = liData[0][1]['Q'].iloc[-1]
+        # resolve amiguity / compatibility of the qrange parameter
+        if qrangefromfile:
+            # specified qmin or qmax values trump qrangefromfile
+            if qmin is None:
+                qmin = liData[0][1]['Q'].iloc[0]
+            if qmax is None:
+                qmax = liData[0][1]['Q'].iloc[-1]
 
+        # Change q-range to ridculuously high value that allows full integration over 4Pi for
+        # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
+        # the uncertainty calculation. This is difficult, as Lambda might vary with every configuration and a
+        # new data simulation would be required. Instead, we simulate over a very large q-range and use only
+        # a part of it during integration on the uncertainty function.
+        # This is only needed for SANS
+
+        liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min, conserve_dq_q=True)
+        self.fnSaveData(basefilename=basefilename, liData=liData)
+        self.fnRestoreFit()
+
+        # simulate data, works on sim.dat files
+        liData = self.fnSimulateData(diModelPars, liData)
+        # simulate error bars, works on sim.dat files
+        liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations, mode=mode)
         # Simulate twice. dQ/Q is only determined when simulating error bars because it needs the configuration
         # Might make sense to decouple dQ/Q from dIq, but might not be worth it. Neglect further iterations.
-        for _ in range(2):
+        liData = self.fnSimulateData(diModelPars, liData)
 
-            # Change q-range to ridculuously high value that allows full integration over 4Pi for
-            # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
-            # the uncertainty calculation. This is difficult, as Lambda might vary with every configuration and a
-            # new data simulation would be required. Instead, we simulate over a very large q-range and use only
-            # a part of it during integration on the uncertainty function.
-            # This is only needed for SANS
-
-            liData = self.fnExtendQRange(liData=liData, qmin=0, qmax=4 * numpy.pi / lambda_min, conserve_dq_q=True)
-            self.fnSaveData(basefilename=basefilename, liData=liData)
-            self.fnRestoreFit()
-
-            # simulate data, works on sim.dat files
-            liData = self.fnSimulateData(diModelPars, liData)
-            # simulate error bars, works on sim.dat files
-            liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations)
-            # recover requested q-range
+        # recover requested q-range
+        if qmin is not None and qmax is not None:
             liData = self.fnExtendQRange(liData, qmin=qmin, qmax=qmax)
+        # add random normalvariates
+        for dataset in range(len(liData)):
+            liData[dataset][1]['I'] = liData[dataset][1]['I'] + numpy.random.normal(size=len(liData[dataset][1]['dI']))\
+                                     * liData[dataset][1]['dI']
 
-            # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
-            for dataset_n in range(len(liData)):
-                df = liData[dataset_n][1]
-                liData[dataset_n][1] = df[df['dQ'] > 0]
+        # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
+        for dataset_n in range(len(liData)):
+            df = liData[dataset_n][1]
+            liData[dataset_n][1] = df[df['dQ'] > 0]
 
         return liData
 
@@ -123,7 +132,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         return liData
 
     @staticmethod
-    def fnSimulateErrorBars(simpar=None, liData=None, liConfigurations=None, percent_error=0.1):
+    def fnSimulateErrorBars(simpar=None, liData=None, liConfigurations=None, mode='water', percent_error=0.1):
         """
         Calculates uncertainties on a dataset liData given a list of configurations.
 
@@ -159,7 +168,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 configuration = {}
             kl_list = [
                 ["pre", 1],
-                ["neutron_flux", 6.69e6],
+                ["neutron_flux", 6.69e5],
                 ["beam_area", 1],
                 ["beam_center_x", 0],
                 ["beam_center_y", 0],
@@ -198,7 +207,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             Q = Q[0:idx+1]
             Iq = Iq[0:idx+1]
             omega = (Q * configuration['lambda'])**2 / (4 * numpy.pi)
-            delta_omega = numpy.gradient(omega)
+            omega_roll = numpy.roll(omega, -1)
+            omega_roll[-1] = omega[-1] + numpy.gradient(omega)[-1]
+            delta_omega = omega_roll - omega
             # dot product only over this limited index range
             Sigma = numpy.dot(Iq, delta_omega)
 
@@ -213,11 +224,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             theta = 2 * numpy.arcsin(Q * configuration['lambda'] / 4 / numpy.pi)
             r = configuration['detector_sample_distance'] * numpy.tan(theta)
             # create an upper radius for the bin, which is typically the starting value of the next bin,
-            # the last element being the edge case, otherwise a single roll would be sufficient
             r_gradient = numpy.gradient(r)
-            r_gradient_roll = numpy.roll(r_gradient, -1)
-            r_gradient_roll[-1] = r_gradient_roll[-2]
-            r_plus = r + r_gradient + r_gradient_roll
+            r_plus = numpy.roll(r, -1)
+            r_plus[-1] = r[-1] + r_gradient[-1]
             # omega = 2 * numpy.pi * (1 - numpy.cos(theta))
             omega = (Q * configuration['lambda'])**2 / (4 * numpy.pi)
             delta_omega = numpy.gradient(omega)
@@ -242,7 +251,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 omega_circle = [circle_outer[i].difference(circle_inner[i]) for i in range(len(circle_outer))]
                 omega_circle_area = numpy.array([omega_circle[i].area for i in range(len(omega_circle))])
 
-                beamstop_circle = shapely.geometry.Point(cx, cy).buffer(configuration["beamstop_diameter"])
+                beamstop_circle = shapely.geometry.Point(cx, cy).buffer(configuration["beamstop_diameter"]/2)
                 detector = detector.difference(beamstop_circle)
 
                 area_detected = numpy.array([omega_circle[i].intersection(detector).area
@@ -263,6 +272,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         def _divide(a, b):
             return numpy.divide(a, b, out=numpy.zeros_like(a), where=b != 0)
 
+        # check if a single set of configurations is provided for more than one dataset and
+        # multiply the configurations accordingly
+        if liConfigurations is not None and len(liConfigurations) < len(liData):
+            if len(liConfigurations) == 1:
+                for _ in range(len(liData)-len(liConfigurations)):
+                    liConfigurations.append(liConfigurations[0])
+            else:
+                raise Exception('Number of configuration sets should be one or must match the number of datasets!')
+
         for dataset_n in range(len(liData)):
             # prepare data set
             dataset = liData[dataset_n]
@@ -276,6 +294,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 # using the percent_error argument. Exit function afterwards.
                 dIq = percent_error * Iq
             else:
+                # TODO: Do a proper implementation of dq/Q or reuse the numbers given in the example files
                 dQ.fill(0)
                 dIq.fill(0)
 
@@ -288,7 +307,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                     D = configuration["cuvette_thickness"]
                     neutron_intensity = configuration["neutron_flux"] * configuration["beam_area"]
-                    neutron_intensity *= configuration["time"] * configuration["detector_efficiency"] * D
+                    neutron_intensity *= configuration["time"] * configuration["detector_efficiency"]
 
                     # Cuvette counts
                     # Not sure, how to treat empty cuvette scattering that takes place over a shorter path length
@@ -296,25 +315,26 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     # the entire length of the cuvette.
                     Sigma_c = configuration["differential_cross_section_cuvette"]
                     T_c = numpy.exp(-1 * Sigma_c * 4 * numpy.pi * D)
-                    I_cuvette = neutron_intensity * Sigma_c
+                    I_cuvette = Sigma_c
 
                     # Buffer counts
                     Sigma_b = configuration["differential_cross_section_buffer"]
                     T_b = numpy.exp(-1 * Sigma_b * 4 * numpy.pi * D)
-                    I_buffer = neutron_intensity * Sigma_b
+                    I_buffer = Sigma_b
 
                     # Sample counts
                     Sigma_s = Iq
                     T_s = numpy.exp(-1 * Sigma_s_4pi * D)
-                    I_sample = neutron_intensity * Sigma_s
+                    I_sample = Sigma_s
 
                     # Dark counts
                     Sigma_d = configuration['dark_count_f']
                     I_dark = neutron_intensity * Sigma_d
 
-                    counts_sample = li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c + I_dark
-                    counts_cuvette = li_n_cell * (I_buffer + I_cuvette) * T_b * T_c + I_dark
-                    counts_dark = li_n_cell * I_dark
+                    counts_sample = neutron_intensity * li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c\
+                                    * D + I_dark
+                    counts_cuvette = neutron_intensity * li_n_cell * (I_buffer + I_cuvette) * T_b * T_c * D + I_dark
+                    counts_dark = neutron_intensity * li_n_cell * I_dark
 
                     # calculate new relative uncertaint
                     # Approximat Poisson by Gaussian, can be changed
@@ -324,12 +344,13 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     delta_I_s = numpy.sqrt(delta_I_s)
                     delta_I_I = delta_I_s / neutron_intensity
                     delta_I_I = _divide(delta_I_I, li_n_cell)
+                    delta_I_I = _divide(delta_I_I, D)
                     delta_I_I = _divide(delta_I_I, Iq)
 
                     # update current dI and dQ entries in data set with data from this frame
                     # old and new relative uncertainties
                     r_1 = _divide(dIq, Iq)
-                    r_2 = _divide(delta_I_I, Iq)
+                    r_2 = delta_I_I
                     # old and new equivalent count numbers (Gaussian amplitudes) associated with those rs
                     N_1 = _divide(numpy.ones_like(r_1), r_1*r_1)
                     N_2 = _divide(numpy.ones_like(r_2), r_2*r_2)
@@ -343,7 +364,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                 dataset[1]['dI'] = dIq
                 dataset[1]['dQ'] = dQ
-                dataset[1]['I'] = Iq + numpy.random.normal(size=len(dIq)) * dIq
 
         return liData
 

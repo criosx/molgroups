@@ -1,0 +1,13 @@
+d * * radius_equatorial 11 5 17
+d * * radius_polar  20 17 35
+i * * volfraction  0.01 0.0001 0.02
+n * * lambda 6
+n * * differential_cross_section_buffer 0.059
+n * 0 detector_sample_distance 100
+n * 1 detector_sample_distance 400
+n * 2 detector_sample_distance 1300
+n * 0 time 1600
+n * 1 time 3600
+n * 2 time 4400
+n * 0 beam_center_x 26.416
+fn * * cuvette_thickness 0.2 0 0 0.1 4.1 0.25

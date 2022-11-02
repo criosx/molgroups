@@ -1,0 +1,11 @@
+background 0.00026
+charge 0.48
+concentration_salt 0.711
+dielectconst 76.89
+radius_equatorial 20.437
+radius_polar  9.061
+scale  20.84
+sld  3.811
+sld_solvent  4.385
+temperature  605.5
+volfraction  0.0032

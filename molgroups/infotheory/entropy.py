@@ -200,7 +200,7 @@ class MVNEntropy(object):
 class GMMEntropy(object):
     def __init__(self, x):
         self.n_components = int(5 * sqrt(x.shape[1]))
-        self.gmmpredictor = GMM(n_components=self.n_components, max_iter=1000)
+        self.gmmpredictor = GMM(n_components=self.n_components, max_iter=10000)
         self.gmmpredictor.fit(x)
 
     def entropy(self, n_est):
@@ -220,8 +220,8 @@ class GMMEntropy(object):
 # are an ordered list
 class Entropy:
 
-    def __init__(self, fitsource, spath, mcmcpath, runfile, mcmcburn=16000, mcmcsteps=5000, deldir=True, convergence=2.0,
-                 miniter=1, mode='water', bFetchMode=False, bClusterMode=False, calc_symmetric=True,
+    def __init__(self, fitsource, spath, mcmcpath, runfile, mcmcburn=16000, mcmcsteps=5000, deldir=True,
+                 convergence=2.0, miniter=1, mode='water', bFetchMode=False, bClusterMode=False, calc_symmetric=True,
                  upper_info_plotlevel=None, plotlimits_filename='', slurmscript=''):
 
         self.fitsource = fitsource
@@ -243,15 +243,15 @@ class Entropy:
 
         self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
-        # all parameters from entropypar.dat
-        header_names = ['type', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim', 'step_sim']
+        # Parse parameters from entropypar.dat
+        header_names = ['type', 'dataset', 'configuration', 'par', 'value', 'l_fit', 'u_fit', 'l_sim', 'u_sim',
+                        'step_sim']
         self.allpar = pandas.read_csv('entropypar.dat', sep='\s+', header=None, names=header_names,
                                       skip_blank_lines=True, comment='#')
 
         # identify dependent (a), independent (b), and non-parameters in simpar.dat for the calculation of p(a|b,y)
-        # later on
-        # it is assumed that all parameters in setup.cc are also specified in simpar.dat in exactly the same order
-        # this might have to be looked at in future
+        # later on. It is assumed that all parameters in setup.cc are also specified in simpar.dat in exactly the same
+        # order. This might have to be looked at in the future.
         # keys: i: independent (nuisance parameter), d: dependent (parameter of interest), n or otherwise none
         # want to calculate H(d|i,y)
 
@@ -279,10 +279,10 @@ class Entropy:
         # only those parameters that will be varied
         self.steppar = self.allpar.dropna(axis=0)
 
-        # create data frame for simpar.dat needed by the reflectivity simulation routine
+        # create data frame for simpar.dat needed by the data simulation routines
         # non-parameters such as qrange and prefactor will be included in simpar, but eventually ignored
-        # when simulating the reflectivity, as they will find no counterpart in par.dat
-        self.simpar = self.allpar.loc[:, ['par', 'value']]
+        # when simulating the scattering, as they will find no counterpart in the model
+        self.simpar = self.allpar.loc[:, ['par', 'value', 'dataset', 'configuration']]
 
         self.steplist = []
         self.axes = []
@@ -373,17 +373,11 @@ class Entropy:
         priorentropy = 0
         priorentropy_marginal = 0
         for row in self.allpar.itertuples():  # cycle through all parameters
-            if row.par != 'qrange' and row.par != 'prefactor':
-                if 'rho' in row.par:
-                    priorentropy += log((row.u_fit - row.l_fit) * 1e6) / log(2)
-                else:
-                    priorentropy += log(row.u_fit - row.l_fit) / log(2)
+            if row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
+                priorentropy += log(row.u_fit - row.l_fit) / log(2)
                 # calculate prior entropy for parameters to be marginalized (dependent parameters)
-                if row.type == 'd':
-                    if 'rho' in row.par:
-                        priorentropy_marginal += log((row.u_fit - row.l_fit) * 1e6) / log(2)
-                    else:
-                        priorentropy_marginal += log(row.u_fit - row.l_fit) / log(2)
+                if row.type == 'd' or row.type == 'fd':
+                    priorentropy_marginal += log(row.u_fit - row.l_fit) / log(2)
 
         return priorentropy, priorentropy_marginal
 
@@ -671,7 +665,7 @@ class Entropy:
                 sleep(60)
         return
 
-    def run_optimization(self):
+    def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False):
 
         def writeout_result(_itindex, avg_mvn, avg_kdn, avg_mvn_marginal, avg_kdn_marginal, points_median, points_std):
             # writes out entropy and parameter results into numpy arrays
@@ -758,11 +752,49 @@ class Entropy:
             self.save_results(self.spath)
 
         def set_sim_pars_for_index(it):
-            qrange = 0
-            pre = 0
+            def _str2int(st):
+                if st == '*':
+                    i = 0
+                else:
+                    i = int(st)
+                return i
+
+            def _fill_config(configurations, parname, parvalue, dataset, configuration):
+                if dataset == '*':
+                    for ds in range(len(configurations)):
+                        if configuration == '*':
+                            for cf in range(len(configurations[ds])):
+                                configurations[ds][cf][parname] = parvalue
+                        else:
+                            cf = _str2int(configuration)
+                            configurations[ds][cf][parname] = parvalue
+                else:
+                    ds = _str2int(dataset)
+                    if configuration == '*':
+                        for cf in range(len(configurations[ds])):
+                            configurations[ds][cf][parname] = parvalue
+                    else:
+                        cf = _str2int(configuration)
+                        configurations[ds][cf][parname] = parvalue
+                return configurations
+
+            # Construct configuration list
+            # number of datasets and configurations per dataset
+            # TODO: Properly implement 'mode' functionality
+            maxdataset = _str2int(self.allpar.max()['dataset'])
+            maxconfig = _str2int(self.allpar.max()['configuration'])
+            configurations = []
+            for i in range(maxdataset+1):
+                newlist = []
+                configurations.append(newlist)
+                for j in range(maxconfig + 1):
+                    newdir = {}
+                    configurations[i].append(newdir)
+
             # cycle through all parameters
             isim = 0
             for row in self.allpar.itertuples():
+                # is it a parameter to iterate over?
                 if row.par in self.steppar['par'].tolist():
                     lsim = self.steppar.loc[self.steppar['par'] == row.par, 'l_sim'].iloc[0]
                     stepsim = self.steppar.loc[self.steppar['par'] == row.par, 'step_sim'].iloc[0]
@@ -770,8 +802,9 @@ class Entropy:
                     lfit = self.steppar.loc[self.steppar['par'] == row.par, 'l_fit'].iloc[0]
                     ufit = self.steppar.loc[self.steppar['par'] == row.par, 'u_fit'].iloc[0]
 
+                    # TODO: Here we might implicitly assume an order. Check and resolve.
                     simvalue = lsim + stepsim * it.multi_index[isim]
-                    if row.type == 'fd' or row.type == 'fi':
+                    if row.type == 'fd' or row.type == 'fi' or row.type == 'fn':
                         # fixed fit boundaries, not floating, for such things as volfracs between 0 and 1
                         lowersim = lfit
                         uppersim = ufit
@@ -779,27 +812,29 @@ class Entropy:
                         lowersim = simvalue - (value - lfit)
                         uppersim = simvalue + (ufit - value)
 
-                    # catch non-fit parameters in entropy.dat for q-range and counting time prefactor
-                    if row.par == 'qrange':
-                        qrange = simvalue
-                    elif row.par == 'prefactor':
-                        pre = simvalue
-                    else:
+                    if row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
                         self.simpar.loc[self.simpar['par'] == row.par, 'value'] = simvalue
                         self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
-                    isim += 1
-                else:
-                    if row.par == 'qrange':
-                        qrange = row.value
-                    elif row.par == 'prefactor':
-                        pre = row.value
                     else:
-                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
+                        # must be instrument parameter
+                        configurations = _fill_config(configurations, row.par, simvalue, row.dataset, row.configuration)
+                        for indx in self.simpar.index:
+                            if self.simpar['par'][indx] == row.par and self.simpar['dataset'][indx] == row.dataset and \
+                                    self.simpar['configuration'][indx] == row.configuration:
+                                self.simpar.iloc[indx, self.simpar.columns.get_loc('value')] = simvalue
+                                break
+                    isim += 1
+                elif row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
+                    self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
+                else:
+                    # must be instrument parameter
+                    configurations = _fill_config(configurations, row.par, row.value, row.dataset, row.configuration)
 
-            self.simpar.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
-            return pre, qrange
+            simparsave = self.simpar.loc[:, ['par', 'value']]
+            simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
+            return configurations
 
-        def work_on_index(iteration, it, itindex):
+        def work_on_index(iteration, it, itindex, qmin=None, qmax=None, qrangefromfile=False):
             dirname = 'iteration_' + str(iteration)
             fulldirname = path.join(self.spath, dirname)
             path1 = path.join(fulldirname, 'save')
@@ -809,12 +844,13 @@ class Entropy:
             if not self.bFetchMode:
                 # run a new fit, preparations are done in the root directory and the new fit is copied into the
                 # iteration directory, preparations in the iterations directory are not possible, because it would
-                # be lacking a results directory, which is needed for restoring a state/parameters
+                # be lacking a result directory, which is needed for restoring a state/parameters
                 molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
                                                 runfile=self.runfile, load_state=False)
                 self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
-                pre, qrange = set_sim_pars_for_index(it)
-                self.molstat.fnSimulateData(mode=self.mode, pre=pre, qrange=qrange)
+                configurations = set_sim_pars_for_index(it)
+                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=qmin, qmax=qmax,
+                                            qrangefromfile=qrangefromfile)
                 self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
                 # previous save needs to be removed as output serves as flag for HPC job termination
                 if path.isdir(path1):

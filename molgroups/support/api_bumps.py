@@ -1,18 +1,13 @@
 from __future__ import print_function
-from math import fabs, pow, sqrt
 from os import path
-from random import seed, normalvariate, random
+from random import seed, random
 from re import VERBOSE, IGNORECASE, compile
-from sys import exit, stdout
-from subprocess import call, Popen
-from time import sleep
+from sys import stdout
 import numpy
-import pandas
 import shutil
 import glob
 import os
 
-from molgroups.support import general
 from molgroups.support import api_base
 
 
@@ -151,6 +146,33 @@ class CBumpsAPI(api_base.CBaseAPI):
         if path.isdir(target):
             self.fnRestoreBackup(origin, target)
             shutil.rmtree(target)
+
+    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
+        """
+        Scans self.runfile file for parameter with name sname and replaces the
+        lower and upper fit limits by the given values.
+        Currently, expects the parameter to be defined using the Parameter() method and not just .range()
+        on any object variable.
+        """
+
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
+        data = file.readlines()
+        file.close()
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        # version when .range() is present but no parameter value is provided
+        smatch2 = compile(r"(.*?" + sname + '.+?range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
+        newdata = []
+        for line in data:
+            # apply version 1 for general case
+            newline = smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 ' +
+                                 str(fupperlimit) + r'\4', line)
+            # apply version 2 to catch both cases, potentially redundant for limits
+            newline = smatch2.sub(r'\1 ' + str(flowerlimit) + r'\2 ' + str(fupperlimit) + r'\3', newline)
+            newdata.append(newline)
+
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'w')
+        file.writelines(newdata)
+        file.close()
 
     # copies all files from the backup directory (target) to origin
     def fnRestoreBackup(self, origin=None, target=None):
