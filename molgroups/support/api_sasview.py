@@ -174,7 +174,10 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 ["beam_center_y", 0],
                 ["beamstop_diameter", 2.54],
                 ["detector_efficiency", 1],
-                ["detector_sample_distance", 400],
+                ["sample_detector_distance", 400],
+                ["source_sample_distance", 1614],
+                ["source_aperture_radius", 0.715],
+                ["sample_aperture_radius", 0.635],
                 ["detector_pixel_x", 128],
                 ["detector_pixel_y", 128],
                 ["detector_pixelsize_x", 0.508],
@@ -187,6 +190,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 ["differential_cross_section_buffer", 0],
                 ["dq_q", 0.125],
                 ["lambda", 6],
+                ["dlambda_lambda", 0.125],
                 ["sascalc", False]
             ]
             # fill in defaults if no preset entries
@@ -222,7 +226,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             Iq = Iq[0:idx+1]
 
             theta = 2 * numpy.arcsin(Q * configuration['lambda'] / 4 / numpy.pi)
-            r = configuration['detector_sample_distance'] * numpy.tan(theta)
+            r = configuration['sample_detector_distance'] * numpy.tan(theta)
             # create an upper radius for the bin, which is typically the starting value of the next bin,
             r_gradient = numpy.gradient(r)
             r_plus = numpy.roll(r, -1)
@@ -264,8 +268,29 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             # pad numpy arrays with zeros back to original length
             append_array = numpy.zeros(initial_q_length-len(n_cell))
             n_cell = numpy.append(n_cell, append_array)
-            dq_q = numpy.append(dq_q, append_array)
             delta_omega = numpy.append(delta_omega, append_array)
+
+            # calculate dq_q based on SANS toolbox page 154, equation (30), approximated for sigma_x = sigma_y
+            L1 = configuration["source_sample_distance"]
+            L2 = configuration["sample_detector_distance"]
+            R1 = configuration["source_aperture_radius"]
+            R2 = configuration["sample_aperture_radius"]
+            dx = configuration["detector_pixelsize_x"]
+            dy = configuration["detector_pixelsize_y"]
+            dL_L = configuration["dlambda_lambda"]
+            L = configuration["lambda"]
+
+            dqx2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dx/2)**2
+            dqx2 *= (numpy.pi*2/L/L2)**2
+            dqx2 += (1/6)*dL_L**2*Q*Q
+            A = L2 * (L1 + L2) * 3.073e-9
+            dqy2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dy/2)**2+A**2*L**4*(2/3)*dL_L**2
+            dqy2 *= (numpy.pi*2/L/L2)**2
+            dqy2 += (1/6)*dL_L**2*Q*Q
+
+            dqq = _divide(numpy.sqrt(dqx2 + dqy2)/numpy.sqrt(2), Q)
+
+            dq_q = numpy.append(dqq, append_array)
 
             return n_cell, dq_q, delta_omega, Sigma
 
@@ -336,8 +361,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     counts_cuvette = neutron_intensity * li_n_cell * (I_buffer + I_cuvette) * T_b * T_c * D + I_dark
                     counts_dark = neutron_intensity * li_n_cell * I_dark
 
-                    # calculate new relative uncertaint
-                    # Approximat Poisson by Gaussian, can be changed
+                    # calculate new relative uncertainty
+                    # Approximat Poisson by Gaussian
                     delta_I_s = (numpy.sqrt(counts_sample)/(T_s * T_b * T_c))**2
                     delta_I_s += (numpy.sqrt(counts_cuvette)/(T_b * T_c))**2
                     delta_I_s += (numpy.sqrt(counts_dark) * (1 / T_s / T_b / T_c) - (1 / T_b / T_c))**2
@@ -360,7 +385,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                     # update data frames
                     dIq = _divide(numpy.ones_like(N_1), numpy.sqrt(N_1 + N_2)) * Iq
-                    dQ = numpy.sqrt(_divide((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2), (N_1 + N_2) * (N_1 + N_2)))
+                    dQ = numpy.sqrt(_divide((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2), (N_1 * N_1 + N_2 * N_2)))
 
                 dataset[1]['dI'] = dIq
                 dataset[1]['dQ'] = dQ
