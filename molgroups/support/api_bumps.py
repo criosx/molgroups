@@ -292,11 +292,10 @@ class CBumpsAPI(api_base.CBaseAPI):
         # .mcmc and .point files
         driver.save(os.path.join(mcmcpath, self.runfile))
 
-        # stat table and yet other files
-        driver.show()
-
-        # plots and other files
         if not batch:
+            # stat table and yet other files
+            driver.show()
+            # plots and other files
             driver.plot(os.path.join(mcmcpath, self.runfile))
 
     def fnSaveMolgroups(self, problem):

@@ -66,8 +66,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
     def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qrange=None,
-                                    liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False, mode='water',
-                                    lambda_min=0.1):
+                                    liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True, mode=None,
+                                    lambda_min=0.1, t_total=None):
         # if qmin and qmax is not given, take from first data set
         # resolve amiguity / compatibility of the qrange parameter
         if qrangefromfile:
@@ -76,6 +76,19 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 qmin = liData[0][1]['Q'].iloc[0]
             if qmax is None:
                 qmax = liData[0][1]['Q'].iloc[-1]
+
+        # Change q-range to logspacing. This is due to real SANS data having overlap regions between configuration
+        # with irregular spacing. We need a regular spacing on which we will calculate SANS from different configs
+        # and either average or keep data points with the same q separately
+
+        numpoints = int((numpy.log10(qmax) - numpy.log10(qmin)) * 30)
+        qvec = numpy.logspace(numpy.log10(qmin), numpy.log10(qmax), num=numpoints, endpoint=True)
+        ivec = numpy.zeros_like(qvec)
+        divec = numpy.zeros_like(qvec)
+        dqvec = numpy.zeros_like(qvec)
+        for dataset in liData:
+            dataset[1] = pandas.DataFrame([qvec, ivec, divec, dqvec]).T
+            dataset[1].columns = ['Q', 'I', 'dI', 'dQ']
 
         # Change q-range to ridculuously high value that allows full integration over 4Pi for
         # wavelengths down to 0.1Å. Ideally, one would choose exactly the right q-range for the integration for
@@ -91,7 +104,11 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # simulate data, works on sim.dat files
         liData = self.fnSimulateData(diModelPars, liData)
         # simulate error bars, works on sim.dat files
-        liData = self.fnSimulateErrorBars(simpar, liData, liConfigurations, mode=mode)
+        liData = self.fnSimulateErrorBars(simpar, liData=liData, liConfigurations=liConfigurations, t_total=t_total)
+        # length of liData might have changed when different dQ/Q were calculated for the same q-values and
+        # data was not averaged
+        self.fnSaveData(basefilename=basefilename, liData=liData)
+        self.fnRestoreFit()
         # Simulate twice. dQ/Q is only determined when simulating error bars because it needs the configuration
         # Might make sense to decouple dQ/Q from dIq, but might not be worth it. Neglect further iterations.
         liData = self.fnSimulateData(diModelPars, liData)
@@ -104,10 +121,12 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             liData[dataset][1]['I'] = liData[dataset][1]['I'] + numpy.random.normal(size=len(liData[dataset][1]['dI']))\
                                      * liData[dataset][1]['dI']
 
-        # Removes datapoints for which dq/q is zero, which indicates that no data was taken there
+        # Removes datapoints for which dI/I is zero, which indicates that no data was taken there
+        # Let's also drop data points with more than 200% uncertainty
         for dataset_n in range(len(liData)):
             df = liData[dataset_n][1]
-            liData[dataset_n][1] = df[df['dQ'] > 0]
+            df = df[df['dI'] > 0]
+            liData[dataset_n][1] = df[df['dI'] < df['I']]
 
         return liData
 
@@ -132,7 +151,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         return liData
 
     @staticmethod
-    def fnSimulateErrorBars(simpar=None, liData=None, liConfigurations=None, mode='water', percent_error=0.1):
+    def fnSimulateErrorBars(simpar=None, liData=None, liConfigurations=None, percent_error=0.1, average=False,
+                            t_total=None):
         """
         Calculates uncertainties on a dataset liData given a list of configurations.
 
@@ -148,10 +168,14 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                 TBD
 
-                Comments: Neutron flux can be given per area or already times area, in which the preset of beam_area=1
-                ensures the correct incident intensity.
+        average determines whether intensities at the same q-value but of different dQ/Q are averaged according to the
+            underlying counting statistics or not. If not, separate data entries are maintained.
+
+        t_total sets a total time spent over all configurations if it is not None
 
         Comments:
+            - Neutron flux can be given per area or already times area, in which the preset of beam_area=1
+              ensures the correct incident intensity.
             - theoretical SANS curves provided in liData are supposed to cover the entire possible q-range, because
               the 4Pi integrated intensity will be calculated from it. Q-values not covered by the provided instrumental
               configurations will be eliminated afterwards using a mask. The mask is either provided by the SASCALC
@@ -297,15 +321,36 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         def _divide(a, b):
             return numpy.divide(a, b, out=numpy.zeros_like(a), where=b != 0)
 
-        # check if a single set of configurations is provided for more than one dataset and
-        # multiply the configurations accordingly
-        if liConfigurations is not None and len(liConfigurations) < len(liData):
-            if len(liConfigurations) == 1:
-                for _ in range(len(liData)-len(liConfigurations)):
-                    liConfigurations.append(liConfigurations[0])
-            else:
-                raise Exception('Number of configuration sets should be one or must match the number of datasets!')
+        # prepare configurations
+        if liConfigurations is not None:
+            # check if a single set of configurations is provided for more than one dataset and
+            # multiply the configurations accordingly
+            if len(liConfigurations) < len(liData):
+                if len(liConfigurations) == 1:
+                    for _ in range(len(liData)-len(liConfigurations)):
+                        liConfigurations.append(copy.deepcopy(liConfigurations[0]))
+                else:
+                    raise Exception('Number of configuration sets should be one or must match the number of datasets!')
 
+            # supplement configurations with default data and adjust total time, if required
+            actual_total_time = 0
+            for dataset_n in range(len(liData)):
+                for configuration in liConfigurations[dataset_n]:
+                    # set unused configuration keys to default values
+                    configuration = _configuration_defaults(configuration)
+                    actual_total_time += configuration['time']
+
+            # adjust measurement times if t_total is set
+            if t_total is not None:
+                if actual_total_time != 0:
+                    time_factor = float(t_total) / float(actual_total_time)
+                else:
+                    time_factor = 0
+                for dataset_n in range(len(liData)):
+                    for configuration in liConfigurations[dataset_n]:
+                        configuration['time'] *= time_factor
+
+        # compute dI/I and dQ/Q
         for dataset_n in range(len(liData)):
             # prepare data set
             dataset = liData[dataset_n]
@@ -314,19 +359,22 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             dQ = liData[dataset_n][1]['dQ'].to_numpy(copy=True)
             dIq = liData[dataset_n][1]['dI'].to_numpy(copy=True)
 
+            # in case no average = False
+            Q_append = numpy.empty(0)
+            Iq_append = numpy.empty(0)
+            dQ_append = numpy.empty(0)
+            dIq_append = numpy.empty(0)
+
             if liConfigurations is None:
                 # if no instrument configurations are given, calculate uncertainties as percent of data value
                 # using the percent_error argument. Exit function afterwards.
                 dIq = percent_error * Iq
+                dataset[1]['dI'] = dIq
             else:
-                # TODO: Do a proper implementation of dq/Q or reuse the numbers given in the example files
                 dQ.fill(0)
                 dIq.fill(0)
 
                 for configuration in liConfigurations[dataset_n]:
-
-                    # set unused configuration keys to default values
-                    configuration = _configuration_defaults(configuration)
 
                     li_n_cell, li_dq_q, d_omeg, Sigma_s_4pi = _calc_configuration(Q, Iq, configuration)
 
@@ -361,34 +409,53 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     counts_cuvette = neutron_intensity * li_n_cell * (I_buffer + I_cuvette) * T_b * T_c * D + I_dark
                     counts_dark = neutron_intensity * li_n_cell * I_dark
 
+                    # calculate new relative uncertainty, approximate Poisson by Gaussian
+                    # make sure that the uncertainty is not larger than the count (counts below one).
+                    sqrt_counts_sample = numpy.minimum(numpy.sqrt(counts_sample), counts_sample)
+                    sqrt_counts_cuvette = numpy.minimum(numpy.sqrt(counts_cuvette), counts_cuvette)
+                    sqrt_counts_dark = numpy.minimum(numpy.sqrt(counts_dark), counts_dark)
+
                     # calculate new relative uncertainty
                     # Approximat Poisson by Gaussian
-                    delta_I_s = (numpy.sqrt(counts_sample)/(T_s * T_b * T_c))**2
-                    delta_I_s += (numpy.sqrt(counts_cuvette)/(T_b * T_c))**2
-                    delta_I_s += (numpy.sqrt(counts_dark) * (1 / T_s / T_b / T_c) - (1 / T_b / T_c))**2
+                    delta_I_s = (sqrt_counts_sample/(T_s * T_b * T_c))**2
+                    delta_I_s += (sqrt_counts_cuvette/(T_b * T_c))**2
+                    delta_I_s += (sqrt_counts_dark * ((1 / T_s / T_b / T_c) - (1 / T_b / T_c)))**2
                     delta_I_s = numpy.sqrt(delta_I_s)
                     delta_I_I = delta_I_s / neutron_intensity
                     delta_I_I = _divide(delta_I_I, li_n_cell)
                     delta_I_I = _divide(delta_I_I, D)
                     delta_I_I = _divide(delta_I_I, Iq)
 
-                    # update current dI and dQ entries in data set with data from this frame
-                    # old and new relative uncertainties
-                    r_1 = _divide(dIq, Iq)
-                    r_2 = delta_I_I
-                    # old and new equivalent count numbers (Gaussian amplitudes) associated with those rs
-                    N_1 = _divide(numpy.ones_like(r_1), r_1*r_1)
-                    N_2 = _divide(numpy.ones_like(r_2), r_2*r_2)
-                    # old and new dQ
-                    q_1 = dQ
-                    q_2 = li_dq_q * Q
+                    if average:
+                        # update current dI and dQ entries in data set with data from this frame
+                        # old and new relative uncertainties are averaged according to underlying counting statistics
+                        r_1 = _divide(dIq, Iq)
+                        r_2 = delta_I_I
+                        # old and new equivalent count numbers (Gaussian amplitudes) associated with those rs
+                        N_1 = _divide(numpy.ones_like(r_1), r_1*r_1)
+                        N_2 = _divide(numpy.ones_like(r_2), r_2*r_2)
+                        # old and new dQ
+                        q_1 = dQ
+                        q_2 = li_dq_q * Q
 
-                    # update data frames
-                    dIq = _divide(numpy.ones_like(N_1), numpy.sqrt(N_1 + N_2)) * Iq
-                    dQ = numpy.sqrt(_divide((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2), (N_1 * N_1 + N_2 * N_2)))
+                        # update data frames
+                        dIq = _divide(numpy.ones_like(N_1), numpy.sqrt(N_1 + N_2)) * Iq
+                        dQ = numpy.sqrt(_divide((N_1 * N_1 * q_1 * q_1 + N_2 * N_2 * q_2 * q_2),
+                                                (N_1 * N_1 + N_2 * N_2)))
+                    else:
+                        Q_append = numpy.append(Q_append, Q)
+                        Iq_append = numpy.append(Iq_append, Iq)
+                        dIq_append = numpy.append(dIq_append, delta_I_I * Iq)
+                        dQ_append = numpy.append(dQ_append, li_dq_q * Q)
 
-                dataset[1]['dI'] = dIq
-                dataset[1]['dQ'] = dQ
+                if average:
+                    dataset[1]['dI'] = dIq
+                    dataset[1]['dQ'] = dQ
+                else:
+                    dataset[1] = pandas.DataFrame([Q_append, Iq_append, dIq_append, dQ_append])
+                    dataset[1] = dataset[1].T
+                    dataset[1].columns = ['Q', 'I', 'dI', 'dQ']
+                    dataset[1] = dataset[1].sort_values(by=['Q'])
 
         return liData
 

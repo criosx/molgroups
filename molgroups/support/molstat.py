@@ -1764,7 +1764,7 @@ class CMolStat:
             pickle.dump(save_object, file)
 
     def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
-                       mode='water', lambda_min=0.1):
+                       t_total=None, mode='water', lambda_min=0.1):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
@@ -1792,7 +1792,7 @@ class CMolStat:
                                                                  basefilename=basefilename,
                                                                  liConfigurations=liConfigurations, qmin=qmin,
                                                                  qmax=qmax, qrangefromfile=qrangefromfile,
-                                                                 lambda_min=lambda_min, mode=mode)
+                                                                 lambda_min=lambda_min, mode=mode, t_total=t_total)
             self.Interactor.fnSaveData(basefilename, liData)
 
         finally:
