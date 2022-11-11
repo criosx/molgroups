@@ -221,8 +221,9 @@ class GMMEntropy(object):
 class Entropy:
 
     def __init__(self, fitsource, spath, mcmcpath, runfile, mcmcburn=16000, mcmcsteps=5000, deldir=True,
-                 convergence=2.0, miniter=1, mode='water', bFetchMode=False, bClusterMode=False, calc_symmetric=True,
-                 upper_info_plotlevel=None, plotlimits_filename='', slurmscript=''):
+                 convergence=2.0, miniter=1, mode='water', background_rule=None, bFetchMode=False, bClusterMode=False,
+                 calc_symmetric=True, upper_info_plotlevel=None, plotlimits_filename='', slurmscript='',
+                 configuration=None):
 
         self.fitsource = fitsource
         self.spath = spath
@@ -234,12 +235,14 @@ class Entropy:
         self.convergence = convergence
         self.miniter = miniter
         self.mode = mode
+        self.background_rule = background_rule
         self.bFetchMode = bFetchMode
         self.bClusterMode = bClusterMode
         self.calc_symmetric = calc_symmetric
         self.upper_info_plotlevel = upper_info_plotlevel
         self.plotlimits_filename = plotlimits_filename
         self.slurmscript = slurmscript
+        self.configuration = configuration
 
         self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
@@ -778,43 +781,63 @@ class Entropy:
                         configurations[ds][cf][parname] = parvalue
                 return configurations
 
+            def _set_background(configurations, dset, config, value):
+                # calculate background value
+                cb = 0
+                if self.mode == 'SANS_linear':
+                    cb = self.background_rule['y_intercept'] + self.background_rule['slope'] * value
+
+                # search if there is a designated background parameter that takes the cb instead of a configuration
+                bFoundBackground = False
+                for row in self.allpar.itertuples():
+                    if row.dataset == 'b'+str(dset) or row.dataset == 'b' or row.dataset == 'b*':
+                        self.simpar.loc[self.simpar['par'] == row.par, 'value'] = cb
+                        bFoundBackground = True
+
+                if bFoundBackground:
+                    return configurations
+
+                # change buffer crosssection in configurations
+                configurations = _fill_config(configurations, 'differential_cross_section_buffer', cb, dset, config)
+
+                return configurations
+
             # Construct configuration list
             # number of datasets and configurations per dataset
             # TODO: Properly implement 'mode' functionality
-            maxdataset = _str2int(self.allpar.max()['dataset'])
-            maxconfig = _str2int(self.allpar.max()['configuration'])
-            configurations = []
-            for i in range(maxdataset+1):
-                newlist = []
-                configurations.append(newlist)
-                for j in range(maxconfig + 1):
-                    newdir = {}
-                    configurations[i].append(newdir)
+
+            configurations = self.configuration
+            if configurations is None:
+                configurations = [[{}]]
 
             # cycle through all parameters
             isim = 0
             for row in self.allpar.itertuples():
                 # is it a parameter to iterate over?
                 if row.par in self.steppar['par'].tolist():
+
                     lsim = self.steppar.loc[self.steppar['par'] == row.par, 'l_sim'].iloc[0]
                     stepsim = self.steppar.loc[self.steppar['par'] == row.par, 'step_sim'].iloc[0]
                     value = self.steppar.loc[self.steppar['par'] == row.par, 'value'].iloc[0]
                     lfit = self.steppar.loc[self.steppar['par'] == row.par, 'l_fit'].iloc[0]
                     ufit = self.steppar.loc[self.steppar['par'] == row.par, 'u_fit'].iloc[0]
-
                     # TODO: Here we might implicitly assume an order. Check and resolve.
                     simvalue = lsim + stepsim * it.multi_index[isim]
-                    if row.type == 'fd' or row.type == 'fi' or row.type == 'fn':
-                        # fixed fit boundaries, not floating, for such things as volfracs between 0 and 1
-                        lowersim = lfit
-                        uppersim = ufit
-                    else:
-                        lowersim = simvalue - (value - lfit)
-                        uppersim = simvalue + (ufit - value)
 
                     if row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
-                        self.simpar.loc[self.simpar['par'] == row.par, 'value'] = simvalue
-                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
+                        if row.type == 'fd' or row.type == 'fi':
+                            # fixed fit boundaries, not floating, for such things as volfracs between 0 and 1
+                            lowersim = lfit
+                            uppersim = ufit
+                        else:
+                            lowersim = simvalue - (value - lfit)
+                            uppersim = simvalue + (ufit - value)
+
+                        if 'b' not in row.dataset:
+                            # only change simpar when it will not be filled by a background rule
+                            self.simpar.loc[self.simpar['par'] == row.par, 'value'] = simvalue
+                            self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
+
                     else:
                         # must be instrument parameter
                         configurations = _fill_config(configurations, row.par, simvalue, row.dataset, row.configuration)
@@ -824,11 +847,19 @@ class Entropy:
                                 self.simpar.iloc[indx, self.simpar.columns.get_loc('value')] = simvalue
                                 break
                     isim += 1
+
                 elif row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
-                    self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
+                    if 'b' not in row.dataset:
+                        # only change boundaries when it will not be filled by a background rule
+                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
+
                 else:
                     # must be instrument parameter
                     configurations = _fill_config(configurations, row.par, row.value, row.dataset, row.configuration)
+
+                if (row.dataset != 'n') and (row.dataset != '_') and ('b' not in row.dataset):
+                    # this is a parameter that will determine one or more isotropic backgrounds
+                    configurations = _set_background(configurations, row.dataset, row.configuration, row.value)
 
             simparsave = self.simpar.loc[:, ['par', 'value']]
             simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
@@ -912,14 +943,17 @@ class Entropy:
         # every index has at least one result before re-analyzing any data point (refinement)
         bRefinement = False
         while True:
-            if not iterate_over_all_indices(bRefinement):
+            bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
+            if not bWorkedOnAnyIndex:
                 if not bRefinement:
-                    # all indicees have the minimum number of iterations -> refinement starts
+                    # all indicees have the minimum number of iterations -> start refinement
                     bRefinement = True
                 else:
+                    # done with refinement
                     break
-            # never repeat iterations on cluster or when just calculating entropies
+
             if self.bClusterMode or self.bFetchMode:
+                # never repeat iterations on cluster or when just calculating entropies
                 break
 
         # wait for all jobs to finish

@@ -158,9 +158,9 @@ class CBumpsAPI(api_base.CBaseAPI):
         file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
         data = file.readlines()
         file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+"[\s\"\'].+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
         # version when .range() is present but no parameter value is provided
-        smatch2 = compile(r"(.*?" + sname + '.+?range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
+        smatch2 = compile(r"(.*?" + sname + '[\s\"\'].+?range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
             # apply version 1 for general case
