@@ -771,6 +771,8 @@ class Entropy:
             # save results for every iteration and delete large files
             self.save_results(self.spath)
 
+            return avg_gmm_marginal
+
         def set_sim_pars_for_index(it):
             def _str2int(st):
                 if st == '*':
@@ -882,11 +884,32 @@ class Entropy:
             simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
             return configurations
 
-        def work_on_index(iteration, it, itindex):
+        def work_on_index(it):
+            # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
+            # be used independently of iterate_over_all_indices
+            itindex = it.multi_index
+
+            # calculate which iteration we are on from itindex
+            if self.calc_symmetric:
+                iteration = it.iterindex
+            else:
+                # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
+                it2 = np.nditer(self.results_gmm, flags=['multi_index'])
+                iteration = 0
+                while not it2.finished:
+                    itindex2 = it2.multi_index
+                    if all(itindex2[i] <= itindex2[i + 1] for i in range(len(itindex2) - 1)):
+                        # iterations are only increased if this index is not dropped because of symmetry
+                        iteration += 1
+                    it2.iternext()
+
             dirname = 'iteration_' + str(iteration)
             fulldirname = path.join(self.spath, dirname)
             path1 = path.join(fulldirname, 'save')
             chainname = path.join(path1, self.runfile+'-chain.mc')
+
+            # most relevant result for a particular index to return for general use of this function
+            avg_gmm_marginal = 0
 
             # fetch mode and cluster mode are exclusive
             if not self.bFetchMode:
@@ -911,7 +934,7 @@ class Entropy:
             if not self.bClusterMode and bPriorResultExists:
                 molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
                                                 runfile=self.runfile)
-                calc_entropy_for_index(molstat_iter, itindex)
+                avg_gmm_marginal = calc_entropy_for_index(molstat_iter, itindex)
 
             # delete big files except in Cluster mode. They are needed there for future fetching
             if self.deldir and not self.bClusterMode:
@@ -922,13 +945,14 @@ class Entropy:
                 rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
                 rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
 
+            return avg_gmm_marginal
+
         def iterate_over_all_indices(refinement=False):
             bWorkedOnIndex = False
             # the complicated iteration syntax is due the unknown dimensionality of the results space / arrays
             it = np.nditer(self.results_gmm, flags=['multi_index'])
-            iteration = 0
             while not it.finished:
-                itindex = tuple(it.multi_index[i] for i in range(len(self.steplist)))
+                itindex = it.multi_index
                 # parameter grids can be symmetric, and only one of the symmetry-related indices
                 # will be calculated unless calc_symmetric is True
                 if all(itindex[i] <= itindex[i + 1] for i in range(len(itindex) - 1)) or self.calc_symmetric:
@@ -950,10 +974,8 @@ class Entropy:
                     # Do we need to work on this particular index?
                     if outlier or invalid_result or insufficient_iterations or self.bFetchMode:
                         bWorkedOnIndex = True
-                        work_on_index(iteration, it, itindex)
+                        _ = work_on_index(it)
 
-                    # iterations are only increased if this index is not dropped because of symmetry
-                    iteration += 1
                 it.iternext()
             return bWorkedOnIndex
 
