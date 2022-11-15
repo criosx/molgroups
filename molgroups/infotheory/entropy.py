@@ -6,7 +6,7 @@ import numpy as np
 from molgroups.support import molstat
 import pandas
 import itertools
-from numpy import mean, std, exp, log, sqrt, log2, pi, e, ndarray
+from numpy import log, sqrt, log2, pi, e
 from numpy.random import permutation
 from sklearn.mixture import BayesianGaussianMixture as GMM
 import os
@@ -21,12 +21,11 @@ LN2 = log(2)
 
 # static methods
 def average(alist):
-    notfinished = True
-    while notfinished:
+    while True:
         s = np.std(alist)
         result = np.mean(alist)
-
         maxs = 0
+        val = 0
         for element in alist:
             s2 = fabs(result - element)
             if s2 > maxs:
@@ -35,15 +34,14 @@ def average(alist):
         if maxs > 3 * s:
             alist.remove(val)
         else:
-            notfinished = False
-
+            break
     return result, s
 
 
 # multidimensional convolution of nearest horizontal, vertical, and diagonal neighbors but not the center
 def convolute(a):
     conv_arr = np.zeros(a.shape)
-    offsetshape = tuple(3 for i in range(len(a.shape)))
+    offsetshape = tuple([3] * len(a.shape))
     offsetparent = np.zeros(offsetshape)
     it = np.nditer(conv_arr, flags=['multi_index'])
     while not it.finished:
@@ -75,6 +73,9 @@ def convolute(a):
 
 
 def nice_interval(start=0, stop=1, step=None, numsteps=10):
+    """
+    Paul Kienzle's method to obtain nicely spaced intevals for plot axes
+    """
 
     if step is None:
         step = (stop-start)/numsteps
@@ -82,13 +83,13 @@ def nice_interval(start=0, stop=1, step=None, numsteps=10):
     sign = 1.0
     if step < 0:
         sign = -1.0
-        step = step *(-1)
+        step = step * (-1)
 
     if step == 0:
         return [start, stop+1]
 
     exponent = floor(log(step)/log(10))
-    mantisse = step / pow(10,exponent)
+    mantisse = step / pow(10, exponent)
 
     new_mantisse = 1
     if fabs(mantisse-2) < fabs(mantisse-new_mantisse):
@@ -110,6 +111,7 @@ def rm_file(filename):
         os.remove(filename)
     except OSError:
         pass
+
 
 def running_mean(current_mean, n, new_point):
     # see Tony Finch, Incremental calculation of weighted mean and variance
@@ -149,7 +151,7 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="pl
     plt.close()
 
 
-def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20):
+def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -168,6 +170,11 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
     ax.set_ylabel(ylabel)
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
     fig.colorbar(cs)
+
+    if mark_maximum:
+        index = np.unravel_index(z.argmax(), z.shape)
+        plt.text(x[index[1]], y[index[0]], 'x', horizontalalignment='center', verticalalignment='center')
+
     plt.savefig(path.join('plots', filename) + '.pdf')
     plt.close()
 
@@ -184,7 +191,7 @@ class MVNEntropy(object):
         # max points was 1000
         # compute Mardia test coefficient
         n, p = x.shape   # num points, num dimensions
-        mu = np.mean(x, axis=0)
+        self.mu = np.mean(x, axis=0)
         self.C = np.cov(x.T, bias=True) if p > 1 else np.array([[np.var(x.T, ddof=1)]])
 
     def entropy(self):
@@ -438,7 +445,7 @@ class Entropy:
             molstat_instance.Interactor.fnRunMCMC(burn=self.mcmcburn, steps=self.mcmcsteps, batch=True)
         return
 
-    def plot_results(self):
+    def plot_results(self, mark_maximum=False):
         import matplotlib.pyplot as plt
 
         if not path.isdir('plots'):
@@ -458,6 +465,7 @@ class Entropy:
                 self.upper_info_plotlevel = float(plotlim.loc[plotlim['name'] == 'info']['value'])
         else:
             plotlimits = False
+            plotlim = None
 
         if len(self.steplist) == 1:
             ax0 = self.axes[0]
@@ -490,7 +498,7 @@ class Entropy:
             i = 0
             for parname in self.parlist:
                 save_plot_1d(ax0, self.par_median[i], self.par_std[i], sp0, parname,
-                             filename=path.join(path1, 'Par_' +  parname + '_median'))
+                             filename=path.join(path1, 'Par_' + parname + '_median'))
                 i += 1
 
         elif len(self.steplist) == 2:
@@ -553,18 +561,22 @@ class Entropy:
                              filename=path.join(path1, 'MVN_entropy_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.results_gmm[slice], sp1, sp2, ec,
                              filename=path.join(path1, 'GMM_entropy_' + str(slice)))
-                save_plot_2d(ax1, ax2, self.results_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_entropy_marginal_' + str(slice)))
+                save_plot_2d(ax1, ax2, self.results_gmm_marginal[slice], sp1, sp2, ec,
+                             filename=path.join(path1, 'GMM_entropy_marginal_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.results_mvn_marginal[slice], sp1, sp2, ec,
                              filename=path.join(path1, 'MVN_entropy_marginal_' + str(slice)))
                 save_plot_2d(ax1, ax2, self.priorentropy - self.results_mvn[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_infocontent_' + str(slice)), zmin=0)
+                             filename=path.join(path1, 'MVN_infocontent_' + str(slice)), zmin=0,
+                             mark_maximum=mark_maximum)
                 save_plot_2d(ax1, ax2, self.priorentropy - self.results_gmm[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_infocontent_' + str(slice)), zmin=0)
+                             filename=path.join(path1, 'GMM_infocontent_' + str(slice)), zmin=0,
+                             mark_maximum=mark_maximum)
                 save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_mvn_marginal[slice], sp1, sp2,
-                             ec, filename=path.join(path1, 'MVN_infocontent_marginal_' + str(slice)), zmin=0)
+                             ec, filename=path.join(path1, 'MVN_infocontent_marginal_' + str(slice)), zmin=0,
+                             mark_maximum=mark_maximum)
                 save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_gmm_marginal[slice], sp1, sp2,
-                             ec, filename=path.join(path1, 'GMM_infocontent_marginal_' + str(slice)), zmin=0)
+                             ec, filename=path.join(path1, 'GMM_infocontent_marginal_' + str(slice)), zmin=0,
+                             mark_maximum=mark_maximum)
                 save_plot_2d(ax1, ax2, self.sqstd_mvn[slice], sp1, sp2, ec,
                              filename=path.join(path1, 'MVN_sqstd_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.sqstd_gmm[slice], sp1, sp2, ec,
@@ -581,6 +593,23 @@ class Entropy:
                              filename=path.join(path1, 'MVN_n_marginal_' + str(slice)), zmin=0)
                 save_plot_2d(ax1, ax2, self.n_gmm_marginal[slice], sp1, sp2, ec,
                              filename=path.join(path1, 'GMM_n_marginal_' + str(slice)), zmin=0)
+
+        if len(self.steplist) >= 3:
+            # plot projections onto two parameters at a time
+            for i in range(len(self.steppar)):
+                for j in range(i):
+                    ax2 = self.axes[i]
+                    ax1 = self.axes[j]
+                    sp2 = self.steppar['par'].tolist()[i]
+                    sp1 = self.steppar['par'].tolist()[j]
+                    projection = np.empty((self.steplist[i], self.steplist[j]))
+                    for k in range(self.steplist[i]):
+                        for l in range(self.steplist[j]):
+                            projection[k, l] = np.take(np.take(self.priorentropy_marginal - self.results_gmm_marginal,
+                                                               indices=k, axis=i), indices=l, axis=j).max()
+                    save_plot_2d(ax1, ax2, projection, sp1, sp2, ec,
+                                 filename=path.join(path1, 'GMM_n_marginal_projection' + sp1 + '_' + sp2), zmin=0,
+                                 mark_maximum=mark_maximum)
 
     def save_results(self, dirname):
         path1 = path.join(dirname, 'results')
