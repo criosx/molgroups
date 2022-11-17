@@ -14,6 +14,7 @@ from os import path, mkdir
 from math import fabs, pow, floor, ceil
 from subprocess import Popen
 from time import sleep
+from IPython.display import clear_output
 import shutil
 
 LN2 = log(2)
@@ -304,13 +305,15 @@ class Entropy:
                 axis.append(row.l_sim + i * row.step_sim)
             self.axes.append(axis)
 
+        self.priorentropy, self.priorentropy_marginal = self.calc_prior()
+
         if path.isfile(path.join(spath, 'results', 'MVN_entropy.npy')):
             self.load_results(spath)
         else:
-            self.results_mvn = np.zeros(self.steplist)
-            self.results_gmm = np.zeros(self.steplist)
-            self.results_mvn_marginal = np.zeros(self.steplist)
-            self.results_gmm_marginal = np.zeros(self.steplist)
+            self.results_mvn = np.full(self.steplist, self.priorentropy)
+            self.results_gmm = np.full(self.steplist, self.priorentropy)
+            self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)
+            self.results_gmm_marginal = np.full(self.steplist, self.priorentropy_marginal)
             self.n_mvn = np.zeros(self.results_mvn.shape)
             self.n_gmm = np.zeros(self.results_gmm.shape)
             self.n_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
@@ -319,10 +322,9 @@ class Entropy:
             self.sqstd_gmm = np.zeros(self.results_gmm.shape)
             self.sqstd_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
             self.sqstd_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
+            self.prediction_gpcam = np.zeros(self.results_gmm_marginal.shape)
             self.par_median = np.zeros((len(self.parlist),) + self.results_mvn.shape)
             self.par_std = np.zeros((len(self.parlist),) + self.results_mvn.shape)
-
-        self.priorentropy, self.priorentropy_marginal = self.calc_prior()
 
     def calc_entropy(self, molstat=None):
         if molstat is None:
@@ -551,7 +553,7 @@ class Entropy:
                 if j == len(onecolormaps):
                     j = 0
 
-        elif len(self.steplist) == 3:
+        elif len(self.steplist) == 3 and self.results_gmm.shape[0]<6:
             ax2 = self.axes[1]
             ax1 = self.axes[2]
             sp2 = self.steppar['par'].tolist()[1]
@@ -602,13 +604,20 @@ class Entropy:
                     ax1 = self.axes[j]
                     sp2 = self.steppar['par'].tolist()[i]
                     sp1 = self.steppar['par'].tolist()[j]
-                    projection = np.empty((self.steplist[i], self.steplist[j]))
+                    projection_gmm_marginal = np.empty((self.steplist[i], self.steplist[j]))
+                    projection_gpcam_prediction = np.empty((self.steplist[i], self.steplist[j]))
                     for k in range(self.steplist[i]):
                         for l in range(self.steplist[j]):
-                            projection[k, l] = np.take(np.take(self.priorentropy_marginal - self.results_gmm_marginal,
-                                                               indices=k, axis=i), indices=l, axis=j).max()
-                    save_plot_2d(ax1, ax2, projection, sp1, sp2, ec,
+                            projection_gmm_marginal[k, l] = np.take(np.take(self.priorentropy_marginal -
+                                                                            self.results_gmm_marginal, indices=k,
+                                                                            axis=i), indices=l, axis=j).max()
+                            projection_gpcam_prediction[k, l] = np.take(np.take(self.prediction_gpcam, indices=k,
+                                                                            axis=i), indices=l, axis=j).max()
+                    save_plot_2d(ax1, ax2, projection_gmm_marginal, sp1, sp2, ec,
                                  filename=path.join(path1, 'GMM_n_marginal_projection' + sp1 + '_' + sp2), zmin=0,
+                                 mark_maximum=mark_maximum)
+                    save_plot_2d(ax1, ax2, projection_gpcam_prediction, sp1, sp2, ec,
+                                 filename=path.join(path1, 'gpCAM_prediction_projection' + sp1 + '_' + sp2), zmin=0,
                                  mark_maximum=mark_maximum)
 
     def save_results(self, dirname):
@@ -709,7 +718,8 @@ class Entropy:
                 sleep(60)
         return
 
-    def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None):
+    def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None, optimizer='grid',
+                         jupyter_clear_output=False, gpcam_iterations=50, retrain_async_at=(15, 30)):
 
         def writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median, points_std,
                             parnames):
@@ -974,6 +984,9 @@ class Entropy:
                 rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
                 rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
 
+            if jupyter_clear_output:
+                clear_output(wait=True)
+
             return avg_gmm_marginal
 
         def iterate_over_all_indices(refinement=False):
@@ -1007,24 +1020,147 @@ class Entropy:
 
                 it.iternext()
             return bWorkedOnIndex
+        if optimizer == 'grid':
+            # Grid search
+            # every index has at least one result before re-analyzing any data point (refinement)
+            bRefinement = False
+            while True:
+                bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
+                if not bWorkedOnAnyIndex:
+                    if not bRefinement:
+                        # all indicees have the minimum number of iterations -> start refinement
+                        bRefinement = True
+                    else:
+                        # done with refinement
+                        break
 
-        # every index has at least one result before re-analyzing any data point (refinement)
-        bRefinement = False
-        while True:
-            bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
-            if not bWorkedOnAnyIndex:
-                if not bRefinement:
-                    # all indicees have the minimum number of iterations -> start refinement
-                    bRefinement = True
-                else:
-                    # done with refinement
+                if self.bClusterMode or self.bFetchMode:
+                    # never repeat iterations on cluster or when just calculating entropies
                     break
 
-            if self.bClusterMode or self.bFetchMode:
-                # never repeat iterations on cluster or when just calculating entropies
-                break
+            # wait for all jobs to finish
+            if self.bClusterMode:
+                while self.joblist:
+                    self.waitforjob(bFinish=True)
+        elif optimizer == 'gpCAM':
+            # Using the gpCAM global optimizer
+            # follows the example from the gpCAM website
+            import time
+            from gpcam.autonomous_experimenter import AutonomousExperimenterGP
 
-        # wait for all jobs to finish
-        if self.bClusterMode:
-            while self.joblist:
-                self.waitforjob(bFinish=True)
+            def instrument(data):
+                print("This is the current length of the data received by gpCAM: ", len(data))
+                for entry in data:
+                    # convert position into grid indices
+                    position_index=[]
+                    for ax in range(len(self.axes)):
+                        list1 = [np.array(self.axes[ax]) - entry['position'][ax]]
+                        arr1 = np.array(list1)
+                        arr1 = np.abs(arr1)
+                        position_index.append(np.argmin(arr1))
+                    # convert grid indices into iterator
+                    # TODO: There must be a more effient way to set an iterator by an index
+                    it = np.nditer(self.results_gmm, flags=['multi_index'])
+                    while True:
+                        if np.array_equal(it.multi_index, position_index):
+                            break
+                        it.iternext()
+                    # We constrain ourselves to the initial grid (might change in future)
+                    entry["position"] = position_index
+                    entry["value"] = work_on_index(it)
+                    # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
+                    self.plot_results(mark_maximum=True)
+                return data
+
+            # initialization
+            # feel free to try different acquisition functions, e.g. optional_acq_func, "covariance", "shannon_ig"
+            # note how costs are defined in for the autonomous experimenter
+
+            parlimits = []
+            for row in self.steppar.iterrows():
+                parlimits.append([row[1].l_sim, row[1].u_sim])
+            parlimits = np.array(parlimits)
+            numpars = len(parlimits)
+
+            it = np.nditer(self.results_gmm_marginal, flags=['multi_index'])
+            x = []
+            y = []
+            v = []
+            while not it.finished:
+                if (self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index]) != 0.:
+                    position = []
+                    for i in range(len(self.axes)):
+                        position.append(self.axes[i][it.multi_index[i]])
+                    x.append(position)
+                    y.append(self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index])
+                    v.append(self.sqstd_gmm_marginal[it.multi_index])
+                it.iternext()
+
+            if len(x) > 10:
+                x = np.array(x)
+                y = np.array(y)
+                v = np.array(v)
+            else:
+                x = None
+                y = None
+                v = None
+
+            hyperpars = np.ones([numpars+1])
+            hyper_bounds = np.array([[0.001, 100]] * (numpars+1))
+
+            my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
+                                             init_dataset_size=20, instrument_func=instrument,
+                                             acq_func="maximum",  # optional_acq_func,
+                                             # cost_func = optional_cost_function,
+                                             # cost_update_func = optional_cost_update_function,
+                                             x=x, y=y,
+                                             # v=v,
+                                             # cost_func_params={"offset": 5.0, "slope": 10.0},
+                                             kernel_func=None, use_inv=True,
+                                             communicate_full_dataset=False, ram_economy=True)
+            # , prior_mean_func = optional_mean_func)
+
+            print("length of the dataset: ", len(my_ae.x))
+
+            # my_ae.train_async()                 #train asynchronously
+            my_ae.train(method="global")           # or not, or both, choose between "global","local" and "hgdl"
+
+            # update hyperparameters in case they are optimized asynchronously
+            # my_ae.update_hps()
+
+            # training and client can be killed if desired and in case they are optimized asynchronously
+            # my_ae.kill_training()
+
+            # here we see how python's help function is used to get info about a function
+            # help(my_ae.go)
+
+            # run the autonomous loop
+            my_ae.go(N=gpcam_iterations,
+                     retrain_async_at=retrain_async_at,
+                     retrain_globally_at=[],
+                     retrain_locally_at=[],
+                     acq_func_opt_setting=lambda number: "global" if number % 2 == 0 else "local",
+                     training_opt_max_iter=20,
+                     training_opt_pop_size=10,
+                     training_opt_tol=1e-6,
+                     acq_func_opt_max_iter=20,
+                     acq_func_opt_pop_size=20,
+                     acq_func_opt_tol=1e-6,
+                     number_of_suggested_measurements=1,
+                     acq_func_opt_tol_adjust=0.1)
+
+            # save prediction
+            dimension = 1
+            for factor in self.steplist:
+                dimension *= factor
+            prediction_positions = np.zeros((dimension, len(self.steplist)))
+            it = np.nditer(self.results_gmm, flags=['multi_index'])
+            while not it.finished:
+                for i in range(len(self.axes)):
+                    prediction_positions[it.iterindex][i] = self.axes[i][it.multi_index[i]]
+                it.iternext()
+
+            res = my_ae.gp_optimizer.posterior_mean(prediction_positions)
+            f = res["f(x)"]
+            self.prediction_gpcam = f.reshape(self.steplist)
+            self.plot_results(mark_maximum=True)
