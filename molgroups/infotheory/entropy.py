@@ -526,6 +526,8 @@ class Entropy:
                          filename=path.join(path1, 'MVN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
             save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_gmm_marginal, sp0, sp1, ec,
                          filename=path.join(path1, 'GMM_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
+            save_plot_2d(ax0, ax1, self.prediction_gpcam, sp0, sp1, ec, filename=path.join(path1, 'Prediction_gpcam'),
+                         zmin=0, zmax=self.upper_info_plotlevel)
             save_plot_2d(ax0, ax1, self.sqstd_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_sqstd'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_sqstd'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_mvn_marginal, sp0, sp1, ec,
@@ -555,7 +557,7 @@ class Entropy:
                 if j == len(onecolormaps):
                     j = 0
 
-        elif len(self.steplist) == 3 and self.results_gmm.shape[0]<6:
+        elif len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
             ax2 = self.axes[1]
             ax1 = self.axes[2]
             sp2 = self.steppar['par'].tolist()[1]
@@ -660,6 +662,7 @@ class Entropy:
                        self.results_mvn_marginal)
             np.savetxt(path.join(path1, 'GMM_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_gmm_marginal)
+            np.savetxt(path.join(path1, 'Prediction_gpcam.txt'), self.prediction_gpcam)
             np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn)
             np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm)
             np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal)
@@ -675,7 +678,7 @@ class Entropy:
                 i += 1
 
         # save three-dimensional array in slices of the first parameter
-        if len(self.steplist) == 3:
+        if len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
             for slice in range(self.results_gmm.shape[0]):
                 np.savetxt(path.join(path1, 'MVN_entropy_' + str(slice) + '.txt'), self.results_mvn[slice])
                 np.savetxt(path.join(path1, 'GMM_entropy_' + str(slice) + '.txt'), self.results_gmm[slice])
