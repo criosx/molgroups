@@ -519,15 +519,17 @@ class Entropy:
             save_plot_2d(ax0, ax1, self.results_gmm_marginal, sp0, sp1, ec,
                          filename=path.join(path1, 'GMM_entropy_marginal'))
             save_plot_2d(ax0, ax1, self.priorentropy - self.results_mvn, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_infocontent'), zmin=0)
+                         filename=path.join(path1, 'MVN_infocontent'), zmin=0, mark_maximum=mark_maximum)
             save_plot_2d(ax0, ax1, self.priorentropy - self.results_gmm, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_infocontent'), zmin=0)
+                         filename=path.join(path1, 'GMM_infocontent'), zmin=0, mark_maximum=mark_maximum)
             save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_mvn_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
+                         filename=path.join(path1, 'MVN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel
+                         , mark_maximum=mark_maximum)
             save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_gmm_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel)
+                         filename=path.join(path1, 'GMM_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel
+                         , mark_maximum=mark_maximum)
             save_plot_2d(ax0, ax1, self.prediction_gpcam, sp0, sp1, ec, filename=path.join(path1, 'Prediction_gpcam'),
-                         zmin=0, zmax=self.upper_info_plotlevel)
+                         zmin=0, zmax=self.upper_info_plotlevel, mark_maximum=mark_maximum)
             save_plot_2d(ax0, ax1, self.sqstd_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_sqstd'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_sqstd'), zmin=0)
             save_plot_2d(ax0, ax1, self.sqstd_mvn_marginal, sp0, sp1, ec,
@@ -1048,7 +1050,7 @@ class Entropy:
             if self.bClusterMode:
                 while self.joblist:
                     self.waitforjob(bFinish=True)
-        elif optimizer == 'gpCAM':
+        elif optimizer == 'gpCAM' or optimizer == 'gpcam':
             # Using the gpCAM global optimizer
             # follows the example from the gpCAM website
             import time
@@ -1058,7 +1060,7 @@ class Entropy:
                 print("This is the current length of the data received by gpCAM: ", len(data))
                 for entry in data:
                     # convert position into grid indices
-                    position_index=[]
+                    position_index = []
                     for ax in range(len(self.axes)):
                         list1 = [np.array(self.axes[ax]) - entry['position'][ax]]
                         arr1 = np.array(list1)
@@ -1071,9 +1073,15 @@ class Entropy:
                         if np.array_equal(it.multi_index, position_index):
                             break
                         it.iternext()
-                    # We constrain ourselves to the initial grid (might change in future)
-                    entry["position"] = position_index
-                    entry["value"] = work_on_index(it)
+                    # We constrain ourselves to the initial grid, but we do not let gpCAM know (might change in future)
+                    # entry["position"] = position_index
+                    _ = work_on_index(it)
+                    entry["value"] = self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index]
+                    var = self.sqstd_gmm_marginal[it.multi_index]
+                    if var > 0:
+                        entry['variance'] = var
+                    else:
+                        entry['variance'] = 1
                     # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
                     self.plot_results(mark_maximum=True)
                 return data
@@ -1099,7 +1107,10 @@ class Entropy:
                         position.append(self.axes[i][it.multi_index[i]])
                     x.append(position)
                     y.append(self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index])
-                    v.append(self.sqstd_gmm_marginal[it.multi_index])
+                    if self.sqstd_gmm_marginal[it.multi_index] > 0:
+                        v.append(self.sqstd_gmm_marginal[it.multi_index])
+                    else:
+                        v.append(1.0)
                 it.iternext()
 
             if len(x) > 10:
@@ -1119,8 +1130,7 @@ class Entropy:
                                              acq_func="variance",  # optional_acq_func,
                                              # cost_func = optional_cost_function,
                                              # cost_update_func = optional_cost_update_function,
-                                             x=x, y=y,
-                                             # v=v,
+                                             x=x, y=y, v=v,
                                              # cost_func_params={"offset": 5.0, "slope": 10.0},
                                              kernel_func=None, use_inv=True,
                                              communicate_full_dataset=False, ram_economy=True)
