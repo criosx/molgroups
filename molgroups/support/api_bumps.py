@@ -3,6 +3,7 @@ from os import path
 from random import seed, random
 from re import VERBOSE, IGNORECASE, compile
 from sys import stdout
+from matplotlib import pyplot as plt
 import numpy
 import shutil
 import glob
@@ -280,6 +281,13 @@ class CBumpsAPI(api_base.CBaseAPI):
         # .err and .par files
         problem.output_path = os.path.join(mcmcpath, self.runfile)
         save_best(driver, problem, x)
+
+        # try to deal with matplotlib cache issues by deleting the cache
+        fig = plt.figure()
+        plt.figure().clear()
+        plt.close()
+        plt.cla()
+        plt.clf()
 
         # don't know what files
         if 'models' in dir(problem):

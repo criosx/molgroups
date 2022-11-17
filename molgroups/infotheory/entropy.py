@@ -307,24 +307,24 @@ class Entropy:
 
         self.priorentropy, self.priorentropy_marginal = self.calc_prior()
 
+        self.results_mvn = np.full(self.steplist, self.priorentropy)
+        self.results_gmm = np.full(self.steplist, self.priorentropy)
+        self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)
+        self.results_gmm_marginal = np.full(self.steplist, self.priorentropy_marginal)
+        self.n_mvn = np.zeros(self.results_mvn.shape)
+        self.n_gmm = np.zeros(self.results_gmm.shape)
+        self.n_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
+        self.n_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
+        self.sqstd_mvn = np.zeros(self.results_mvn.shape)
+        self.sqstd_gmm = np.zeros(self.results_gmm.shape)
+        self.sqstd_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
+        self.sqstd_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
+        self.prediction_gpcam = np.zeros(self.results_gmm_marginal.shape)
+        self.par_median = np.zeros((len(self.parlist),) + self.results_mvn.shape)
+        self.par_std = np.zeros((len(self.parlist),) + self.results_mvn.shape)
+
         if path.isfile(path.join(spath, 'results', 'MVN_entropy.npy')):
             self.load_results(spath)
-        else:
-            self.results_mvn = np.full(self.steplist, self.priorentropy)
-            self.results_gmm = np.full(self.steplist, self.priorentropy)
-            self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)
-            self.results_gmm_marginal = np.full(self.steplist, self.priorentropy_marginal)
-            self.n_mvn = np.zeros(self.results_mvn.shape)
-            self.n_gmm = np.zeros(self.results_gmm.shape)
-            self.n_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
-            self.n_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
-            self.sqstd_mvn = np.zeros(self.results_mvn.shape)
-            self.sqstd_gmm = np.zeros(self.results_gmm.shape)
-            self.sqstd_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
-            self.sqstd_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
-            self.prediction_gpcam = np.zeros(self.results_gmm_marginal.shape)
-            self.par_median = np.zeros((len(self.parlist),) + self.results_mvn.shape)
-            self.par_std = np.zeros((len(self.parlist),) + self.results_mvn.shape)
 
     def calc_entropy(self, molstat=None):
         if molstat is None:
@@ -411,6 +411,8 @@ class Entropy:
         self.results_gmm = np.load(path.join(path1, 'GMM_entropy.npy'))
         self.results_mvn_marginal = np.load(path.join(path1, 'MVN_entropy_marginal.npy'))
         self.results_gmm_marginal = np.load(path.join(path1, 'GMM_entropy_marginal.npy'))
+        if path.isfile(path.join(path1, 'Prediction_gpcam.npy')):
+            self.prediction_gpcam = np.load(path.join(path1, 'Prediction_gpcam.npy'))
         self.n_mvn = np.load(path.join(path1, 'MVN_n.npy'))
         self.n_gmm = np.load(path.join(path1, 'GMM_n.npy'))
         self.n_mvn_marginal = np.load(path.join(path1, 'MVN_n_marginal.npy'))
@@ -634,6 +636,7 @@ class Entropy:
                 allow_pickle=False)
         np.save(path.join(path1, 'MVN_infocontent_marginal'), self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
+        np.save(path.join(path1, 'Prediction_gpcam'), self.prediction_gpcam, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd'), self.sqstd_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_sqstd'), self.sqstd_mvn, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd_marginal'), self.sqstd_gmm_marginal, allow_pickle=False)
@@ -1028,7 +1031,7 @@ class Entropy:
                 bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
                 if not bWorkedOnAnyIndex:
                     if not bRefinement:
-                        # all indicees have the minimum number of iterations -> start refinement
+                        # all indices have the minimum number of iterations -> start refinement
                         bRefinement = True
                     else:
                         # done with refinement
@@ -1110,7 +1113,7 @@ class Entropy:
 
             my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
                                              init_dataset_size=20, instrument_func=instrument,
-                                             acq_func="maximum",  # optional_acq_func,
+                                             acq_func="variance",  # optional_acq_func,
                                              # cost_func = optional_cost_function,
                                              # cost_update_func = optional_cost_update_function,
                                              x=x, y=y,
@@ -1164,3 +1167,4 @@ class Entropy:
             f = res["f(x)"]
             self.prediction_gpcam = f.reshape(self.steplist)
             self.plot_results(mark_maximum=True)
+            self.save_results(self.spath)
