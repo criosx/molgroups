@@ -82,19 +82,19 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
 
     def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat',
                                     liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True,  mode='water',
-                                    lambda_min=0.1):
+                                    lambda_min=None, t_total=None):
         if qrangefromfile:
             # q-range needs to be potentially adjusted, take any missing parameter from first data set
             if qmin is None:
-                qmin = liData[0][1]['Q'][0]
+                qmin = liData[0][1]['Q'].iloc[0]
             if qmax is None:
-                qmax = liData[0][1]['Q'][-1]
+                qmax = liData[0][1]['Q'].iloc[-1]
         elif qmin is None or qmax is None:
             raise Exception('Either define qrange from file or provide qranges manually.')
-
-        liData = self.fnExtendQRange(liData=liData, qmin=qmin, qmax=qmax)
-        self.fnSaveData(basefilename=basefilename, liData=liData)
-        self.fnRestoreFit()
+        else:
+            liData = self.fnExtendQRange(liData=liData, qmin=qmin, qmax=qmax)
+            self.fnSaveData(basefilename=basefilename, liData=liData)
+            self.fnRestoreFit()
 
         # simulate data, works on sim.dat files
         liData = self.fnSimulateData(diModelPars, liData)

@@ -1764,7 +1764,7 @@ class CMolStat:
             pickle.dump(save_object, file)
 
     def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
-                       t_total=None, mode='water', lambda_min=0.1):
+                       t_total=None, mode='water', lambda_min=0.1, verbose=True):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
@@ -1782,6 +1782,10 @@ class CMolStat:
             # this could be done fileless
             simpar = pandas.read_csv(self.spath + '/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
+            if verbose:
+                print(simpar)
+                print(liConfigurations)
+
             diModelPars = {}
             for parameter in liParameters:
                 diModelPars[parameter] = simpar[simpar.par == parameter].iloc[0][1]

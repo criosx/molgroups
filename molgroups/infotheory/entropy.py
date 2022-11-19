@@ -148,8 +148,10 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="pl
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
+
+    plt.tight_layout()
     plt.savefig(filename + '.pdf')
-    plt.close()
+    plt.close("all")
 
 
 def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False):
@@ -176,8 +178,9 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
         index = np.unravel_index(z.argmax(), z.shape)
         plt.text(x[index[1]], y[index[0]], 'x', horizontalalignment='center', verticalalignment='center')
 
+    plt.tight_layout()
     plt.savefig(path.join('plots', filename) + '.pdf')
-    plt.close()
+    plt.close("all")
 
 
 def cov_entropy(C):
@@ -260,6 +263,16 @@ class Entropy:
         self.allpar = pandas.read_csv('entropypar.dat', sep='\s+', header=None, names=header_names,
                                       skip_blank_lines=True, comment='#')
 
+        # define unique names, since instrument parameters might have the same name for different datasets/onfigurations
+        self.allpar['unique_name'] = ''
+        for i in range(len(self.allpar['par'])):
+            if 'n' in self.allpar['type'].iloc[i]:
+                unique_name = self.allpar['par'].iloc[i] + '_' + str(self.allpar['dataset'].iloc[i]) + '_' + \
+                              str(self.allpar['configuration'].iloc[i])
+            else:
+                unique_name = self.allpar['par'].iloc[i]
+            self.allpar.iloc[i, self.allpar.columns.get_loc("unique_name")] = unique_name
+
         # identify dependent (a), independent (b), and non-parameters in simpar.dat for the calculation of p(a|b,y)
         # later on. It is assumed that all parameters in setup.cc are also specified in simpar.dat in exactly the same
         # order. This might have to be looked at in the future.
@@ -293,7 +306,7 @@ class Entropy:
         # create data frame for simpar.dat needed by the data simulation routines
         # non-parameters such as qrange and prefactor will be included in simpar, but eventually ignored
         # when simulating the scattering, as they will find no counterpart in the model
-        self.simpar = self.allpar.loc[:, ['par', 'value', 'dataset', 'configuration']]
+        self.simpar = self.allpar.loc[:, ['par', 'value', 'dataset', 'configuration', 'unique_name']]
 
         self.steplist = []
         self.axes = []
@@ -473,7 +486,7 @@ class Entropy:
 
         if len(self.steplist) == 1:
             ax0 = self.axes[0]
-            sp0 = self.steppar['par'].tolist()[0]
+            sp0 = self.steppar['unique_name'].tolist()[0]
             save_plot_1d(ax0, self.results_mvn, np.sqrt(self.sqstd_mvn), sp0, 'Entropy [bits]',
                          filename=path.join(path1, 'MVN_entropy'))
             save_plot_1d(ax0, self.results_gmm, np.sqrt(self.sqstd_gmm), sp0, 'Entropy [bits]',
@@ -509,8 +522,8 @@ class Entropy:
             # numpy array and plot axes are reversed
             ax1 = self.axes[0]
             ax0 = self.axes[1]
-            sp1 = self.steppar['par'].tolist()[0]
-            sp0 = self.steppar['par'].tolist()[1]
+            sp1 = self.steppar['unique_name'].tolist()[0]
+            sp0 = self.steppar['unique_name'].tolist()[1]
 
             save_plot_2d(ax0, ax1, self.results_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_entropy'))
             save_plot_2d(ax0, ax1, self.results_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_entropy'))
@@ -562,8 +575,8 @@ class Entropy:
         elif len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
             ax2 = self.axes[1]
             ax1 = self.axes[2]
-            sp2 = self.steppar['par'].tolist()[1]
-            sp1 = self.steppar['par'].tolist()[2]
+            sp2 = self.steppar['unique_name'].tolist()[1]
+            sp1 = self.steppar['unique_name'].tolist()[2]
             for slice in range(self.results_gmm.shape[0]):
                 save_plot_2d(ax1, ax2, self.results_mvn[slice], sp1, sp2, ec,
                              filename=path.join(path1, 'MVN_entropy_' + str(slice)))
@@ -608,8 +621,8 @@ class Entropy:
                 for j in range(i):
                     ax2 = self.axes[i]
                     ax1 = self.axes[j]
-                    sp2 = self.steppar['par'].tolist()[i]
-                    sp1 = self.steppar['par'].tolist()[j]
+                    sp2 = self.steppar['unique_name'].tolist()[i]
+                    sp1 = self.steppar['unique_name'].tolist()[j]
                     projection_gmm_marginal = np.empty((self.steplist[i], self.steplist[j]))
                     projection_gpcam_prediction = np.empty((self.steplist[i], self.steplist[j]))
                     for k in range(self.steplist[i]):
@@ -880,15 +893,16 @@ class Entropy:
             isim = 0
             for row in self.allpar.itertuples():
                 # is it a parameter to iterate over?
-                if row.par in self.steppar['par'].tolist():
+                if row.unique_name in self.steppar['unique_name'].tolist():
 
-                    lsim = self.steppar.loc[self.steppar['par'] == row.par, 'l_sim'].iloc[0]
-                    stepsim = self.steppar.loc[self.steppar['par'] == row.par, 'step_sim'].iloc[0]
-                    value = self.steppar.loc[self.steppar['par'] == row.par, 'value'].iloc[0]
-                    lfit = self.steppar.loc[self.steppar['par'] == row.par, 'l_fit'].iloc[0]
-                    ufit = self.steppar.loc[self.steppar['par'] == row.par, 'u_fit'].iloc[0]
+                    lsim = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'l_sim'].iloc[0]
+                    stepsim = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'step_sim'].iloc[0]
+                    value = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'value'].iloc[0]
+                    lfit = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'l_fit'].iloc[0]
+                    ufit = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'u_fit'].iloc[0]
                     # TODO: Here we might implicitly assume an order. Check and resolve.
                     simvalue = lsim + stepsim * it.multi_index[isim]
+                    # print(self.steppar['unique_name'], '  ', simvalue, '\n')
 
                     if row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
                         if row.type == 'fd' or row.type == 'fi':
@@ -901,14 +915,15 @@ class Entropy:
 
                         if 'b' not in row.dataset:
                             # only change simpar when it will not be filled by a background rule
-                            self.simpar.loc[self.simpar['par'] == row.par, 'value'] = simvalue
+                            self.simpar.loc[self.simpar['unique_name'] == row.unique_name, 'value'] = simvalue
                             self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
 
                     else:
                         # must be instrument parameter
                         configurations = _fill_config(configurations, row.par, simvalue, row.dataset, row.configuration)
                         for indx in self.simpar.index:
-                            if self.simpar['par'][indx] == row.par and self.simpar['dataset'][indx] == row.dataset and \
+                            if self.simpar['unique_name'][indx] == row.unique_name and \
+                                    self.simpar['dataset'][indx] == row.dataset and \
                                     self.simpar['configuration'][indx] == row.configuration:
                                 self.simpar.iloc[indx, self.simpar.columns.get_loc('value')] = simvalue
                                 break
@@ -1028,6 +1043,7 @@ class Entropy:
 
                 it.iternext()
             return bWorkedOnIndex
+
         if optimizer == 'grid':
             # Grid search
             # every index has at least one result before re-analyzing any data point (refinement)
@@ -1050,10 +1066,10 @@ class Entropy:
             if self.bClusterMode:
                 while self.joblist:
                     self.waitforjob(bFinish=True)
+
         elif optimizer == 'gpCAM' or optimizer == 'gpcam':
             # Using the gpCAM global optimizer
             # follows the example from the gpCAM website
-            import time
             from gpcam.autonomous_experimenter import AutonomousExperimenterGP
 
             def instrument(data):

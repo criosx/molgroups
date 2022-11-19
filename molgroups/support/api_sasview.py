@@ -374,6 +374,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 dQ.fill(0)
                 dIq.fill(0)
 
+                confignumber = 0
                 for configuration in liConfigurations[dataset_n]:
 
                     li_n_cell, li_dq_q, d_omeg, Sigma_s_4pi = _calc_configuration(Q, Iq, configuration)
@@ -381,6 +382,10 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     D = configuration["cuvette_thickness"]
                     neutron_intensity = configuration["neutron_flux"] * configuration["beam_area"]
                     neutron_intensity *= configuration["time"] * configuration["detector_efficiency"]
+
+                    # avoid zero intensity, as they produce data points that bumps cannot handle
+                    if neutron_intensity == 0:
+                        neutron_intensity = 1e-12
 
                     # Cuvette counts
                     # Not sure, how to treat empty cuvette scattering that takes place over a shorter path length
@@ -426,6 +431,10 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     delta_I_I = _divide(delta_I_I, D)
                     delta_I_I = _divide(delta_I_I, Iq)
 
+                    # mark each dQ by configuration number to avoid any identical data points between configurations,
+                    # which cause a problem for bumps, has negligibel effect on dQ
+                    # this is relevant for zero counting time simulations
+
                     if average:
                         # update current dI and dQ entries in data set with data from this frame
                         # old and new relative uncertainties are averaged according to underlying counting statistics
@@ -447,6 +456,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                         Iq_append = numpy.append(Iq_append, Iq)
                         dIq_append = numpy.append(dIq_append, delta_I_I * Iq)
                         dQ_append = numpy.append(dQ_append, li_dq_q * Q)
+
+                    confignumber += 1
 
                 if average:
                     dataset[1]['dI'] = dIq

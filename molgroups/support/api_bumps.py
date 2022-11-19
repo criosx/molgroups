@@ -328,8 +328,8 @@ class CBumpsAPI(api_base.CBaseAPI):
                 print('Parameter ' + element + ' not specified.')
                 # check failed -> exit method
                 return
-            else:
-                print(element + ' ' + str(diNewPars[element]))
+            # else:
+                # print(element + ' ' + str(diNewPars[element]))
 
         p = [diNewPars[parameter] for parameter in liParameters]
         self.problem.setp(p)
