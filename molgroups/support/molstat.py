@@ -16,7 +16,6 @@ import pathlib
 from molgroups.support import general
 
 
-
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".",
                  runfile="run", state=None, problem=None,
@@ -1764,12 +1763,14 @@ class CMolStat:
         with open(sFileName, "wb") as file:
             pickle.dump(save_object, file)
 
-    def fnSimulateData(self, basefilename='sim.dat', qrange=0, **kwargs):
+    def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
+                       t_total=None, mode='water', lambda_min=0.1, verbose=True):
         """
-        simulates reflectivity based on a parameter file called simpar.dat
-        requires a compiled and ready to go fit whose fit parameters are modified and fixed
-        The basename can refer to a set of files with integer indizes before the suffix
+        Simulates scattering based on a parameter file called simpar.dat
+        requires a ready-to-go fit whose fit parameters are modified and fixed
+        The basename can refer to a set of data files with integer indizes before the suffix
         """
+
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
 
@@ -1781,24 +1782,23 @@ class CMolStat:
             # this could be done fileless
             simpar = pandas.read_csv(self.spath + '/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
-            diAddition = {}
+            if verbose:
+                print(simpar)
+                print(liConfigurations)
+
+            diModelPars = {}
             for parameter in liParameters:
-                diAddition[parameter] = simpar[simpar.par == parameter].iloc[0][1]
+                diModelPars[parameter] = simpar[simpar.par == parameter].iloc[0][1]
             # load all data files into a list of Pandas dataframes
             # each element is itself a list of [comments, simdata]
             liData = self.Interactor.fnLoadData(basefilename)
-            # if q-range is changing, back up original sim dat or reload previously backed up data
-            # to always work with the same set of original data and extend the q-range to qrange
-            # TODO: Backup does not seem to be implemented. I do not find a reload, either
-            # TODO: Make sure that data is simulated for the extended q-range using bumps
-            if qrange != 0:
-                self.Interactor.fnBackupSimdat()
-                liData = self.Interactor.fnExtendQRange(liData, qrange)
-            # simulate data, works on sim.dat files
-            liData = self.Interactor.fnSimulateData(diAddition, liData)
-            # simulate error bars, works on sim.dat files
-            liData = self.Interactor.fnSimulateErrorBars(simpar, liData, **kwargs)
+            liData = self.Interactor.fnSimulateDataPlusErrorBars(liData, diModelPars, simpar=simpar,
+                                                                 basefilename=basefilename,
+                                                                 liConfigurations=liConfigurations, qmin=qmin,
+                                                                 qmax=qmax, qrangefromfile=qrangefromfile,
+                                                                 lambda_min=lambda_min, mode=mode, t_total=t_total)
             self.Interactor.fnSaveData(basefilename, liData)
+
         finally:
             pass
 

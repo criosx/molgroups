@@ -1,0 +1,20 @@
+i background 0.00026 0 1
+i charge 0.48 0 20
+i concentration_salt 0.711 0 1
+i dielectconst 76.89 0 100
+d radius_equatorial 20.437 0 25
+d radius_polar  9.061 0 10
+d scale  20.84 0 60
+i sld  3.811 -2 10
+i sld_solvent  4.385 0 5
+i temperature  605.5 0 1000
+i volfraction  0.0032 0 0.1
+n lambda 6
+n differential_cross_section_buffer 0.059
+n*0 detector_sample_distance 100
+n*1 detector_sample_distance 400
+n*2 detector_sample_distance 1300
+n*0 time 1600
+n*1 time 3600
+n*2 time 4400
+n*0 beam_center_x 26.416

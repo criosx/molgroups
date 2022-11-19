@@ -1,18 +1,14 @@
 from __future__ import print_function
-from math import fabs, pow, sqrt
 from os import path
-from random import seed, normalvariate, random
+from random import seed, random
 from re import VERBOSE, IGNORECASE, compile
-from sys import exit, stdout
-from subprocess import call, Popen
-from time import sleep
+from sys import stdout
+from matplotlib import pyplot as plt
 import numpy
-import pandas
 import shutil
 import glob
 import os
 
-from molgroups.support import general
 from molgroups.support import api_base
 
 
@@ -152,6 +148,33 @@ class CBumpsAPI(api_base.CBaseAPI):
             self.fnRestoreBackup(origin, target)
             shutil.rmtree(target)
 
+    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
+        """
+        Scans self.runfile file for parameter with name sname and replaces the
+        lower and upper fit limits by the given values.
+        Currently, expects the parameter to be defined using the Parameter() method and not just .range()
+        on any object variable.
+        """
+
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
+        data = file.readlines()
+        file.close()
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+"[\s\"\'].+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        # version when .range() is present but no parameter value is provided
+        smatch2 = compile(r"(.*?" + sname + '[\s\"\'].+?range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
+        newdata = []
+        for line in data:
+            # apply version 1 for general case
+            newline = smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 ' +
+                                 str(fupperlimit) + r'\4', line)
+            # apply version 2 to catch both cases, potentially redundant for limits
+            newline = smatch2.sub(r'\1 ' + str(flowerlimit) + r'\2 ' + str(fupperlimit) + r'\3', newline)
+            newdata.append(newline)
+
+        file = open(os.path.join(self.spath, self.runfile) + '.py', 'w')
+        file.writelines(newdata)
+        file.close()
+
     # copies all files from the backup directory (target) to origin
     def fnRestoreBackup(self, origin=None, target=None):
         if origin is None:
@@ -163,8 +186,8 @@ class CBumpsAPI(api_base.CBaseAPI):
                 shutil.copy(file, origin)
 
     def fnRestoreFit(self):
-        self.fnRestoreFitProblem()
-        self.fnRestoreState()
+        self.problem = self.fnRestoreFitProblem()
+        self.state = self.fnRestoreState()
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
@@ -259,6 +282,13 @@ class CBumpsAPI(api_base.CBaseAPI):
         problem.output_path = os.path.join(mcmcpath, self.runfile)
         save_best(driver, problem, x)
 
+        # try to deal with matplotlib cache issues by deleting the cache
+        fig = plt.figure()
+        plt.figure().clear()
+        plt.close()
+        plt.cla()
+        plt.clf()
+
         # don't know what files
         if 'models' in dir(problem):
             for M in problem.models:
@@ -270,11 +300,10 @@ class CBumpsAPI(api_base.CBaseAPI):
         # .mcmc and .point files
         driver.save(os.path.join(mcmcpath, self.runfile))
 
-        # stat table and yet other files
-        driver.show()
-
-        # plots and other files
         if not batch:
+            # stat table and yet other files
+            driver.show()
+            # plots and other files
             driver.plot(os.path.join(mcmcpath, self.runfile))
 
     def fnSaveMolgroups(self, problem):
@@ -289,4 +318,21 @@ class CBumpsAPI(api_base.CBaseAPI):
             problem.extra.fnWritePar2File(fp, 'bilayer', z)
         fp.close()
         stdout.flush()
+
+    def fnUpdateModelPars(self, diNewPars):
+        liParameters = list(self.diParameters.keys())
+        # sort by number of appereance in runfile
+        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+        for element in liParameters:
+            if element not in list(diNewPars.keys()):
+                print('Parameter ' + element + ' not specified.')
+                # check failed -> exit method
+                return
+            # else:
+                # print(element + ' ' + str(diNewPars[element]))
+
+        p = [diNewPars[parameter] for parameter in liParameters]
+        self.problem.setp(p)
+        self.problem.model_update()
+
 

@@ -1,0 +1,57 @@
+.background = 0.000322784 in [0,1]
+.charge = 3.64698 in [0,20]
+.concentration_salt = 0.501019 in [0,1]
+.dielectconst = 5.92673 in [0,100]
+.phi = 60
+.phi_pd = 0
+.phi_pd_n = 35
+.phi_pd_nsigma = 3
+.radius_effective = 20.75
+.radius_effective_mode = 1
+.radius_effective_pd = 0
+.radius_effective_pd_n = 35
+.radius_effective_pd_nsigma = 3
+.radius_equatorial = 20.591 in [0,25]
+.radius_equatorial_pd = 0
+.radius_equatorial_pd_n = 35
+.radius_equatorial_pd_nsigma = 3
+.radius_polar = 9.54714 in [0,10]
+.radius_polar_pd = 0
+.radius_polar_pd_n = 35
+.radius_polar_pd_nsigma = 3
+.scale = 10.905 in [0,60]
+.sld = 3.64612 in [-2,10]
+.sld_M0 = 0
+.sld_mphi = 0
+.sld_mtheta = 0
+.sld_solvent = 3.20133 in [0,5]
+.sld_solvent_M0 = 0
+.sld_solvent_mphi = 0
+.sld_solvent_mtheta = 0
+.structure_factor_mode = 0
+.temperature = 89.364 in [0,1000]
+.theta = 60
+.theta_pd = 0
+.theta_pd_n = 35
+.theta_pd_nsigma = 3
+.up_angle = 0
+.up_frac_f = 0
+.up_frac_i = 0
+.up_phi = 0
+.volfraction = 0.00986412 in [0,0.1]
+
+[chisq=0.635(58), nllf=68.9302]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1           background 0.20(17)e-3 0.000170 0.000323 [0.00002 0.00040] [0.00000 0.00058]
+ 2               charge    6.7(56)    4.70    3.65 [    1.2    14.0] [    0.1    18.7]
+ 3   concentration_salt   0.62(26)   0.649   0.501 [   0.32    0.90] [   0.09    0.98]
+ 4         dielectconst     41(31)   37.58    5.93 [    6.0    77.9] [    0.5    96.5]
+ 5    radius_equatorial   22.0(16)  22.042  20.591 [  20.59   23.64] [  17.97   24.93]
+ 6         radius_polar    7.5(24)   8.051   9.547 [   5.15    9.62] [   1.60    9.92]
+ 7                scale     20(17)   17.54   10.90 [    2.7    42.8] [    0.3    56.0]
+ 8                  sld    2.3(21)   2.161   3.646 [   0.14    4.64] [  -0.68    6.99]
+ 9          sld_solvent    2.2(15)   2.148   3.201 [   0.41    3.98] [   0.15    4.87]
+10          temperature 0.41(31)e3   367.7    89.4 [     63     806] [      2     953]
+11          volfraction  18(19)e-3  0.0109  0.0099 [  0.002   0.038] [  0.000   0.073]
+
+Statistics and plots based on 53655 samples (100.0% of total samples drawn)

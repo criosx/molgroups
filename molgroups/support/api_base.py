@@ -24,15 +24,38 @@ class CBaseAPI:
     def fnBackupSimdat(self):
         raise NotImplementedError()
 
-    def fnExtendQRange(self, liData, qrange):
+    @staticmethod
+    def fnExtendQRange(liData, qmin=None, qmax=None, conserve_dq_q=False):
         for i in range(len(liData)):
-            # first cut data at qrange
-            liData[i][1] = liData[i][1][(liData[i][1].Q <= qrange)]
-            # now add data points in case the q-range is too short
-            while liData[i][1]['Q'].iloc[-1] < qrange:
-                newframe = pandas.DataFrame(liData[i][1][-1:], columns=liData[i][1].columns)
-                newframe['Q'].iloc[-1] = 2 * liData[i][1]['Q'].iloc[-1] - liData[i][1]['Q'].iloc[-2]
-                liData[i][1] = liData[i][1].append(newframe)
+            if qmax is not None:
+                # first cut data at qrange
+                liData[i][1] = liData[i][1][(liData[i][1].Q <= qmax)]
+                # now add data points in case the q-range is too short
+                while liData[i][1]['Q'].iloc[-1] < qmax:
+                    newframe = pandas.DataFrame(liData[i][1][-1:], columns=liData[i][1].columns, copy=True)
+                    step = liData[i][1]['Q'].iloc[-1] - liData[i][1]['Q'].iloc[-2]
+                    step *= 1.05
+                    newframe['Q'].iloc[-1] = liData[i][1]['Q'].iloc[-1] + step
+                    if conserve_dq_q:
+                        newframe['dQ'].iloc[-1] = liData[i][1]['dQ'].iloc[-1] / liData[i][1]['Q'].iloc[-1] * \
+                                                  newframe['Q'].iloc[-1]
+                    if newframe['Q'].iloc[-1] < qmax:
+                        liData[i][1] = liData[i][1].append(newframe, ignore_index=True)
+                    else:
+                        break
+            if qmin is not None:
+                liData[i][1] = liData[i][1][(liData[i][1].Q >= qmin)]
+                while liData[i][1]['Q'].iloc[0] > qmin:
+                    newframe = pandas.DataFrame(liData[i][1][:1], columns=liData[i][1].columns, copy=True)
+                    newframe['Q'].iloc[0] = 2 * liData[i][1]['Q'].iloc[0] - liData[i][1]['Q'].iloc[1]
+                    if conserve_dq_q:
+                        newframe['dQ'].iloc[0] = liData[i][1]['dQ'].iloc[0] / liData[i][1]['Q'].iloc[0] * \
+                                                 newframe['Q'].iloc[0]
+                    if newframe['Q'].iloc[0] > qmin:
+                        liData[i][1] = newframe.append(liData[i][1], ignore_index=True)
+                    else:
+                        break
+        return liData
 
     def fnLoadMolgroups(self, problem=None):
         diMolgroups = {}

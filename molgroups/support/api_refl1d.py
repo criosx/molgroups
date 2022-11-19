@@ -1,10 +1,9 @@
 from __future__ import print_function
 from math import fabs, pow, sqrt
 import pathlib
-from random import seed, normalvariate, random
+from random import normalvariate
 from re import VERBOSE, IGNORECASE, compile
 import pandas
-import shutil
 import os
 
 from molgroups.support import general
@@ -58,27 +57,6 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
 
         return liData
 
-    def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
-        """
-        Scans self.runfile file for parameter with name sname and replaces the
-        lower and upper fit limits by the given values.
-        Currently, expects the parameter to be defined using the Parameter() method and not just .range()
-        on any object variable.
-        """
-
-        file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
-        data = file.readlines()
-        file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+".+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
-        newdata = []
-        for line in data:
-            newdata.append(smatch.sub(r'\1 ' + str(0.5*(flowerlimit+fupperlimit)) + r'\2 ' + str(flowerlimit) + r'\3 '
-                                      + str(fupperlimit) + r'\4', line))
-
-        file = open(os.path.join(self.spath, self.runfile) + '.py', 'w')
-        file.writelines(newdata)
-        file.close()
-
     @staticmethod
     def fnRestoreSmoothProfile(M):
         z, rho, irho = M.fitness.smooth_profile()
@@ -102,10 +80,60 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
             for i in range(len(liData)):
                 _save(stem + str(i), suffix, liData[i][1], liData[i][0])
 
+    def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat',
+                                    liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True,  mode='water',
+                                    lambda_min=None, t_total=None):
+        if qrangefromfile:
+            # q-range needs to be potentially adjusted, take any missing parameter from first data set
+            if qmin is None:
+                qmin = liData[0][1]['Q'].iloc[0]
+            if qmax is None:
+                qmax = liData[0][1]['Q'].iloc[-1]
+        elif qmin is None or qmax is None:
+            raise Exception('Either define qrange from file or provide qranges manually.')
+        else:
+            liData = self.fnExtendQRange(liData=liData, qmin=qmin, qmax=qmax)
+            self.fnSaveData(basefilename=basefilename, liData=liData)
+            self.fnRestoreFit()
 
-    def fnSimulateErrorBars(self, simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
+        # simulate data, works on sim.dat files
+        liData = self.fnSimulateData(diModelPars, liData)
+        # simulate error bars, works on sim.dat files
+        liData = self.fnSimulateErrorBars(simpar, liData, qmin=qmin, qmax=qmax, liConfigurations=liConfigurations,
+                                          mode=mode)
+
+        return liData
+
+    @staticmethod
+    def fnSimulateErrorBars(simpar, liData, qmin=0.008, qmax=0.325, s1min=0.108, s1max=4.397, s2min=0.108,
                             s2max=4.397, tmin=18, tmax=208, nmin=11809, rhomin=-0.56e-6, rhomax=6.34e-6,
-                            cbmatmin=1.1e-5, cbmatmax=1.25e-6, mode='water', pre=1):
+                            cbmatmin=1.1e-5, cbmatmax=1.25e-6, mode='water', liConfigurations=None, pre=1):
+
+        def _setconf(dic, key, var):
+            if key in dic:
+                var = dic[key]
+            return var
+
+        # retrieve instrumental parameters from configuration (only one configuration supported atm)
+        if liConfigurations is not None:
+
+            if type(liConfigurations) is list:
+                config = liConfigurations[0]
+            else:
+                config = liConfigurations
+
+            pre = _setconf(config, 'pre', pre)
+            s1min = _setconf(config, 's1mine', s1min)
+            s1max = _setconf(config, 's1max', s1max)
+            s2min = _setconf(config, 's2min', s2min)
+            s2max = _setconf(config, 's2max', s2max)
+            tmin = _setconf(config, 'tmin', tmin)
+            tmax = _setconf(config, 'tmax', tmax)
+            nmin = _setconf(config, 'nmin', nmin)
+            rhomin = _setconf(config, 'rhomin', rhomin)
+            rhomax = _setconf(config, 'rhomax', rhomax)
+            cbmatmin = _setconf(config, 'cbmatmin', cbmatmin)
+            cbmatmax = _setconf(config, 'cbmatmax', cbmatmax)
 
         last_defined_rho_solv = 0
         for i in range(len(liData)):
@@ -148,20 +176,7 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
         return liData
 
     def fnSimulateData(self, diNewPars, liData, data_column='R'):
-        liParameters = list(self.diParameters.keys())
-        # sort by number of appereance in runfile
-        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-        for element in liParameters:
-            if element not in list(diNewPars.keys()):
-                print('Parameter '+element+' not specified.')
-                # check failed -> exit method
-                return
-            else:
-                print(element + ' ' + str(diNewPars[element]))
-
-        p = [diNewPars[parameter] for parameter in liParameters]
-        self.problem.setp(p)
-        self.problem.model_update()
+        self.fnUpdateModelPars(diNewPars)
 
         # TODO: By calling .chisq() I currently force an update of the cost function. There must be a better way
         if 'models' in dir(self.problem):
