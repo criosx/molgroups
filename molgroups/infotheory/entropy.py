@@ -3,6 +3,8 @@ from __future__ import division
 __all__ = ["entropy"]
 
 import itertools
+
+import numpy
 import numpy as np
 from molgroups.support import molstat
 import os
@@ -258,6 +260,7 @@ class Entropy:
         self.slurmscript = slurmscript
         self.configuration = configuration
         self.optimizer = optimizer
+        self.gpiteration = 0
 
         self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
@@ -349,6 +352,7 @@ class Entropy:
             if path.isfile(path.join(spath, 'results', 'gpCAMstream.pkl')):
                 with open(path.join(spath, 'results', 'gpCAMstream.pkl'), 'rb') as file:
                     self.gpCAMstream = pickle.load(file)
+                    self.gpiteration = len(self.gpCAMstream['position'])
             else:
                 self.gpCAMstream = {'position': [], 'value': [], 'variance': []}
 
@@ -550,7 +554,7 @@ class Entropy:
             sp1 = self.steppar['unique_name'].tolist()[2]
             for slice_n in range(arr_value.shape[0]):
                 save_plot_2d(ax1, ax2, arr_value[slice_n], xlabel=sp1, ylabel=sp2, color=ec,
-                             filename=path.join(path1, filename=filename+'_'+str(slice_n)), zmin=valmin, zmax=valmax,
+                             filename=path.join(path1, filename+'_'+str(slice_n)), zmin=valmin, zmax=valmax,
                              levels=levels, mark_maximum=mark_maximum)
 
         if len(arr_value.shape) >= 3:
@@ -590,7 +594,6 @@ class Entropy:
                 allow_pickle=False)
         np.save(path.join(path1, 'MVN_infocontent_marginal'), self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
-        np.save(path.join(path1, 'Prediction_gpcam'), self.prediction_gpcam, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd'), self.sqstd_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_sqstd'), self.sqstd_mvn, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd_marginal'), self.sqstd_gmm_marginal, allow_pickle=False)
@@ -614,7 +617,6 @@ class Entropy:
                        self.results_mvn_marginal)
             np.savetxt(path.join(path1, 'GMM_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_gmm_marginal)
-            np.savetxt(path.join(path1, 'Prediction_gpcam.txt'), self.prediction_gpcam - 0)
             np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn - 0)
             np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm - 0)
             np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal - 0)
@@ -728,7 +730,7 @@ class Entropy:
                 self.sqstd_gmm_marginal[index] = running_sqstd(self.sqstd_gmm_marginal[index], n, avg_gmm_marginal,
                                                                old_gmm_marginal, self.results_gmm_marginal[index])
 
-        def calc_entropy_for_index(molstat_iter, itindex):
+        def calc_entropy_for_index(molstat_iter, itindex=None):
             # Calculate Entropy n times and average
             mvn_entropy = []
             gmm_entropy = []
@@ -761,12 +763,12 @@ class Entropy:
                            (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
 
             # no special treatment for first entry necessary, algorithm catches this
-            if bValidResult:
-                writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
-                                points_std, parnames)
-
-            # save results for every iteration and delete large files
-            self.save_results(self.spath)
+            if self.optimizer == 'grid':
+                if bValidResult:
+                    writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
+                                    points_std, parnames)
+                # save results for every iteration
+                self.save_results(self.spath)
 
             return avg_gmm_marginal
 
@@ -889,12 +891,12 @@ class Entropy:
             return configurations
 
         def work_on_index(it=None, position=None, gpiteration=None):
-            # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
-            # be used independently of iterate_over_all_indices
-            itindex = it.multi_index
 
             if it is not None:
                 # grid mode, calculate which iteration we are on from itindex
+                # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
+                # be used independently of iterate_over_all_indices
+                itindex = it.multi_index
                 if self.calc_symmetric:
                     iteration = it.iterindex
                 else:
@@ -910,6 +912,7 @@ class Entropy:
             else:
                 # gpcam mode
                 iteration = gpiteration
+                itindex = None
 
             dirname = 'iteration_' + str(iteration)
             fulldirname = path.join(self.spath, dirname)
@@ -1018,31 +1021,35 @@ class Entropy:
             # follows the example from the gpCAM website
             from gpcam.autonomous_experimenter import AutonomousExperimenterGP
 
-            def instrument(data, Test=False):
+            def instrument(data, Test=True):
                 print("This is the current length of the data received by gpCAM: ", len(data))
                 print("Suggested by gpCAM: ", data)
                 for entry in data:
-                    '''
+
                     if Test:
                         # value = np.sin(np.linalg.norm(entry["position"]))
-                        value = np.array(entry['position']).sum() / 1000
+                        # value = np.array(entry['position']).sum() / 1000
+                        value = (entry['position'][0]-entry['position'][1])**2
+                        value += np.log10(entry['position'][2])*0.5
+                        value += np.log10(entry['position'][3])*1.5
+                        value += np.log10(entry['position'][4])*1
                         entry['value'] = value
                         print('Value: ', entry['value'])
-                        variance = None # 0.01 * np.abs(entry['value'])
+                        variance = None  # 0.01 * np.abs(entry['value'])
                         entry['variance'] = variance
                     else:
-                    '''
-                    marginal_entropy = work_on_index(position=entry['position'])
-                    value = self.priorentropy_marginal - marginal_entropy
-                    variance = None
-                    entry["value"] = value
-                    entry['variance'] = variance
-                    # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
+                        marginal_entropy = work_on_index(position=entry['position'], gpiteration=self.gpiteration)
+                        value = marginal_entropy
+                        variance = None
+                        entry["value"] = value
+                        entry['variance'] = variance
+                        # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
+                        self.save_results_gpcam(self.spath)
+                        self.gpiteration += 1
 
                     self.gpCAMstream['position'].append(entry['position'])
                     self.gpCAMstream['value'].append(value)
                     self.gpCAMstream['variance'].append(variance)
-                    self.save_results_gpcam(self.spath)
                 return data
 
             # initialization
@@ -1063,16 +1070,18 @@ class Entropy:
                 x = np.array(x)
                 y = np.array(y)
                 v = np.array(v)
+                self.gpiteration = len(x)
             else:
                 x = None
                 y = None
                 v = None
+                self.gpiteration = 0
 
             hyperpars = np.ones([numpars+1])
-            hyper_bounds = np.array([[0.001, 100000]] * (numpars+1))
+            hyper_bounds = np.array([[0.001, 10000]] * (numpars+1))
 
             my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
-                                             init_dataset_size=20, instrument_func=instrument,
+                                             init_dataset_size=100, instrument_func=instrument,
                                              acq_func="variance",  # optional_acq_func,
                                              # cost_func = optional_cost_function,
                                              # cost_update_func = optional_cost_update_function,
@@ -1088,7 +1097,7 @@ class Entropy:
             my_ae.train(method="global")           # or not, or both, choose between "global","local" and "hgdl"
 
             # update hyperparameters in case they are optimized asynchronously
-            # my_ae.update_hps()
+            my_ae.update_hps()
 
             # training and client can be killed if desired and in case they are optimized asynchronously
             # my_ae.kill_training()
@@ -1138,5 +1147,8 @@ class Entropy:
             if not path.isdir(path1):
                 mkdir(path1)
             self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
+
+            # self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
+            #              filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
 
 
