@@ -23,8 +23,8 @@ n * * dlambda_lambda 0.136
 n * 0 beamstop_diameter 10.16
 n * 1 beamstop_diameter 10.16
 n * 2 beamstop_diameter 7.62
-n * 0 time 1200 0 0 0 7200 400
+n * 0 time 1200 0 0 400 7200 400
 n * 1 time 2400 0 0 1200 7200 400
-n * 2 time 3600 0 0 400 7200 400
+n * 2 time 3600 0 0 800 7200 400
 n * 0 beam_center_x 25.
 n * * cuvette_thickness 0.1
