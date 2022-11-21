@@ -769,7 +769,7 @@ class Entropy:
                            (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
 
             # no special treatment for first entry necessary, algorithm catches this
-            if self.optimizer == 'grid':
+            if itindex is not None:
                 if bValidResult:
                     writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
                                     points_std, parnames)
