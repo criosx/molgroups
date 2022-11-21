@@ -184,7 +184,7 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
         plt.text(x[index[1]], y[index[0]], 'x', horizontalalignment='center', verticalalignment='center')
 
     plt.tight_layout()
-    plt.savefig(path.join('plots', filename) + '.pdf')
+    plt.savefig(filename + '.pdf')
     plt.close("all")
 
 
@@ -270,12 +270,18 @@ class Entropy:
         self.allpar = pandas.read_csv('entropypar.dat', sep='\s+', header=None, names=header_names,
                                       skip_blank_lines=True, comment='#')
 
-        # define unique names, since instrument parameters might have the same name for different datasets/onfigurations
+        # define unique names, since instrument parameters might have the same name for different datasets and
+        # configurations
         self.allpar['unique_name'] = ''
         for i in range(len(self.allpar['par'])):
             if 'n' in self.allpar['type'].iloc[i]:
-                unique_name = self.allpar['par'].iloc[i] + '_' + str(self.allpar['dataset'].iloc[i]) + '_' + \
-                              str(self.allpar['configuration'].iloc[i])
+                datastring = str(self.allpar['dataset'].iloc[i])
+                if datastring == '*':
+                    datastring = 'x'
+                configstring = str(self.allpar['configuration'].iloc[i])
+                if configstring == '*':
+                    configstring = 'x'
+                unique_name = self.allpar['par'].iloc[i] + '_' + datastring + '_' + configstring
             else:
                 unique_name = self.allpar['par'].iloc[i]
             self.allpar.iloc[i, self.allpar.columns.get_loc("unique_name")] = unique_name
@@ -679,7 +685,7 @@ class Entropy:
         return
 
     def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None,
-                         jupyter_clear_output=False, gpcam_iterations=50, retrain_async_at=(15, 30)):
+                         jupyter_clear_output=False, gpcam_iterations=50):
 
         def writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median, points_std,
                             parnames):
@@ -1021,7 +1027,7 @@ class Entropy:
             # follows the example from the gpCAM website
             from gpcam.autonomous_experimenter import AutonomousExperimenterGP
 
-            def instrument(data, Test=True):
+            def instrument(data, Test=False):
                 print("This is the current length of the data received by gpCAM: ", len(data))
                 print("Suggested by gpCAM: ", data)
                 for entry in data:
@@ -1030,9 +1036,13 @@ class Entropy:
                         # value = np.sin(np.linalg.norm(entry["position"]))
                         # value = np.array(entry['position']).sum() / 1000
                         value = (entry['position'][0]-entry['position'][1])**2
-                        value += np.log10(entry['position'][2])*0.5
-                        value += np.log10(entry['position'][3])*1.5
-                        value += np.log10(entry['position'][4])*1
+                        time0 = entry['position'][2]
+                        time1 = entry['position'][3]
+                        time2 = entry['position'][4]
+                        tf = 14400 / (time0 + time1 + time2)
+                        value += np.log10(time0*tf)*0.5
+                        value += np.log10(time1*tf)*1.5
+                        value += np.log10(time2*tf)*1
                         entry['value'] = value
                         print('Value: ', entry['value'])
                         variance = None  # 0.01 * np.abs(entry['value'])
@@ -1079,9 +1089,10 @@ class Entropy:
 
             hyperpars = np.ones([numpars+1])
             hyper_bounds = np.array([[0.001, 10000]] * (numpars+1))
+            init_dataset_size = 20
 
             my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
-                                             init_dataset_size=100, instrument_func=instrument,
+                                             init_dataset_size=init_dataset_size, instrument_func=instrument,
                                              acq_func="variance",  # optional_acq_func,
                                              # cost_func = optional_cost_function,
                                              # cost_update_func = optional_cost_update_function,
@@ -1093,18 +1104,22 @@ class Entropy:
 
             print("length of the dataset: ", len(my_ae.x))
 
-            # my_ae.train_async()                 #train asynchronously
-            my_ae.train(method="global")           # or not, or both, choose between "global","local" and "hgdl"
-
-            # update hyperparameters in case they are optimized asynchronously
-            my_ae.update_hps()
-
-            # training and client can be killed if desired and in case they are optimized asynchronously
-            # my_ae.kill_training()
+            for _ in range(2):
+                # my_ae.train_async()                 #train asynchronously
+                my_ae.train(method="global")          # or not, or both, choose between "global","local" and "hgdl"
+                # update hyperparameters in case they are optimized asynchronously
+                my_ae.update_hps()
+                my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
+                # update hyperparameters in case they are optimized asynchronously
+                my_ae.update_hps()
+                # training and client can be killed if desired and in case they are optimized asynchronously
+                my_ae.kill_training()
 
             # here we see how python's help function is used to get info about a function
             # help(my_ae.go)
 
+            retrain_async_at = np.logspace(start=np.log10(init_dataset_size), stop=np.log10(gpcam_iterations/2), num=3,
+                                           dtype=int)
             # run the autonomous loop
             my_ae.go(N=gpcam_iterations,
                      retrain_async_at=retrain_async_at,
@@ -1120,6 +1135,8 @@ class Entropy:
                      number_of_suggested_measurements=1,
                      acq_func_opt_tol_adjust=0.1)
 
+            # training and client can be killed if desired and in case they are optimized asynchronously
+            my_ae.kill_training()
             self.save_results_gpcam(self.spath)
 
             # create a flattened array of all positions to be evaluated, maximize the use of numpy
