@@ -821,7 +821,7 @@ class Entropy:
                 if bFoundBackground:
                     return configurations
 
-                # change buffer crosssection in configurations
+                # change buffer cross section in configurations
                 configurations = _fill_config(configurations, 'differential_cross_section_buffer', cb, dset, config)
 
                 return configurations
@@ -1104,14 +1104,13 @@ class Entropy:
 
             print("length of the dataset: ", len(my_ae.x))
 
-            for _ in range(2):
+            for _ in range(1):
                 # my_ae.train_async()                 #train asynchronously
-                my_ae.train(method="global")          # or not, or both, choose between "global","local" and "hgdl"
+                my_ae.train(method="global", max_iter=10000)  # or not, or both, choose "global","local" and "hgdl"
                 # update hyperparameters in case they are optimized asynchronously
-                my_ae.update_hps()
                 my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
                 # update hyperparameters in case they are optimized asynchronously
-                my_ae.update_hps()
+                # my_ae.update_hps()
                 # training and client can be killed if desired and in case they are optimized asynchronously
                 my_ae.kill_training()
 
@@ -1163,9 +1162,9 @@ class Entropy:
             path1 = path.join(self.spath, 'plots')
             if not path.isdir(path1):
                 mkdir(path1)
-            self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
+            # self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
 
-            # self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
-            #              filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
+            self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
+                          filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
 
 
