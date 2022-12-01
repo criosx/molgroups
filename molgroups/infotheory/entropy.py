@@ -130,7 +130,7 @@ def running_sqstd(current_sqstd, n, new_point, previous_mean, current_mean):
 
 
 def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="plot", ymin=None, ymax=None, levels=5,
-                 niceticks=False):
+                 niceticks=False, keep_plots=False):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -155,11 +155,20 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="pl
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
 
     plt.tight_layout()
+
+    if keep_plots:
+        i = 0
+        while os.path.isfile(filename + str(i) + '.png'):
+            i += 1
+        filename = filename + str(i)
+
     plt.savefig(filename + '.pdf')
+    plt.savefig(filename + '.png')
     plt.close("all")
 
 
-def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False):
+def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False,
+                 keep_plots=False, support_points=None):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -179,12 +188,23 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
     fig.colorbar(cs)
 
+    if support_points is not None:
+        plt.scatter(support_points[:, 1], support_points[:, 0], s=10, c='k')
+
     if mark_maximum:
         index = np.unravel_index(z.argmax(), z.shape)
         plt.text(x[index[1]], y[index[0]], 'x', horizontalalignment='center', verticalalignment='center')
 
     plt.tight_layout()
+
+    if keep_plots:
+        i = 0
+        while os.path.isfile(filename + str(i) + '.png'):
+            i += 1
+        filename = filename + str(i)
+
     plt.savefig(filename + '.pdf')
+    plt.savefig(filename + '.png')
     plt.close("all")
 
 
@@ -239,7 +259,7 @@ class Entropy:
     def __init__(self, fitsource, spath, mcmcpath, runfile, mcmcburn=16000, mcmcsteps=5000, deldir=True,
                  convergence=2.0, miniter=1, mode='water', background_rule=None, bFetchMode=False, bClusterMode=False,
                  calc_symmetric=True, upper_info_plotlevel=None, plotlimits_filename='', slurmscript='',
-                 configuration=None, optimizer='grid'):
+                 configuration=None, optimizer='grid', keep_plots=False, show_support_points=False):
 
         self.fitsource = fitsource
         self.spath = spath
@@ -261,6 +281,10 @@ class Entropy:
         self.configuration = configuration
         self.optimizer = optimizer
         self.gpiteration = 0
+        self.keep_plots = keep_plots
+        self.show_support_points = show_support_points
+
+        self.my_ae = None
 
         self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
@@ -527,7 +551,7 @@ class Entropy:
                           filename=path.join(path1, 'Par_' + parname + '_std'))
 
     def plot_arr(self, arr_value, arr_variance=None, filename='plot', mark_maximum=False, valmin=None, valmax=None,
-                 levels=20, niceticks=False, vallabel='z'):
+                 levels=20, niceticks=False, vallabel='z', support_points=None):
         # onecolormaps = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
         ec = plt.cm.coolwarm
 
@@ -541,7 +565,7 @@ class Entropy:
             else:
                 dy = None
             save_plot_1d(ax0, arr_value, dy=dy, xlabel=sp0, ylabel=vallabel, filename=path.join(path1, filename),
-                         ymin=valmin, ymax=valmax, levels=levels, niceticks=niceticks)
+                         ymin=valmin, ymax=valmax, levels=levels, niceticks=niceticks, keep_plots=self.keep_plots)
 
         elif len(arr_value.shape) == 2:
             # numpy array and plot axes are reversed
@@ -551,7 +575,7 @@ class Entropy:
             sp0 = self.steppar['unique_name'].tolist()[1]
             save_plot_2d(ax0, ax1, arr_value, xlabel=sp0, ylabel=sp1, color=ec,
                          filename=path.join(path1, filename), zmin=valmin, zmax=valmax, levels=levels,
-                         mark_maximum=mark_maximum)
+                         mark_maximum=mark_maximum, keep_plots=self.keep_plots, support_points=support_points)
 
         elif len(arr_value.shape) == 3 and arr_value.shape[0] < 6:
             ax2 = self.axes[1]
@@ -561,7 +585,7 @@ class Entropy:
             for slice_n in range(arr_value.shape[0]):
                 save_plot_2d(ax1, ax2, arr_value[slice_n], xlabel=sp1, ylabel=sp2, color=ec,
                              filename=path.join(path1, filename+'_'+str(slice_n)), zmin=valmin, zmax=valmax,
-                             levels=levels, mark_maximum=mark_maximum)
+                             levels=levels, mark_maximum=mark_maximum, keep_plots=self.keep_plots)
 
         if len(arr_value.shape) >= 3:
             # plot projections onto two parameters at a time
@@ -577,7 +601,7 @@ class Entropy:
                             projection[k, ll] = np.take(np.take(arr_value, indices=k, axis=i), indices=ll, axis=j).max()
                     save_plot_2d(ax1, ax2, projection, xlabel=sp1, ylabel=sp2, color=ec,
                                  filename=path.join(path1, filename+'_'+sp1+'_'+sp2), zmin=valmin, zmax=valmax,
-                                 levels=levels, mark_maximum=mark_maximum)
+                                 levels=levels, mark_maximum=mark_maximum, keep_plots=self.keep_plots)
 
     def save_results_gpcam(self, dirname):
         path1 = path.join(dirname, 'results')
@@ -685,10 +709,226 @@ class Entropy:
         return
 
     def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None,
-                         jupyter_clear_output=False, gpcam_iterations=50):
+                         jupyter_clear_output=False, gpcam_iterations=50, gpcam_init_dataset_size=20, gpcam_step=None):
 
-        def writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median, points_std,
-                            parnames):
+        def calc_entropy_for_iteration(molstat_iter, itindex=None):
+            # Calculate Entropy n times and average
+            mvn_entropy = []
+            gmm_entropy = []
+            mvn_entropy_marginal = []
+            gmm_entropy_marginal = []
+            points_median = []
+            points_std = []
+            parnames = []
+
+            # GMM and MVN are much more stable than KVN. Averaging over several calculations appears
+            # not to be necessary
+            for j in range(1):  # was 10
+                # calculate entropy, dependent parameters == parameters of interest
+                # independent parameters == nuisance parameters
+                a, b, c, d, points_median, points_std, parnames = self.calc_entropy(molstat_iter)
+                mvn_entropy.append(a)
+                gmm_entropy.append(b)
+                mvn_entropy_marginal.append(c)
+                gmm_entropy_marginal.append(d)
+
+            # remove outliers and average calculated entropies, don't average over parameter stats
+            avg_mvn, std_mvn = average(mvn_entropy)
+            avg_gmm, std_gmm = average(gmm_entropy)
+            avg_mvn_marginal, std_mvn_marginal = average(mvn_entropy_marginal)
+            avg_gmm_marginal, std_gmm_marginal = average(gmm_entropy_marginal)
+
+            bValidResult = (std_gmm < self.convergence) and \
+                           (self.priorentropy_marginal - avg_gmm_marginal > (-0.5) * len(
+                               self.dependent_parameters)) and \
+                           (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
+
+            # no special treatment for first entry necessary, algorithm catches this
+            if itindex is not None:
+                if bValidResult:
+                    gridsearch_writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
+                                    points_std, parnames)
+                # save results for every iteration
+                self.save_results(self.spath)
+
+            return avg_gmm_marginal
+
+        def gpcam_instrument(data, Test=False):
+            print("This is the current length of the data received by gpCAM: ", len(data))
+            print("Suggested by gpCAM: ", data)
+            for entry in data:
+                if Test:
+                    # value = np.sin(np.linalg.norm(entry["position"]))
+                    # value = np.array(entry['position']).sum() / 1000
+                    value = (entry['position'][0] - entry['position'][1]) ** 2
+                    time0 = entry['position'][2]
+                    time1 = entry['position'][3]
+                    time2 = entry['position'][4]
+                    tf = 14400 / (time0 + time1 + time2)
+                    value += np.log10(time0 * tf) * 0.5
+                    value += np.log10(time1 * tf) * 1.5
+                    value += np.log10(time2 * tf) * 1
+                    entry['value'] = value
+                    print('Value: ', entry['value'])
+                    variance = None  # 0.01 * np.abs(entry['value'])
+                    entry['variance'] = variance
+                else:
+                    marginal_entropy = gridsearch_work_on_index(position=entry['position'], gpiteration=self.gpiteration)
+                    value = marginal_entropy
+                    variance = None
+                    entry["value"] = value
+                    entry['variance'] = variance
+                    # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
+                    self.save_results_gpcam(self.spath)
+                    self.gpiteration += 1
+
+                self.gpCAMstream['position'].append(entry['position'])
+                self.gpCAMstream['value'].append(value)
+                self.gpCAMstream['variance'].append(variance)
+
+            return data
+
+        def gpcam_prediction(my_ae):
+            # create a flattened array of all positions to be evaluated, maximize the use of numpy
+            prediction_positions = np.array(self.axes[0])
+            for i in range(1, len(self.axes)):
+                a = np.array([prediction_positions] * len(self.axes[i]))
+                # transpose the first two axes of a only
+                newshape = np.linspace(0, len(a.shape)-1, len(a.shape), dtype=int)
+                newshape[0] = 1
+                newshape[1] = 0
+                a = np.transpose(a, newshape)
+                b = np.array([self.axes[i]] * prediction_positions.shape[0])
+                prediction_positions = np.dstack((a, b))
+                # now flatten the first two dimensions
+                newshape = list(prediction_positions.shape[1:])
+                newshape[0] = newshape[0] * prediction_positions.shape[0]
+                newshape = tuple(newshape)
+                prediction_positions = np.reshape(prediction_positions, newshape)
+
+            res = my_ae.gp_optimizer.posterior_mean(prediction_positions)
+            f = res["f(x)"]
+            self.prediction_gpcam = f.reshape(self.steplist)
+
+            path1 = path.join(self.spath, 'plots')
+            if not path.isdir(path1):
+                mkdir(path1)
+            # self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
+
+            if self.show_support_points:
+                support_points = np.array(self.gpCAMstream['position'])
+            else:
+                support_points = None
+
+            self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
+                          filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True,
+                          support_points=support_points)
+
+        def gridsearch_iterate_over_all_indices(refinement=False):
+            bWorkedOnIndex = False
+            # the complicated iteration syntax is due the unknown dimensionality of the results space / arrays
+            it = np.nditer(self.results_gmm, flags=['multi_index'])
+            while not it.finished:
+                itindex = it.multi_index
+                # parameter grids can be symmetric, and only one of the symmetry-related indices
+                # will be calculated unless calc_symmetric is True
+                if all(itindex[i] <= itindex[i + 1] for i in range(len(itindex) - 1)) or self.calc_symmetric:
+                    # run MCMC if it is first time or the value in results is inf
+                    invalid_result = np.isinf(self.results_gmm[itindex]) or fabs(self.results_gmm[itindex]) > 10000
+                    insufficient_iterations = self.n_mvn[itindex] < self.miniter
+
+                    outlier = False
+                    if refinement:
+                        # during refinement, check whether the GMM value follows that of the MVN with respect to its
+                        # nearest neighbors, implemented convolution because of ill-defined origin of scipy convolute
+                        conv_MVN = convolute(self.results_mvn)
+                        conv_GMM = convolute(self.results_gmm)
+                        dMVN = conv_MVN[itindex] - self.results_mvn[itindex]
+                        dGMM = conv_GMM[itindex] - self.results_gmm[itindex]
+                        if fabs(dMVN - dGMM) > self.convergence:
+                            outlier = True
+
+                    # Do we need to work on this particular index?
+                    if outlier or invalid_result or insufficient_iterations or self.bFetchMode:
+                        bWorkedOnIndex = True
+                        _ = gridsearch_work_on_index(it=it)
+
+                it.iternext()
+            return bWorkedOnIndex
+
+        def gridsearch_work_on_index(it=None, position=None, gpiteration=None):
+
+            if it is not None:
+                # grid mode, calculate which iteration we are on from itindex
+                # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
+                # be used independently of iterate_over_all_indices
+                itindex = it.multi_index
+                if self.calc_symmetric:
+                    iteration = it.iterindex
+                else:
+                    # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
+                    it2 = np.nditer(self.results_gmm, flags=['multi_index'])
+                    iteration = 0
+                    while not it2.finished:
+                        itindex2 = it2.multi_index
+                        if all(itindex2[i] <= itindex2[i + 1] for i in range(len(itindex2) - 1)):
+                            # iterations are only increased if this index is not dropped because of symmetry
+                            iteration += 1
+                        it2.iternext()
+            else:
+                # gpcam mode
+                iteration = gpiteration
+                itindex = None
+
+            dirname = 'iteration_' + str(iteration)
+            fulldirname = path.join(self.spath, dirname)
+            path1 = path.join(fulldirname, 'save')
+            chainname = path.join(path1, self.runfile+'-chain.mc')
+
+            # most relevant result for a particular index to return for general use of this function
+            avg_gmm_marginal = 0
+
+            # fetch mode and cluster mode are exclusive
+            if not self.bFetchMode:
+                # run a new fit, preparations are done in the root directory and the new fit is copied into the
+                # iteration directory, preparations in the iterations directory are not possible, because it would
+                # be lacking a result directory, which is needed for restoring a state/parameters
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile, load_state=False)
+                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
+                configurations = set_sim_pars_for_iteration(it, position)
+                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=qmin, qmax=qmax,
+                                            qrangefromfile=qrangefromfile, t_total=t_total)
+                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                # previous save needs to be removed as output serves as flag for HPC job termination
+                if path.isdir(path1):
+                    shutil.rmtree(path1)
+                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
+                self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
+
+            # Do not run entropy calculation when on cluster.
+            bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')
+            if not self.bClusterMode and bPriorResultExists:
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile)
+                avg_gmm_marginal = calc_entropy_for_iteration(molstat_iter, itindex)
+
+            # delete big files except in Cluster mode. They are needed there for future fetching
+            if self.deldir and not self.bClusterMode:
+                rm_file(path.join(path1, self.runfile+'-point.mc'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc'))
+                rm_file(path.join(path1, self.runfile+'-point.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
+
+            if jupyter_clear_output:
+                clear_output(wait=True)
+
+            return avg_gmm_marginal
+
+        def gridsearch_writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
+                                       points_std, parnames):
             # writes out entropy and parameter results into numpy arrays
             if not self.calc_symmetric:
                 # since symmetry-related points in the optimization were not calculated twice, the current
@@ -736,49 +976,7 @@ class Entropy:
                 self.sqstd_gmm_marginal[index] = running_sqstd(self.sqstd_gmm_marginal[index], n, avg_gmm_marginal,
                                                                old_gmm_marginal, self.results_gmm_marginal[index])
 
-        def calc_entropy_for_index(molstat_iter, itindex=None):
-            # Calculate Entropy n times and average
-            mvn_entropy = []
-            gmm_entropy = []
-            mvn_entropy_marginal = []
-            gmm_entropy_marginal = []
-            points_median = []
-            points_std = []
-            parnames = []
-
-            # GMM and MVN are much more stable than KVN. Averaging over several calculations appears
-            # not to be necessary
-            for j in range(1):  # was 10
-                # calculate entropy, dependent parameters == parameters of interest
-                # independent parameters == nuisance parameters
-                a, b, c, d, points_median, points_std, parnames = self.calc_entropy(molstat_iter)
-                mvn_entropy.append(a)
-                gmm_entropy.append(b)
-                mvn_entropy_marginal.append(c)
-                gmm_entropy_marginal.append(d)
-
-            # remove outliers and average calculated entropies, don't average over parameter stats
-            avg_mvn, std_mvn = average(mvn_entropy)
-            avg_gmm, std_gmm = average(gmm_entropy)
-            avg_mvn_marginal, std_mvn_marginal = average(mvn_entropy_marginal)
-            avg_gmm_marginal, std_gmm_marginal = average(gmm_entropy_marginal)
-
-            bValidResult = (std_gmm < self.convergence) and \
-                           (self.priorentropy_marginal - avg_gmm_marginal > (-0.5) * len(
-                               self.dependent_parameters)) and \
-                           (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
-
-            # no special treatment for first entry necessary, algorithm catches this
-            if itindex is not None:
-                if bValidResult:
-                    writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
-                                    points_std, parnames)
-                # save results for every iteration
-                self.save_results(self.spath)
-
-            return avg_gmm_marginal
-
-        def set_sim_pars_for_index(it=None, position=None):
+        def set_sim_pars_for_iteration(it=None, position=None):
             def _str2int(st):
                 if st == '*':
                     i = 0
@@ -821,7 +1019,7 @@ class Entropy:
                 if bFoundBackground:
                     return configurations
 
-                # change buffer cross section in configurations
+                # change buffer crosssection in configurations
                 configurations = _fill_config(configurations, 'differential_cross_section_buffer', cb, dset, config)
 
                 return configurations
@@ -896,115 +1094,15 @@ class Entropy:
             simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
             return configurations
 
-        def work_on_index(it=None, position=None, gpiteration=None):
-
-            if it is not None:
-                # grid mode, calculate which iteration we are on from itindex
-                # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
-                # be used independently of iterate_over_all_indices
-                itindex = it.multi_index
-                if self.calc_symmetric:
-                    iteration = it.iterindex
-                else:
-                    # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
-                    it2 = np.nditer(self.results_gmm, flags=['multi_index'])
-                    iteration = 0
-                    while not it2.finished:
-                        itindex2 = it2.multi_index
-                        if all(itindex2[i] <= itindex2[i + 1] for i in range(len(itindex2) - 1)):
-                            # iterations are only increased if this index is not dropped because of symmetry
-                            iteration += 1
-                        it2.iternext()
-            else:
-                # gpcam mode
-                iteration = gpiteration
-                itindex = None
-
-            dirname = 'iteration_' + str(iteration)
-            fulldirname = path.join(self.spath, dirname)
-            path1 = path.join(fulldirname, 'save')
-            chainname = path.join(path1, self.runfile+'-chain.mc')
-
-            # most relevant result for a particular index to return for general use of this function
-            avg_gmm_marginal = 0
-
-            # fetch mode and cluster mode are exclusive
-            if not self.bFetchMode:
-                # run a new fit, preparations are done in the root directory and the new fit is copied into the
-                # iteration directory, preparations in the iterations directory are not possible, because it would
-                # be lacking a result directory, which is needed for restoring a state/parameters
-                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                                runfile=self.runfile, load_state=False)
-                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
-                configurations = set_sim_pars_for_index(it, position)
-                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=qmin, qmax=qmax,
-                                            qrangefromfile=qrangefromfile, t_total=t_total)
-                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
-                # previous save needs to be removed as output serves as flag for HPC job termination
-                if path.isdir(path1):
-                    shutil.rmtree(path1)
-                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
-                self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
-
-            # Do not run entropy calculation when on cluster.
-            bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')
-            if not self.bClusterMode and bPriorResultExists:
-                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                                runfile=self.runfile)
-                avg_gmm_marginal = calc_entropy_for_index(molstat_iter, itindex)
-
-            # delete big files except in Cluster mode. They are needed there for future fetching
-            if self.deldir and not self.bClusterMode:
-                rm_file(path.join(path1, self.runfile+'-point.mc'))
-                rm_file(path.join(path1, self.runfile+'-chain.mc'))
-                rm_file(path.join(path1, self.runfile+'-stats.mc'))
-                rm_file(path.join(path1, self.runfile+'-point.mc.gz'))
-                rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
-                rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
-
-            if jupyter_clear_output:
-                clear_output(wait=True)
-
-            return avg_gmm_marginal
-
-        def iterate_over_all_indices(refinement=False):
-            bWorkedOnIndex = False
-            # the complicated iteration syntax is due the unknown dimensionality of the results space / arrays
-            it = np.nditer(self.results_gmm, flags=['multi_index'])
-            while not it.finished:
-                itindex = it.multi_index
-                # parameter grids can be symmetric, and only one of the symmetry-related indices
-                # will be calculated unless calc_symmetric is True
-                if all(itindex[i] <= itindex[i + 1] for i in range(len(itindex) - 1)) or self.calc_symmetric:
-                    # run MCMC if it is first time or the value in results is inf
-                    invalid_result = np.isinf(self.results_gmm[itindex]) or fabs(self.results_gmm[itindex]) > 10000
-                    insufficient_iterations = self.n_mvn[itindex] < self.miniter
-
-                    outlier = False
-                    if refinement:
-                        # during refinement, check whether the GMM value follows that of the MVN with respect to its
-                        # nearest neighbors, implemented convolution because of ill-defined origin of scipy convolute
-                        conv_MVN = convolute(self.results_mvn)
-                        conv_GMM = convolute(self.results_gmm)
-                        dMVN = conv_MVN[itindex] - self.results_mvn[itindex]
-                        dGMM = conv_GMM[itindex] - self.results_gmm[itindex]
-                        if fabs(dMVN - dGMM) > self.convergence:
-                            outlier = True
-
-                    # Do we need to work on this particular index?
-                    if outlier or invalid_result or insufficient_iterations or self.bFetchMode:
-                        bWorkedOnIndex = True
-                        _ = work_on_index(it=it)
-
-                it.iternext()
-            return bWorkedOnIndex
-
+        # ------------------------------------------------
+        # run_optimization main starting here
+        # ------------------------------------------------
         if self.optimizer == 'grid':
             # Grid search
             # every index has at least one result before re-analyzing any data point (refinement)
             bRefinement = False
             while True:
-                bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
+                bWorkedOnAnyIndex = gridsearch_iterate_over_all_indices(bRefinement)
                 if not bWorkedOnAnyIndex:
                     if not bRefinement:
                         # all indices have the minimum number of iterations -> start refinement
@@ -1027,41 +1125,6 @@ class Entropy:
             # follows the example from the gpCAM website
             from gpcam.autonomous_experimenter import AutonomousExperimenterGP
 
-            def instrument(data, Test=False):
-                print("This is the current length of the data received by gpCAM: ", len(data))
-                print("Suggested by gpCAM: ", data)
-                for entry in data:
-
-                    if Test:
-                        # value = np.sin(np.linalg.norm(entry["position"]))
-                        # value = np.array(entry['position']).sum() / 1000
-                        value = (entry['position'][0]-entry['position'][1])**2
-                        time0 = entry['position'][2]
-                        time1 = entry['position'][3]
-                        time2 = entry['position'][4]
-                        tf = 14400 / (time0 + time1 + time2)
-                        value += np.log10(time0*tf)*0.5
-                        value += np.log10(time1*tf)*1.5
-                        value += np.log10(time2*tf)*1
-                        entry['value'] = value
-                        print('Value: ', entry['value'])
-                        variance = None  # 0.01 * np.abs(entry['value'])
-                        entry['variance'] = variance
-                    else:
-                        marginal_entropy = work_on_index(position=entry['position'], gpiteration=self.gpiteration)
-                        value = marginal_entropy
-                        variance = None
-                        entry["value"] = value
-                        entry['variance'] = variance
-                        # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
-                        self.save_results_gpcam(self.spath)
-                        self.gpiteration += 1
-
-                    self.gpCAMstream['position'].append(entry['position'])
-                    self.gpCAMstream['value'].append(value)
-                    self.gpCAMstream['variance'].append(variance)
-                return data
-
             # initialization
             # feel free to try different acquisition functions, e.g. optional_acq_func, "covariance", "shannon_ig"
             # note how costs are defined in for the autonomous experimenter
@@ -1076,95 +1139,72 @@ class Entropy:
             y = self.gpCAMstream['value']
             v = self.gpCAMstream['variance']
 
-            if len(x) > 10:
+            if len(x) >= gpcam_init_dataset_size:
                 x = np.array(x)
                 y = np.array(y)
                 v = np.array(v)
                 self.gpiteration = len(x)
+                bFirstEval = False
             else:
                 x = None
                 y = None
                 v = None
                 self.gpiteration = 0
+                bFirstEval = True
 
             hyperpars = np.ones([numpars+1])
             hyper_bounds = np.array([[0.001, 10000]] * (numpars+1))
-            init_dataset_size = 20
 
-            my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
-                                             init_dataset_size=init_dataset_size, instrument_func=instrument,
-                                             acq_func="variance",  # optional_acq_func,
-                                             # cost_func = optional_cost_function,
-                                             # cost_update_func = optional_cost_update_function,
-                                             x=x, y=y, v=v,
-                                             # cost_func_params={"offset": 5.0, "slope": 10.0},
-                                             kernel_func=None, use_inv=True,
-                                             communicate_full_dataset=False, ram_economy=True)
-            # , prior_mean_func = optional_mean_func)
+            self.my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
+                                                  init_dataset_size=gpcam_init_dataset_size,
+                                                  instrument_func=gpcam_instrument,
+                                                  acq_func="variance",  # optional_acq_func,
+                                                  # cost_func = optional_cost_function,
+                                                  # cost_update_func = optional_cost_update_function,
+                                                  x=x, y=y, v=v,
+                                                  # cost_func_params={"offset": 5.0, "slope": 10.0},
+                                                  kernel_func=None, use_inv=True,
+                                                  communicate_full_dataset=False, ram_economy=True)
 
-            print("length of the dataset: ", len(my_ae.x))
+            # save and evaluate initial data set if it has been freshly calculate
+            if bFirstEval:
+                self.save_results_gpcam(self.spath)
+                gpcam_prediction(self.my_ae)
 
-            for _ in range(1):
-                # my_ae.train_async()                 #train asynchronously
-                my_ae.train(method="global", max_iter=10000)  # or not, or both, choose "global","local" and "hgdl"
+            while len(self.my_ae.x) < gpcam_iterations:
+                print("length of the dataset: ", len(self.my_ae.x))
+
+                self.my_ae.train(method="global", max_iter=10000)  # or not, or both, choose "global","local" and "hgdl"
                 # update hyperparameters in case they are optimized asynchronously
-                my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
-                # update hyperparameters in case they are optimized asynchronously
-                # my_ae.update_hps()
+                self.my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
                 # training and client can be killed if desired and in case they are optimized asynchronously
-                my_ae.kill_training()
+                self.my_ae.kill_training()
 
-            # here we see how python's help function is used to get info about a function
-            # help(my_ae.go)
+                if gpcam_step is not None:
+                    target_iterations = len(self.my_ae.x) + gpcam_step
+                    retrain_async_at = []
+                else:
+                    target_iterations = gpcam_iterations
+                    retrain_async_at = np.logspace(start=np.log10(len(self.my_ae.x)),
+                                                   stop=np.log10(gpcam_iterations/2), num=3, dtype=int)
+                # run the autonomous loop
+                self.my_ae.go(N=target_iterations,
+                              retrain_async_at=retrain_async_at,
+                              retrain_globally_at=[],
+                              retrain_locally_at=[],
+                              acq_func_opt_setting=lambda number: "global" if number % 2 == 0 else "local",
+                              training_opt_max_iter=20,
+                              training_opt_pop_size=10,
+                              training_opt_tol=1e-6,
+                              acq_func_opt_max_iter=20,
+                              acq_func_opt_pop_size=20,
+                              acq_func_opt_tol=1e-6,
+                              number_of_suggested_measurements=1,
+                              acq_func_opt_tol_adjust=0.1)
 
-            retrain_async_at = np.logspace(start=np.log10(init_dataset_size), stop=np.log10(gpcam_iterations/2), num=3,
-                                           dtype=int)
-            # run the autonomous loop
-            my_ae.go(N=gpcam_iterations,
-                     retrain_async_at=retrain_async_at,
-                     retrain_globally_at=[],
-                     retrain_locally_at=[],
-                     acq_func_opt_setting=lambda number: "global" if number % 2 == 0 else "local",
-                     training_opt_max_iter=20,
-                     training_opt_pop_size=10,
-                     training_opt_tol=1e-6,
-                     acq_func_opt_max_iter=20,
-                     acq_func_opt_pop_size=20,
-                     acq_func_opt_tol=1e-6,
-                     number_of_suggested_measurements=1,
-                     acq_func_opt_tol_adjust=0.1)
+                # training and client can be killed if desired and in case they are optimized asynchronously
+                self.my_ae.kill_training()
+                self.save_results_gpcam(self.spath)
 
-            # training and client can be killed if desired and in case they are optimized asynchronously
-            my_ae.kill_training()
-            self.save_results_gpcam(self.spath)
-
-            # create a flattened array of all positions to be evaluated, maximize the use of numpy
-            prediction_positions = np.array(self.axes[0])
-            for i in range(1, len(self.axes)):
-                a = np.array([prediction_positions] * len(self.axes[i]))
-                # transpose the first two axes of a only
-                newshape = np.linspace(0, len(a.shape)-1, len(a.shape), dtype=int)
-                newshape[0] = 1
-                newshape[1] = 0
-                a = np.transpose(a, newshape)
-                b = np.array([self.axes[i]] * prediction_positions.shape[0])
-                prediction_positions = np.dstack((a, b))
-                # now flatten the first two dimensions
-                newshape = list(prediction_positions.shape[1:])
-                newshape[0] = newshape[0] * prediction_positions.shape[0]
-                newshape = tuple(newshape)
-                prediction_positions = np.reshape(prediction_positions, newshape)
-
-            res = my_ae.gp_optimizer.posterior_mean(prediction_positions)
-            f = res["f(x)"]
-            self.prediction_gpcam = f.reshape(self.steplist)
-
-            path1 = path.join(self.spath, 'plots')
-            if not path.isdir(path1):
-                mkdir(path1)
-            # self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
-
-            self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
-                          filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
-
+                gpcam_prediction(self.my_ae)
 
