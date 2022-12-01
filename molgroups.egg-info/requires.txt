@@ -1,8 +1,0 @@
-bumps
-refl1d
-periodictable
-scipy
-numpy
-matplotlib
-pandas
-scikit-learn
