@@ -709,7 +709,8 @@ class Entropy:
         return
 
     def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None,
-                         jupyter_clear_output=False, gpcam_iterations=50, gpcam_init_dataset_size=20, gpcam_step=None):
+                         jupyter_clear_output=False, gpcam_iterations=50, gpcam_init_dataset_size=20, gpcam_step=None,
+                         acq_func="variance"):
 
         def calc_entropy_for_iteration(molstat_iter, itindex=None):
             # Calculate Entropy n times and average
@@ -773,18 +774,19 @@ class Entropy:
                     variance = None  # 0.01 * np.abs(entry['value'])
                     entry['variance'] = variance
                 else:
-                    marginal_entropy = gridsearch_work_on_index(position=entry['position'], gpiteration=self.gpiteration)
-                    value = marginal_entropy
+                    marginal_entropy = gridsearch_work_on_index(position=entry['position'],
+                                                                gpiteration=self.gpiteration)
+                    value = self.priorentropy_marginal - marginal_entropy
                     variance = None
                     entry["value"] = value
                     entry['variance'] = variance
                     # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
-                    self.save_results_gpcam(self.spath)
-                    self.gpiteration += 1
 
                 self.gpCAMstream['position'].append(entry['position'])
                 self.gpCAMstream['value'].append(value)
                 self.gpCAMstream['variance'].append(variance)
+                self.save_results_gpcam(self.spath)
+                self.gpiteration += 1
 
             return data
 
@@ -820,7 +822,7 @@ class Entropy:
             else:
                 support_points = None
 
-            self.plot_arr(self.priorentropy_marginal - self.prediction_gpcam,
+            self.plot_arr(self.prediction_gpcam,
                           filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True,
                           support_points=support_points)
 
@@ -1158,7 +1160,7 @@ class Entropy:
             self.my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
                                                   init_dataset_size=gpcam_init_dataset_size,
                                                   instrument_func=gpcam_instrument,
-                                                  acq_func="variance",  # optional_acq_func,
+                                                  acq_func=acq_func,  # optional_acq_func,
                                                   # cost_func = optional_cost_function,
                                                   # cost_update_func = optional_cost_update_function,
                                                   x=x, y=y, v=v,
@@ -1178,7 +1180,7 @@ class Entropy:
                 # update hyperparameters in case they are optimized asynchronously
                 self.my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
                 # training and client can be killed if desired and in case they are optimized asynchronously
-                self.my_ae.kill_training()
+                # self.my_ae.kill_training()
 
                 if gpcam_step is not None:
                     target_iterations = len(self.my_ae.x) + gpcam_step
@@ -1203,7 +1205,9 @@ class Entropy:
                               acq_func_opt_tol_adjust=0.1)
 
                 # training and client can be killed if desired and in case they are optimized asynchronously
-                self.my_ae.kill_training()
+                if gpcam_step is None:
+                    self.my_ae.kill_training()
+
                 self.save_results_gpcam(self.spath)
 
                 gpcam_prediction(self.my_ae)
