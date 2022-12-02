@@ -1155,7 +1155,12 @@ class Entropy:
                 bFirstEval = True
 
             hyperpars = np.ones([numpars+1])
-            hyper_bounds = np.array([[0.001, 10000]] * (numpars+1))
+            # the zeroth hyper bound is associated with a signal variance
+            # the others with the length scales of the parameter inputs
+            hyper_bounds = np.array([[0.001, 100]] * (numpars+1))
+            for i in range(len(parlimits)):
+                delta = parlimits[i][1]-parlimits[i][0]
+                hyper_bounds[i+1] = [delta * 1e-3, delta * 1e1]
 
             self.my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
                                                   init_dataset_size=gpcam_init_dataset_size,

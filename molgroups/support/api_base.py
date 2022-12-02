@@ -40,7 +40,7 @@ class CBaseAPI:
                         newframe['dQ'].iloc[-1] = liData[i][1]['dQ'].iloc[-1] / liData[i][1]['Q'].iloc[-1] * \
                                                   newframe['Q'].iloc[-1]
                     if newframe['Q'].iloc[-1] < qmax:
-                        liData[i][1] = liData[i][1].append(newframe, ignore_index=True)
+                        liData[i][1] = liData[i][1].concat(newframe, axis=0, ignore_index=True)
                     else:
                         break
             if qmin is not None:
@@ -52,7 +52,7 @@ class CBaseAPI:
                         newframe['dQ'].iloc[0] = liData[i][1]['dQ'].iloc[0] / liData[i][1]['Q'].iloc[0] * \
                                                  newframe['Q'].iloc[0]
                     if newframe['Q'].iloc[0] > qmin:
-                        liData[i][1] = newframe.append(liData[i][1], ignore_index=True)
+                        liData[i][1] = newframe.concat(liData[i][1], axis=0, ignore_index=True)
                     else:
                         break
         return liData
