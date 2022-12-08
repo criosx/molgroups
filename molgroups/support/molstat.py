@@ -11,6 +11,7 @@ from time import sleep
 import numpy
 import pandas
 import os
+import bumps.curve
 import pathlib
 
 from molgroups.support import general
@@ -1084,7 +1085,7 @@ class CMolStat:
                 print('Recreate statistical data from sErr.dat.')
                 self.diStatResults = self.Interactor.fnLoadStatData(sparse)
                 # cycle through all parameters
-                # determine length of longest parameter name for displaying
+                # determine length of the longest parameter name for displaying
                 iMaxParameterNameLength = 0
                 for parname in list(self.diStatResults['Parameters'].keys()):
                     if len(parname) > iMaxParameterNameLength:
@@ -1719,10 +1720,11 @@ class CMolStat:
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
-                            z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
-                            self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                            if verbose:
-                                print(M.chisq())
+                            if not isinstance(M.fitness, bumps.curve.Curve):
+                                z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
+                                self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                                if verbose:
+                                    print(M.chisq())
                     else:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))

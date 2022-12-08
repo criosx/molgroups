@@ -10,6 +10,7 @@ import shapely.geometry
 import numpy.random
 
 import sasmodels.data
+import bumps.curve
 
 from molgroups.support import general
 from molgroups.support import api_bumps
@@ -46,6 +47,12 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 else:
                     break
         return liData
+
+    def fnRestoreSmoothProfile(self, M):
+        # TODO: Decide what and if to return SLD profile for Bumps fits
+        # Returns nothing for the moment, here could be a SANS profile of any kind
+        z, rho, irho = [], [], []
+        return z, rho, irho
 
     def fnSaveData(self, basefilename, liData):
         """
@@ -141,8 +148,11 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             for M in self.problem.models:
                 M.chisq()
                 scatt = M.fitness.theory()
-                liData[i][1][data_column] = scatt
-                i += 1
+                if not isinstance(M.fitness, bumps.curve.Curve):
+                    # ignore Curve models, as they are sometimes used as auxiliary functions that do not contain
+                    # scattering data
+                    liData[i][1][data_column] = scatt
+                    i += 1
         else:
             self.problem.chisq()
             scatt = self.problem.fitness.theory()

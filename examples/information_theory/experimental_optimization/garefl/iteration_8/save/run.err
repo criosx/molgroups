@@ -1,0 +1,65 @@
+[0] = l_siox = 12.0823 in [10,30]
+[1] = rho_siox = 3.6343 in [3.2,3.8]
+[2] = l_submembrane = 7.5769 in [1,10]
+[3] = l_lipid1 = 10.6545 in [10,15]
+[4] = l_lipid2 = 13.6228 in [10,15]
+[5] = vf_bilayer = 0.952069 in [0.9,1]
+[6] = rho_solv_0 = 3.5015 in [2.96,3.56]
+[7] = global_rough = 2.51184 in [2,5]
+[8] = sigma = 2.72348 in [2,5]
+[9] = background_0 = -7.73032 in [-9,-5]
+
+[chisq=0.64(17), nllf=21.349]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1               l_siox   14.2(25)  14.250  12.082 [  11.17   16.87] [  10.25   18.49]
+ 2             rho_siox  3.659(90)   3.658   3.634 [   3.56    3.76] [   3.48    3.80]
+ 3        l_submembrane    5.4(26)   5.391   7.577 [   2.30    8.54] [   1.15    9.59]
+ 4             l_lipid1   11.8(11)  11.754  10.654 [  10.60   13.15] [  10.06   14.06]
+ 5             l_lipid2   12.4(12)  12.395  13.623 [  10.94   13.72] [  10.26   14.59]
+ 6           vf_bilayer  0.957(21)  0.9553  0.9521 [  0.937   0.981] [  0.921   0.997]
+ 7           rho_solv_0 3.5014(10) 3.50139 3.50150 [ 3.5003  3.5024] [ 3.4993  3.5034]
+ 8         global_rough   3.24(74)   3.184   2.512 [   2.39    4.07] [   2.05    4.68]
+ 9                sigma   2.87(64)   2.791   2.723 [   2.16    3.61] [   2.02    4.11]
+10         background_0  -8.17(51)  -8.211  -7.730 [  -8.76   -7.56] [  -8.97   -7.24]
+
+Statistics and plots based on 42100 samples (82.4% of total samples drawn)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:240: MatplotlibDeprecationWarning: shading='flat' when X and Y have the same dimensions as C is deprecated since 3.3.  Either specify the corners of the quadrilaterals with X and Y, or pass shading='auto', 'nearest' or 'gouraud', or set rcParams['pcolor.shading'].  This will become an error two minor releases later.
+  pylab.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap)
+/Users/frank/opt/anaconda3/envs/Python37/lib/python3.7/site-packages/bumps/dream/varplot.py:244: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  centers, height, maxlikelihood = array(bins).T

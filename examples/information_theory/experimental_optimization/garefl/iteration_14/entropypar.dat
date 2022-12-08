@@ -1,0 +1,11 @@
+i l_siox 18 10 30
+i rho_siox 3.55e-6 3.20e-6 3.80e-6
+i l_submembrane 2.5 1.0 10.0
+d l_lipid1 11.8 10.0 15.0
+d l_lipid2 12.4 10.0 15.0
+d vf_bilayer 0.95 0.90 1.00
+i rho_solv_0 6.34e-6 5.8e-6 6.4e-6 -0.5e-6 6.5e-6 0.5e-6
+i global_rough 3.0 2.0 5.0
+i sigma 2.5 2.0 5.0
+i background_0 -8.0 -9.0 -5.0
+n prefactor 2.58496
