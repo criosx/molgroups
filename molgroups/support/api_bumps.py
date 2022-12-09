@@ -195,12 +195,16 @@ class CBumpsAPI(api_base.CBaseAPI):
     def fnRestoreFit(self):
         self.problem = self.fnRestoreFitProblem()
         self.state = self.fnRestoreState()
+        if self.state is not None:
+            # repopulate state with best fit
+            p = self.state.best()[0]
+            self.problem.setp(p)
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
 
-        if path.isfile(self.spath + "/" + self.runfile + ".py"):
-            problem = load_problem(self.spath + "/" + self.runfile + ".py")
+        if path.isfile(os.path.join(self.spath, self.runfile + ".py")):
+            problem = load_problem(os.path.join(self.spath, self.runfile + ".py"))
         else:
             print("No problem to reload.")
             problem = None

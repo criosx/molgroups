@@ -1,5 +1,4 @@
 from bumps.names import *
-import bumps.curve
 from sasmodels.core import load_model
 from sasmodels.bumps_model import Model, Experiment
 from sasmodels.data import load_data, plot_data
