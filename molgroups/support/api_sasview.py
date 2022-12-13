@@ -88,7 +88,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # with irregular spacing. We need a regular spacing on which we will calculate SANS from different configs
         # and either average or keep data points with the same q separately
 
-        numpoints = int((numpy.log10(qmax) - numpy.log10(qmin)) * 30)
+        numpoints = int((numpy.log10(qmax) - numpy.log10(qmin)) * 60)
         qvec = numpy.logspace(numpy.log10(qmin), numpy.log10(qmax), num=numpoints, endpoint=True)
         ivec = numpy.zeros_like(qvec)
         divec = numpy.zeros_like(qvec)

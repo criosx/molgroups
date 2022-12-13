@@ -11,11 +11,11 @@
 .radius_effective_pd = 0
 .radius_effective_pd_n = 35
 .radius_effective_pd_nsigma = 3
-.radius_equatorial = 13.0951 in [5,17]
+.radius_equatorial = 13.1124 in [5,17]
 .radius_equatorial_pd = 0
 .radius_equatorial_pd_n = 35
 .radius_equatorial_pd_nsigma = 3
-.radius_polar = 25.302 in [17,35]
+.radius_polar = 25.3244 in [17,35]
 .radius_polar_pd = 0
 .radius_polar_pd_n = 35
 .radius_polar_pd_nsigma = 3
@@ -38,12 +38,12 @@
 .up_frac_f = 0
 .up_frac_i = 0
 .up_phi = 0
-.volfraction = 0.00213819 in [0.0001,0.02]
+.volfraction = 0.00213513 in [0.0001,0.02]
 
-[chisq=0.682(16), nllf=76.7453]
+[chisq=0.682(16), nllf=76.7584]
               Parameter       mean  median    best [   68% interval] [   95% interval]
- 1    radius_equatorial  13.10(24)  13.086  13.095 [  12.87   13.34] [  12.64   13.62]
- 2         radius_polar  25.30(76)  25.311  25.302 [  24.57   26.05] [  23.74   26.79]
- 3          volfraction 0.002142(41) 0.002143 0.002138 [0.00210 0.00218] [0.00206 0.00222]
+ 1    radius_equatorial  13.14(24)  13.099  13.112 [  12.93   13.39] [  12.70   13.61]
+ 2         radius_polar  25.24(77)  25.291  25.324 [  24.42   25.94] [  23.71   26.71]
+ 3          volfraction 0.002133(42) 0.002132 0.002135 [0.00209 0.00217] [0.00206 0.00222]
 
-Statistics and plots based on 15330 samples (100.0% of total samples drawn)
+Statistics and plots based on 3330 samples (100.0% of total samples drawn)

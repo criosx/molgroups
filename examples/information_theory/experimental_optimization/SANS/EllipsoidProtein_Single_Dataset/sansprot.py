@@ -1,5 +1,3 @@
-import numpy
-
 from bumps.names import *
 from sasmodels.core import load_model
 from sasmodels.bumps_model import Model, Experiment
