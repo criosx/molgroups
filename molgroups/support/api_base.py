@@ -33,9 +33,7 @@ class CBaseAPI:
                 # now add data points in case the q-range is too short
                 while liData[i][1]['Q'].iloc[-1] < qmax:
                     newframe = pandas.DataFrame(liData[i][1][-1:], columns=liData[i][1].columns, copy=True)
-                    step = liData[i][1]['Q'].iloc[-1] - liData[i][1]['Q'].iloc[-2]
-                    step *= 1.05
-                    newframe['Q'].iloc[-1] = liData[i][1]['Q'].iloc[-1] + step
+                    newframe['Q'].iloc[-1] = 1.1 * liData[i][1]['Q'].iloc[-1]
                     if conserve_dq_q:
                         newframe['dQ'].iloc[-1] = liData[i][1]['dQ'].iloc[-1] / liData[i][1]['Q'].iloc[-1] * \
                                                   newframe['Q'].iloc[-1]
@@ -47,7 +45,11 @@ class CBaseAPI:
                 liData[i][1] = liData[i][1][(liData[i][1].Q >= qmin)]
                 while liData[i][1]['Q'].iloc[0] > qmin:
                     newframe = pandas.DataFrame(liData[i][1][:1], columns=liData[i][1].columns, copy=True)
-                    newframe['Q'].iloc[0] = 2 * liData[i][1]['Q'].iloc[0] - liData[i][1]['Q'].iloc[1]
+                    if liData[i][1]['Q'].iloc[0] > 0.001:
+                        step = 0.1 * liData[i][1]['Q'].iloc[0]
+                    else:
+                        step = 0.0001
+                    newframe['Q'].iloc[0] = liData[i][1]['Q'].iloc[0] - step
                     if conserve_dq_q:
                         newframe['dQ'].iloc[0] = liData[i][1]['dQ'].iloc[0] / liData[i][1]['Q'].iloc[0] * \
                                                  newframe['Q'].iloc[0]

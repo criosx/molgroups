@@ -34,7 +34,7 @@ bilayer.headgroup2_1.phosphate_INT  [    0.8568,     0.8763,     0.8927] (-    0
 bilayer.headgroup2_1_AVG  [      3.21,       3.21,       3.21] (-         0, +         0)
 bilayer.headgroup2_1_COM  [     63.07,      63.73,      64.29] (-    0.6594, +    0.5558)
 bilayer.headgroup2_1_INT  [     5.093,      5.209,      5.307] (-    0.1159, +    0.0977)
-bilayer.methyl1_1_AVG  [     0.988,      0.988,      0.988] (-  2.22e-16, +  2.22e-16)
+bilayer.methyl1_1_AVG  [     0.988,      0.988,      0.988] (- 3.331e-16, +  1.11e-16)
 bilayer.methyl1_1_COM  [     43.28,      43.59,      43.85] (-    0.3119, +    0.2628)
 bilayer.methyl1_1_INT  [     1.568,      1.603,      1.633] (-   0.03568, +   0.03007)
 bilayer.methyl2_1_AVG  [     0.988,      0.988,      0.988] (-  2.22e-16, +  2.22e-16)
