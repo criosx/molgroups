@@ -201,7 +201,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             if configuration is None:
                 configuration = {}
             kl_list = [
-                ["pre", 1],
                 ["neutron_flux", 6.69e5],
                 ["beam_area", 1],
                 ["beam_center_x", 0],
