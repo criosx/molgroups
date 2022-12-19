@@ -1680,9 +1680,9 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
             resmol = aa[key]
         resvol[i] = resmol.cell_volume
         # TODO: Make new column for xray imaginary part (this is real part only)
-        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
-        resnslH[i] = resmol.sld * 1e-6
-        resnslD[i] = resmol.Dsld * 1e-6
+        resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
+        resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
+        resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
 
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
