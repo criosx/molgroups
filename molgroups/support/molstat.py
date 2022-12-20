@@ -215,7 +215,7 @@ class CMolStat:
         self.diStatResults['Convergence'] = fMaxConvergence
         print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
               {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
-        print('Confidence level: {fConfidence:.4f}')
+        print(f'Confidence level: {fConfidence:.4f}')
 
     def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
