@@ -11,6 +11,7 @@ from time import sleep
 import numpy
 import pandas
 import os
+import bumps.curve
 import pathlib
 
 from molgroups.support import general
@@ -213,8 +214,8 @@ class CMolStat:
                    'hpc': fHighPercConv, 'sg': sGraphOutput})
 
         self.diStatResults['Convergence'] = fMaxConvergence
-        print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
-              {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
+        # print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
+        #       {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
         print(f'Confidence level: {fConfidence:.4f}')
 
     def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
@@ -479,15 +480,18 @@ class CMolStat:
                 fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
                 fMedian = stats.scoreatpercentile(diResults[element], 50.)
                 fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-                interval = {'element': element, 'lower_conf': fLowPerc, 'median': fMedian, 'upper_conf': fHighPerc}
-                results = results.append(interval, ignore_index=True)
+                interval = pandas.DataFrame(data={'element': element, 'lower_conf': fLowPerc, 'median': fMedian,
+                                                  'upper_conf': fHighPerc}, index=[0])
+                results = pandas.concat([results, interval], axis=0, ignore_index=True)
 
                 sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
                 soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
                                           'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
                 file.write(soutput + '\n')
-                if verbose: print(soutput)
+                if verbose:
+                    print(soutput)
+
         return results
 
     def fnCalcConfidenceLimits(self, data, method=1):
@@ -1084,7 +1088,7 @@ class CMolStat:
                 print('Recreate statistical data from sErr.dat.')
                 self.diStatResults = self.Interactor.fnLoadStatData(sparse)
                 # cycle through all parameters
-                # determine length of longest parameter name for displaying
+                # determine length of the longest parameter name for displaying
                 iMaxParameterNameLength = 0
                 for parname in list(self.diStatResults['Parameters'].keys()):
                     if len(parname) > iMaxParameterNameLength:
@@ -1719,10 +1723,11 @@ class CMolStat:
                     # distinguish between FitProblem and MultiFitProblem
                     if 'models' in dir(problem):
                         for M in problem.models:
-                            z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
-                            self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                            if verbose:
-                                print(M.chisq())
+                            if not isinstance(M.fitness, bumps.curve.Curve):
+                                z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
+                                self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                                if verbose:
+                                    print(M.chisq())
                     else:
                         z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                         self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))

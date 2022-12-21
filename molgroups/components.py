@@ -113,7 +113,7 @@ cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_
 
 # standard acyl chains
 oleoyl = Component(name='oleoyl', formula='C17 H33', cell_volume=972./2.0, length=11.0)
-palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=770./2.0, length=11.0)
+palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0, length=11.0)
 myristoyl = Component(name='myristoyl', formula='C13 H27', cell_volume=770./2.0, length=11.0)
 phytanoyl = Component(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0, length=11.0)
 cholesterol = Component(name='cholesterol', formula='C27 H45 H[1] O', cell_volume=630., length=11.0)

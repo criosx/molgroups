@@ -2,20 +2,25 @@ from __future__ import division
 
 __all__ = ["entropy"]
 
+import itertools
+
+import numpy
 import numpy as np
 from molgroups.support import molstat
+import os
+import pickle
 import pandas
-import itertools
+import matplotlib.pyplot as plt
+import shutil
+
 from numpy import log, sqrt, log2, pi, e
 from numpy.random import permutation
 from sklearn.mixture import BayesianGaussianMixture as GMM
-import os
 from os import path, mkdir
 from math import fabs, pow, floor, ceil
 from subprocess import Popen
 from time import sleep
 from IPython.display import clear_output
-import shutil
 
 LN2 = log(2)
 
@@ -125,7 +130,7 @@ def running_sqstd(current_sqstd, n, new_point, previous_mean, current_mean):
 
 
 def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="plot", ymin=None, ymax=None, levels=5,
-                 niceticks=False):
+                 niceticks=False, keep_plots=False):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -150,11 +155,20 @@ def save_plot_1d(x, y, dy=None, xlabel='', ylabel='', color='blue', filename="pl
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
 
     plt.tight_layout()
+
+    if keep_plots:
+        i = 0
+        while os.path.isfile(filename + str(i) + '.png'):
+            i += 1
+        filename = filename + str(i)
+
     plt.savefig(filename + '.pdf')
+    plt.savefig(filename + '.png')
     plt.close("all")
 
 
-def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False):
+def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zmax=None, levels=20, mark_maximum=False,
+                 keep_plots=False, support_points=None):
     import matplotlib.pyplot as plt
     import matplotlib
 
@@ -168,18 +182,29 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
     matplotlib.rc('font', **font)
 
     fig, ax = plt.subplots()
-    cs = ax.contourf(x, y, z, cmap=color, vmin=bounds[0], vmax=bounds[-1], levels=bounds)     # extend='both'
+    cs = ax.contourf(x, y, z, cmap=color, vmin=bounds[0], vmax=bounds[-1], levels=bounds, extend='both')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
     fig.colorbar(cs)
+
+    if support_points is not None:
+        plt.scatter(support_points[:, 1], support_points[:, 0], s=10, c='k')
 
     if mark_maximum:
         index = np.unravel_index(z.argmax(), z.shape)
         plt.text(x[index[1]], y[index[0]], 'x', horizontalalignment='center', verticalalignment='center')
 
     plt.tight_layout()
-    plt.savefig(path.join('plots', filename) + '.pdf')
+
+    if keep_plots:
+        i = 0
+        while os.path.isfile(filename + str(i) + '.png'):
+            i += 1
+        filename = filename + str(i)
+
+    plt.savefig(filename + '.pdf')
+    plt.savefig(filename + '.png')
     plt.close("all")
 
 
@@ -234,7 +259,7 @@ class Entropy:
     def __init__(self, fitsource, spath, mcmcpath, runfile, mcmcburn=16000, mcmcsteps=5000, deldir=True,
                  convergence=2.0, miniter=1, mode='water', background_rule=None, bFetchMode=False, bClusterMode=False,
                  calc_symmetric=True, upper_info_plotlevel=None, plotlimits_filename='', slurmscript='',
-                 configuration=None):
+                 configuration=None, optimizer='grid', keep_plots=False, show_support_points=False):
 
         self.fitsource = fitsource
         self.spath = spath
@@ -254,6 +279,12 @@ class Entropy:
         self.plotlimits_filename = plotlimits_filename
         self.slurmscript = slurmscript
         self.configuration = configuration
+        self.optimizer = optimizer
+        self.gpiteration = 0
+        self.keep_plots = keep_plots
+        self.show_support_points = show_support_points
+
+        self.my_ae = None
 
         self.molstat = molstat.CMolStat(fitsource=fitsource, spath=spath, mcmcpath=mcmcpath, runfile=runfile)
 
@@ -263,12 +294,18 @@ class Entropy:
         self.allpar = pandas.read_csv('entropypar.dat', sep='\s+', header=None, names=header_names,
                                       skip_blank_lines=True, comment='#')
 
-        # define unique names, since instrument parameters might have the same name for different datasets/onfigurations
+        # define unique names, since instrument parameters might have the same name for different datasets and
+        # configurations
         self.allpar['unique_name'] = ''
         for i in range(len(self.allpar['par'])):
             if 'n' in self.allpar['type'].iloc[i]:
-                unique_name = self.allpar['par'].iloc[i] + '_' + str(self.allpar['dataset'].iloc[i]) + '_' + \
-                              str(self.allpar['configuration'].iloc[i])
+                datastring = str(self.allpar['dataset'].iloc[i])
+                if datastring == '*':
+                    datastring = 'x'
+                configstring = str(self.allpar['configuration'].iloc[i])
+                if configstring == '*':
+                    configstring = 'x'
+                unique_name = self.allpar['par'].iloc[i] + '_' + datastring + '_' + configstring
             else:
                 unique_name = self.allpar['par'].iloc[i]
             self.allpar.iloc[i, self.allpar.columns.get_loc("unique_name")] = unique_name
@@ -320,24 +357,34 @@ class Entropy:
 
         self.priorentropy, self.priorentropy_marginal = self.calc_prior()
 
-        self.results_mvn = np.full(self.steplist, self.priorentropy)
-        self.results_gmm = np.full(self.steplist, self.priorentropy)
-        self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)
-        self.results_gmm_marginal = np.full(self.steplist, self.priorentropy_marginal)
-        self.n_mvn = np.zeros(self.results_mvn.shape)
-        self.n_gmm = np.zeros(self.results_gmm.shape)
-        self.n_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
-        self.n_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
-        self.sqstd_mvn = np.zeros(self.results_mvn.shape)
-        self.sqstd_gmm = np.zeros(self.results_gmm.shape)
-        self.sqstd_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
-        self.sqstd_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
-        self.prediction_gpcam = np.zeros(self.results_gmm_marginal.shape)
-        self.par_median = np.zeros((len(self.parlist),) + self.results_mvn.shape)
-        self.par_std = np.zeros((len(self.parlist),) + self.results_mvn.shape)
+        if optimizer == 'grid':
 
-        if path.isfile(path.join(spath, 'results', 'MVN_entropy.npy')):
-            self.load_results(spath)
+            self.results_mvn = np.full(self.steplist, self.priorentropy)
+            self.results_gmm = np.full(self.steplist, self.priorentropy)
+            self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)
+            self.results_gmm_marginal = np.full(self.steplist, self.priorentropy_marginal)
+            self.n_mvn = np.zeros(self.results_mvn.shape)
+            self.n_gmm = np.zeros(self.results_gmm.shape)
+            self.n_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
+            self.n_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
+            self.sqstd_mvn = np.zeros(self.results_mvn.shape)
+            self.sqstd_gmm = np.zeros(self.results_gmm.shape)
+            self.sqstd_mvn_marginal = np.zeros(self.results_mvn_marginal.shape)
+            self.sqstd_gmm_marginal = np.zeros(self.results_gmm_marginal.shape)
+            self.prediction_gpcam = np.zeros(self.results_gmm_marginal.shape)
+            self.par_median = np.zeros((len(self.parlist),) + self.results_mvn.shape)
+            self.par_std = np.zeros((len(self.parlist),) + self.results_mvn.shape)
+
+            if path.isfile(path.join(spath, 'results', 'MVN_entropy.npy')):
+                self.load_results(spath)
+
+        elif optimizer == 'gpcam' or optimizer == 'gpCAM':
+            if path.isfile(path.join(spath, 'results', 'gpCAMstream.pkl')):
+                with open(path.join(spath, 'results', 'gpCAMstream.pkl'), 'rb') as file:
+                    self.gpCAMstream = pickle.load(file)
+                    self.gpiteration = len(self.gpCAMstream['position'])
+            else:
+                self.gpCAMstream = {'position': [], 'value': [], 'variance': []}
 
     def calc_entropy(self, molstat=None):
         if molstat is None:
@@ -463,159 +510,84 @@ class Entropy:
         return
 
     def plot_results(self, mark_maximum=False):
-        import matplotlib.pyplot as plt
 
-        if not path.isdir('plots'):
-            mkdir('plots')
+        path1 = path.join(self.spath, 'plots')
+        if not path.isdir(path1):
+            mkdir(path1)
 
-        onecolormaps = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
+        self.plot_arr(self.results_mvn, arr_variance=np.sqrt(self.sqstd_mvn), vallabel='Entropy [bits]',
+                      filename=path.join(path1, 'MVN_entropy'))
+        self.plot_arr(self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm), vallabel='Entropy [bits]',
+                      filename=path.join(path1, 'GMM_entropy'))
+        self.plot_arr(self.results_mvn_marginal, arr_variance=np.sqrt(self.sqstd_mvn_marginal),
+                      vallabel='Entropy [bits]', filename=path.join(path1, 'MVN_entropy_marginal'))
+        self.plot_arr(self.results_gmm_marginal, arr_variance=np.sqrt(self.sqstd_gmm_marginal),
+                      vallabel='Entropy [bits]', filename=path.join(path1, 'GMM_entropy_marginal'))
+        self.plot_arr(self.priorentropy - self.results_mvn, arr_variance=np.sqrt(self.sqstd_mvn),
+                      vallabel='information gain [bits]', filename=path.join(path1, 'MVN_infocontent'), valmin=0,
+                      mark_maximum=mark_maximum)
+        self.plot_arr(self.priorentropy - self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm),
+                      vallabel='information gain [bits]', filename=path.join(path1, 'GMM_infocontent'), valmin=0,
+                      mark_maximum=mark_maximum)
+        self.plot_arr(self.priorentropy_marginal - self.results_mvn_marginal,
+                      arr_variance=np.sqrt(self.sqstd_mvn_marginal), vallabel='information gain [bits]',
+                      filename=path.join(path1, 'MVN_infocontent_marginal'), valmin=0, valmax=self.upper_info_plotlevel,
+                      mark_maximum=mark_maximum)
+        self.plot_arr(self.priorentropy_marginal - self.results_gmm_marginal,
+                      arr_variance=np.sqrt(self.sqstd_gmm_marginal), vallabel='information gain [bits]',
+                      filename=path.join(path1, 'GMM_infocontent_marginal'), valmin=0, valmax=self.upper_info_plotlevel,
+                      mark_maximum=mark_maximum)
+        self.plot_arr(self.n_mvn,  vallabel='computations', filename=path.join(path1, 'MVN_n'), valmin=0)
+        self.plot_arr(self.n_gmm,  vallabel='computations', filename=path.join(path1, 'GMM_n'), valmin=0)
+        self.plot_arr(self.n_mvn_marginal,  vallabel='computations', filename=path.join(path1, 'MVN_n_marginal'),
+                      valmin=0)
+        self.plot_arr(self.n_gmm_marginal,  vallabel='computations', filename=path.join(path1, 'GMM_n_marginal'),
+                      valmin=0)
+
+        for i, parname in enumerate(self.parlist):
+            self.plot_arr(self.par_median[i], arr_variance=self.par_std[i], vallabel=parname,
+                          filename=path.join(path1, 'Par_' + parname + '_median'))
+            self.plot_arr(self.par_std[i], arr_variance=None, vallabel=parname,
+                          filename=path.join(path1, 'Par_' + parname + '_std'))
+
+    def plot_arr(self, arr_value, arr_variance=None, filename='plot', mark_maximum=False, valmin=None, valmax=None,
+                 levels=20, niceticks=False, vallabel='z', support_points=None):
+        # onecolormaps = [plt.cm.Greys, plt.cm.Purples, plt.cm.Blues, plt.cm.Greens, plt.cm.Oranges, plt.cm.Reds]
         ec = plt.cm.coolwarm
 
         path1 = path.join(self.spath, 'plots')
 
-        if self.plotlimits_filename != '':
-            plotlimits = True
-            plotlim = pandas.read_csv(self.plotlimits_filename, sep="\s+", header=None)
-            plotlim.columns = ['name', 'value']
-
-            if not plotlim.loc[plotlim['name'] == 'info'].empty:
-                self.upper_info_plotlevel = float(plotlim.loc[plotlim['name'] == 'info']['value'])
-        else:
-            plotlimits = False
-            plotlim = None
-
-        if len(self.steplist) == 1:
+        if len(arr_value.shape) == 1:
             ax0 = self.axes[0]
             sp0 = self.steppar['unique_name'].tolist()[0]
-            save_plot_1d(ax0, self.results_mvn, np.sqrt(self.sqstd_mvn), sp0, 'Entropy [bits]',
-                         filename=path.join(path1, 'MVN_entropy'))
-            save_plot_1d(ax0, self.results_gmm, np.sqrt(self.sqstd_gmm), sp0, 'Entropy [bits]',
-                         filename=path.join(path1, 'GMM_entropy'))
-            save_plot_1d(ax0, self.results_mvn_marginal, np.sqrt(self.sqstd_mvn_marginal), sp0, 'Entropy [bits]',
-                         filename=path.join(path1, 'MVN_entropy_marginal'))
-            save_plot_1d(ax0, self.results_gmm_marginal, np.sqrt(self.sqstd_gmm_marginal), sp0, 'Entropy [bits]',
-                         filename=path.join(path1, 'GMM_entropy_marginal'))
-            save_plot_1d(ax0, self.priorentropy - self.results_mvn, np.sqrt(self.sqstd_mvn), sp0,
-                         'information gain [bits]', filename=path.join(path1, 'MVN_infocontent'), ymin=0)
-            save_plot_1d(ax0, self.priorentropy - self.results_gmm, np.sqrt(self.sqstd_gmm), sp0,
-                         'information gain [bits]', filename=path.join(path1, 'GMM_infocontent'), ymin=0)
-            save_plot_1d(ax0, self.priorentropy_marginal - self.results_mvn_marginal, np.sqrt(self.sqstd_mvn_marginal),
-                         sp0, 'information gain [bits]', filename=path.join(path1, 'MVN_infocontent_marginal'), ymin=0,
-                         ymax=self.upper_info_plotlevel)
-            save_plot_1d(ax0, self.priorentropy_marginal - self.results_gmm_marginal, np.sqrt(self.sqstd_gmm_marginal),
-                         sp0, 'information gain [bits]', filename=path.join(path1, 'GMM_infocontent_marginal'), ymin=0,
-                         ymax=self.upper_info_plotlevel)
-            save_plot_1d(ax0, self.n_mvn, None, sp0, 'computations', filename=path.join(path1, 'MVN_n'), ymin=0)
-            save_plot_1d(ax0, self.n_gmm, None, sp0, 'computations', filename=path.join(path1, 'GMM_n'), ymin=0)
-            save_plot_1d(ax0, self.n_mvn_marginal, None, sp0, 'computations',
-                         filename=path.join(path1, 'MVN_n_marginal'), ymin=0)
-            save_plot_1d(ax0, self.n_gmm_marginal, None, sp0, 'computations',
-                         filename=path.join(path1, 'GMM_n_marginal'), ymin=0)
+            if arr_variance is not None:
+                dy = np.sqrt(arr_variance)
+            else:
+                dy = None
+            save_plot_1d(ax0, arr_value, dy=dy, xlabel=sp0, ylabel=vallabel, filename=path.join(path1, filename),
+                         ymin=valmin, ymax=valmax, levels=levels, niceticks=niceticks, keep_plots=self.keep_plots)
 
-            i = 0
-            for parname in self.parlist:
-                save_plot_1d(ax0, self.par_median[i], self.par_std[i], sp0, parname,
-                             filename=path.join(path1, 'Par_' + parname + '_median'))
-                i += 1
-
-        elif len(self.steplist) == 2:
+        elif len(arr_value.shape) == 2:
             # numpy array and plot axes are reversed
             ax1 = self.axes[0]
             ax0 = self.axes[1]
             sp1 = self.steppar['unique_name'].tolist()[0]
             sp0 = self.steppar['unique_name'].tolist()[1]
+            save_plot_2d(ax0, ax1, arr_value, xlabel=sp0, ylabel=sp1, color=ec,
+                         filename=path.join(path1, filename), zmin=valmin, zmax=valmax, levels=levels,
+                         mark_maximum=mark_maximum, keep_plots=self.keep_plots, support_points=support_points)
 
-            save_plot_2d(ax0, ax1, self.results_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_entropy'))
-            save_plot_2d(ax0, ax1, self.results_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_entropy'))
-            save_plot_2d(ax0, ax1, self.results_mvn_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_entropy_marginal'))
-            save_plot_2d(ax0, ax1, self.results_gmm_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_entropy_marginal'))
-            save_plot_2d(ax0, ax1, self.priorentropy - self.results_mvn, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_infocontent'), zmin=0, mark_maximum=mark_maximum)
-            save_plot_2d(ax0, ax1, self.priorentropy - self.results_gmm, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_infocontent'), zmin=0, mark_maximum=mark_maximum)
-            save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_mvn_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel
-                         , mark_maximum=mark_maximum)
-            save_plot_2d(ax0, ax1, self.priorentropy_marginal - self.results_gmm_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_infocontent_marginal'), zmin=0, zmax=self.upper_info_plotlevel
-                         , mark_maximum=mark_maximum)
-            save_plot_2d(ax0, ax1, self.prediction_gpcam, sp0, sp1, ec, filename=path.join(path1, 'Prediction_gpcam'),
-                         zmin=0, zmax=self.upper_info_plotlevel, mark_maximum=mark_maximum)
-            save_plot_2d(ax0, ax1, self.sqstd_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_sqstd'), zmin=0)
-            save_plot_2d(ax0, ax1, self.sqstd_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_sqstd'), zmin=0)
-            save_plot_2d(ax0, ax1, self.sqstd_mvn_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'MVN_sqstd_marginal'), zmin=0)
-            save_plot_2d(ax0, ax1, self.sqstd_gmm_marginal, sp0, sp1, ec,
-                         filename=path.join(path1, 'GMM_sqstd_marginal'), zmin=0)
-            save_plot_2d(ax0, ax1, self.n_mvn, sp0, sp1, ec, filename=path.join(path1, 'MVN_n'), zmin=0)
-            save_plot_2d(ax0, ax1, self.n_gmm, sp0, sp1, ec, filename=path.join(path1, 'GMM_n'), zmin=0)
-            save_plot_2d(ax0, ax1, self.n_mvn_marginal, sp0, sp1, ec, filename=path.join(path1, 'MVN_n_marginal'),
-                         zmin=0)
-            save_plot_2d(ax0, ax1, self.n_gmm_marginal, sp0, sp1, ec, filename=path.join(path1, 'GMM_n_marginal'),
-                         zmin=0)
-
-            i = 0
-            j = 0
-            for parname in self.parlist:
-                if plotlimits and not plotlim.loc[plotlim['name'] == parname].empty:
-                    zmax = float(plotlim.loc[plotlim['name'] == parname]['value'])
-                else:
-                    zmax = None
-                save_plot_2d(ax0, ax1, self.par_median[i], sp0, sp1, onecolormaps[j],
-                             filename=path.join(path1, 'Par_' + parname + '_median'))
-                save_plot_2d(ax0, ax1, self.par_std[i], sp0, sp1, onecolormaps[j],
-                             filename=path.join(path1, 'Par_' + parname + '_std'), zmin=0, zmax=zmax)
-                i += 1
-                j += 1
-                if j == len(onecolormaps):
-                    j = 0
-
-        elif len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
+        elif len(arr_value.shape) == 3 and arr_value.shape[0] < 6:
             ax2 = self.axes[1]
             ax1 = self.axes[2]
             sp2 = self.steppar['unique_name'].tolist()[1]
             sp1 = self.steppar['unique_name'].tolist()[2]
-            for slice in range(self.results_gmm.shape[0]):
-                save_plot_2d(ax1, ax2, self.results_mvn[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_entropy_' + str(slice)))
-                save_plot_2d(ax1, ax2, self.results_gmm[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_entropy_' + str(slice)))
-                save_plot_2d(ax1, ax2, self.results_gmm_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_entropy_marginal_' + str(slice)))
-                save_plot_2d(ax1, ax2, self.results_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_entropy_marginal_' + str(slice)))
-                save_plot_2d(ax1, ax2, self.priorentropy - self.results_mvn[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_infocontent_' + str(slice)), zmin=0,
-                             mark_maximum=mark_maximum)
-                save_plot_2d(ax1, ax2, self.priorentropy - self.results_gmm[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_infocontent_' + str(slice)), zmin=0,
-                             mark_maximum=mark_maximum)
-                save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_mvn_marginal[slice], sp1, sp2,
-                             ec, filename=path.join(path1, 'MVN_infocontent_marginal_' + str(slice)), zmin=0,
-                             mark_maximum=mark_maximum)
-                save_plot_2d(ax1, ax2, self.priorentropy_marginal - self.results_gmm_marginal[slice], sp1, sp2,
-                             ec, filename=path.join(path1, 'GMM_infocontent_marginal_' + str(slice)), zmin=0,
-                             mark_maximum=mark_maximum)
-                save_plot_2d(ax1, ax2, self.sqstd_mvn[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_sqstd_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.sqstd_gmm[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_sqstd_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.sqstd_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_sqstd_marginal_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.sqstd_gmm_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_sqstd_marginal_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.n_mvn[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_n_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.n_gmm[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_n_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.n_mvn_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'MVN_n_marginal_' + str(slice)), zmin=0)
-                save_plot_2d(ax1, ax2, self.n_gmm_marginal[slice], sp1, sp2, ec,
-                             filename=path.join(path1, 'GMM_n_marginal_' + str(slice)), zmin=0)
+            for slice_n in range(arr_value.shape[0]):
+                save_plot_2d(ax1, ax2, arr_value[slice_n], xlabel=sp1, ylabel=sp2, color=ec,
+                             filename=path.join(path1, filename+'_'+str(slice_n)), zmin=valmin, zmax=valmax,
+                             levels=levels, mark_maximum=mark_maximum, keep_plots=self.keep_plots)
 
-        if len(self.steplist) >= 3:
+        if len(arr_value.shape) >= 3:
             # plot projections onto two parameters at a time
             for i in range(len(self.steppar)):
                 for j in range(i):
@@ -623,21 +595,20 @@ class Entropy:
                     ax1 = self.axes[j]
                     sp2 = self.steppar['unique_name'].tolist()[i]
                     sp1 = self.steppar['unique_name'].tolist()[j]
-                    projection_gmm_marginal = np.empty((self.steplist[i], self.steplist[j]))
-                    projection_gpcam_prediction = np.empty((self.steplist[i], self.steplist[j]))
+                    projection = np.empty((self.steplist[i], self.steplist[j]))
                     for k in range(self.steplist[i]):
-                        for l in range(self.steplist[j]):
-                            projection_gmm_marginal[k, l] = np.take(np.take(self.priorentropy_marginal -
-                                                                            self.results_gmm_marginal, indices=k,
-                                                                            axis=i), indices=l, axis=j).max()
-                            projection_gpcam_prediction[k, l] = np.take(np.take(self.prediction_gpcam, indices=k,
-                                                                            axis=i), indices=l, axis=j).max()
-                    save_plot_2d(ax1, ax2, projection_gmm_marginal, sp1, sp2, ec,
-                                 filename=path.join(path1, 'GMM_n_marginal_projection' + sp1 + '_' + sp2), zmin=0,
-                                 mark_maximum=mark_maximum)
-                    save_plot_2d(ax1, ax2, projection_gpcam_prediction, sp1, sp2, ec,
-                                 filename=path.join(path1, 'gpCAM_prediction_projection' + sp1 + '_' + sp2), zmin=0,
-                                 mark_maximum=mark_maximum)
+                        for ll in range(self.steplist[j]):
+                            projection[k, ll] = np.take(np.take(arr_value, indices=k, axis=i), indices=ll, axis=j).max()
+                    save_plot_2d(ax1, ax2, projection, xlabel=sp1, ylabel=sp2, color=ec,
+                                 filename=path.join(path1, filename+'_'+sp1+'_'+sp2), zmin=valmin, zmax=valmax,
+                                 levels=levels, mark_maximum=mark_maximum, keep_plots=self.keep_plots)
+
+    def save_results_gpcam(self, dirname):
+        path1 = path.join(dirname, 'results')
+        if not path.isdir(path1):
+            mkdir(path1)
+        with open(path.join(self.spath, 'results', 'gpCAMstream.pkl'), 'wb') as file:
+            pickle.dump(self.gpCAMstream, file)
 
     def save_results(self, dirname):
         path1 = path.join(dirname, 'results')
@@ -653,7 +624,6 @@ class Entropy:
                 allow_pickle=False)
         np.save(path.join(path1, 'MVN_infocontent_marginal'), self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
-        np.save(path.join(path1, 'Prediction_gpcam'), self.prediction_gpcam, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd'), self.sqstd_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_sqstd'), self.sqstd_mvn, allow_pickle=False)
         np.save(path.join(path1, 'GMM_sqstd_marginal'), self.sqstd_gmm_marginal, allow_pickle=False)
@@ -667,25 +637,24 @@ class Entropy:
 
         # save to txt when not more than two-dimensional array
         if len(self.steplist) <= 2:
-            np.savetxt(path.join(path1, 'MVN_entropy.txt'), self.results_mvn)
-            np.savetxt(path.join(path1, 'GMM_entropy.txt'), self.results_gmm)
-            np.savetxt(path.join(path1, 'MVN_entropy_marginal.txt'), self.results_mvn_marginal)
-            np.savetxt(path.join(path1, 'GMM_entropy_marginal.txt'), self.results_gmm_marginal)
+            np.savetxt(path.join(path1, 'MVN_entropy.txt'), self.results_mvn - 0)
+            np.savetxt(path.join(path1, 'GMM_entropy.txt'), self.results_gmm - 0)
+            np.savetxt(path.join(path1, 'MVN_entropy_marginal.txt'), self.results_mvn_marginal - 0)
+            np.savetxt(path.join(path1, 'GMM_entropy_marginal.txt'), self.results_gmm_marginal - 0)
             np.savetxt(path.join(path1, 'MVN_infocontent.txt'), self.priorentropy - self.results_mvn)
             np.savetxt(path.join(path1, 'GMM_infocontent.txt'), self.priorentropy - self.results_gmm)
             np.savetxt(path.join(path1, 'MVN_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_mvn_marginal)
             np.savetxt(path.join(path1, 'GMM_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_gmm_marginal)
-            np.savetxt(path.join(path1, 'Prediction_gpcam.txt'), self.prediction_gpcam)
-            np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn)
-            np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm)
-            np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal)
-            np.savetxt(path.join(path1, 'GMM_sqstd_marginal.txt'), self.sqstd_gmm_marginal)
-            np.savetxt(path.join(path1, 'MVN_n.txt'), self.n_mvn)
-            np.savetxt(path.join(path1, 'GMM_n.txt'), self.n_gmm)
-            np.savetxt(path.join(path1, 'MVN_n_marginal.txt'), self.n_mvn_marginal)
-            np.savetxt(path.join(path1, 'GMM_n_marginal.txt'), self.n_gmm_marginal)
+            np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn - 0)
+            np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm - 0)
+            np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal - 0)
+            np.savetxt(path.join(path1, 'GMM_sqstd_marginal.txt'), self.sqstd_gmm_marginal - 0)
+            np.savetxt(path.join(path1, 'MVN_n.txt'), self.n_mvn - 0)
+            np.savetxt(path.join(path1, 'GMM_n.txt'), self.n_gmm - 0)
+            np.savetxt(path.join(path1, 'MVN_n_marginal.txt'), self.n_mvn_marginal - 0)
+            np.savetxt(path.join(path1, 'GMM_n_marginal.txt'), self.n_gmm_marginal - 0)
             i = 0
             for parname in self.parlist:
                 np.savetxt(path.join(path1, 'Par_' + parname + '_median.txt'), self.par_median[i])
@@ -694,31 +663,31 @@ class Entropy:
 
         # save three-dimensional array in slices of the first parameter
         if len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
-            for slice in range(self.results_gmm.shape[0]):
-                np.savetxt(path.join(path1, 'MVN_entropy_' + str(slice) + '.txt'), self.results_mvn[slice])
-                np.savetxt(path.join(path1, 'GMM_entropy_' + str(slice) + '.txt'), self.results_gmm[slice])
-                np.savetxt(path.join(path1, 'MVN_entropy_marginal_' + str(slice) + '.txt'),
+            for sl in range(self.results_gmm.shape[0]):
+                np.savetxt(path.join(path1, 'MVN_entropy_' + str(sl) + '.txt'), self.results_mvn[sl])
+                np.savetxt(path.join(path1, 'GMM_entropy_' + str(sl) + '.txt'), self.results_gmm[sl])
+                np.savetxt(path.join(path1, 'MVN_entropy_marginal_' + str(sl) + '.txt'),
                            self.results_mvn_marginal[slice])
-                np.savetxt(path.join(path1, 'GMM_entropy_marginal_' + str(slice) + '.txt'),
-                           self.results_gmm_marginal[slice])
-                np.savetxt(path.join(path1, 'MVN_infocontent_' + str(slice) + '.txt'), self.priorentropy -
-                           self.results_mvn[slice])
-                np.savetxt(path.join(path1, 'GMM_infocontent_' + str(slice) + '.txt'), self.priorentropy -
-                           self.results_gmm[slice])
-                np.savetxt(path.join(path1, 'MVN_infocontent_marginal_' + str(slice) + '.txt'),
-                           self.priorentropy_marginal - self.results_mvn_marginal[slice])
-                np.savetxt(path.join(path1, 'GMM_infocontent_marginal_' + str(slice) + '.txt'),
-                           self.priorentropy_marginal - self.results_gmm_marginal[slice])
-                np.savetxt(path.join(path1, 'MVN_sqstd_' + str(slice) + '.txt'), self.sqstd_mvn[slice])
-                np.savetxt(path.join(path1, 'GMM_sqstd_' + str(slice) + '.txt'), self.sqstd_gmm[slice])
-                np.savetxt(path.join(path1, 'MVN_sqstd_marginal_' + str(slice) + '.txt'),
-                           self.sqstd_mvn_marginal[slice])
-                np.savetxt(path.join(path1, 'GMM_sqstd_marginal_' + str(slice) + '.txt'),
-                           self.sqstd_gmm_marginal[slice])
-                np.savetxt(path.join(path1, 'MVN_n_' + str(slice) + '.txt'), self.n_mvn[slice])
-                np.savetxt(path.join(path1, 'GMM_n_' + str(slice) + '.txt'), self.n_gmm[slice])
-                np.savetxt(path.join(path1, 'MVN_n_marginal_' + str(slice) + '.txt'), self.n_mvn_marginal[slice])
-                np.savetxt(path.join(path1, 'GMM_n_marginal_' + str(slice) + '.txt'), self.n_gmm_marginal[slice])
+                np.savetxt(path.join(path1, 'GMM_entropy_marginal_' + str(sl) + '.txt'),
+                           self.results_gmm_marginal[sl])
+                np.savetxt(path.join(path1, 'MVN_infocontent_' + str(sl) + '.txt'), self.priorentropy -
+                           self.results_mvn[sl])
+                np.savetxt(path.join(path1, 'GMM_infocontent_' + str(sl) + '.txt'), self.priorentropy -
+                           self.results_gmm[sl])
+                np.savetxt(path.join(path1, 'MVN_infocontent_marginal_' + str(sl) + '.txt'),
+                           self.priorentropy_marginal - self.results_mvn_marginal[sl])
+                np.savetxt(path.join(path1, 'GMM_infocontent_marginal_' + str(sl) + '.txt'),
+                           self.priorentropy_marginal - self.results_gmm_marginal[sl])
+                np.savetxt(path.join(path1, 'MVN_sqstd_' + str(sl) + '.txt'), self.sqstd_mvn[sl])
+                np.savetxt(path.join(path1, 'GMM_sqstd_' + str(sl) + '.txt'), self.sqstd_gmm[sl])
+                np.savetxt(path.join(path1, 'MVN_sqstd_marginal_' + str(sl) + '.txt'),
+                           self.sqstd_mvn_marginal[sl])
+                np.savetxt(path.join(path1, 'GMM_sqstd_marginal_' + str(sl) + '.txt'),
+                           self.sqstd_gmm_marginal[sl])
+                np.savetxt(path.join(path1, 'MVN_n_' + str(sl) + '.txt'), self.n_mvn[sl])
+                np.savetxt(path.join(path1, 'GMM_n_' + str(sl) + '.txt'), self.n_gmm[sl])
+                np.savetxt(path.join(path1, 'MVN_n_marginal_' + str(sl) + '.txt'), self.n_mvn_marginal[sl])
+                np.savetxt(path.join(path1, 'GMM_n_marginal_' + str(sl) + '.txt'), self.n_gmm_marginal[sl])
 
     def waitforjob(self, bFinish=False):
         # finish flag means that parent is waiting for all jobs to finish and not because of a too long
@@ -739,11 +708,229 @@ class Entropy:
                 sleep(60)
         return
 
-    def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None, optimizer='grid',
-                         jupyter_clear_output=False, gpcam_iterations=50, retrain_async_at=(15, 30)):
+    def run_optimization(self, qmin=None, qmax=None, qrangefromfile=False, t_total=None,
+                         jupyter_clear_output=False, gpcam_iterations=50, gpcam_init_dataset_size=20, gpcam_step=None,
+                         acq_func="variance"):
 
-        def writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median, points_std,
-                            parnames):
+        def calc_entropy_for_iteration(molstat_iter, itindex=None):
+            # Calculate Entropy n times and average
+            mvn_entropy = []
+            gmm_entropy = []
+            mvn_entropy_marginal = []
+            gmm_entropy_marginal = []
+            points_median = []
+            points_std = []
+            parnames = []
+
+            # GMM and MVN are much more stable than KVN. Averaging over several calculations appears
+            # not to be necessary
+            for j in range(1):  # was 10
+                # calculate entropy, dependent parameters == parameters of interest
+                # independent parameters == nuisance parameters
+                a, b, c, d, points_median, points_std, parnames = self.calc_entropy(molstat_iter)
+                mvn_entropy.append(a)
+                gmm_entropy.append(b)
+                mvn_entropy_marginal.append(c)
+                gmm_entropy_marginal.append(d)
+
+            # remove outliers and average calculated entropies, don't average over parameter stats
+            avg_mvn, std_mvn = average(mvn_entropy)
+            avg_gmm, std_gmm = average(gmm_entropy)
+            avg_mvn_marginal, std_mvn_marginal = average(mvn_entropy_marginal)
+            avg_gmm_marginal, std_gmm_marginal = average(gmm_entropy_marginal)
+
+            bValidResult = (std_gmm < self.convergence) and \
+                           (self.priorentropy_marginal - avg_gmm_marginal > (-0.5) * len(
+                               self.dependent_parameters)) and \
+                           (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
+
+            # no special treatment for first entry necessary, algorithm catches this
+            if itindex is not None:
+                if bValidResult:
+                    gridsearch_writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
+                                    points_std, parnames)
+                # save results for every iteration
+                self.save_results(self.spath)
+
+            return avg_gmm_marginal
+
+        def gpcam_instrument(data, Test=False):
+            print("This is the current length of the data received by gpCAM: ", len(data))
+            print("Suggested by gpCAM: ", data)
+            for entry in data:
+                if Test:
+                    # value = np.sin(np.linalg.norm(entry["position"]))
+                    # value = np.array(entry['position']).sum() / 1000
+                    value = (entry['position'][0] - entry['position'][1]) ** 2
+                    time0 = entry['position'][2]
+                    time1 = entry['position'][3]
+                    time2 = entry['position'][4]
+                    tf = 14400 / (time0 + time1 + time2)
+                    value += np.log10(time0 * tf) * 0.5
+                    value += np.log10(time1 * tf) * 1.5
+                    value += np.log10(time2 * tf) * 1
+                    entry['value'] = value
+                    print('Value: ', entry['value'])
+                    variance = None  # 0.01 * np.abs(entry['value'])
+                    entry['variance'] = variance
+                else:
+                    marginal_entropy = gridsearch_work_on_index(position=entry['position'],
+                                                                gpiteration=self.gpiteration)
+                    value = self.priorentropy_marginal - marginal_entropy
+                    variance = None
+                    entry["value"] = value
+                    entry['variance'] = variance
+                    # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
+
+                self.gpCAMstream['position'].append(entry['position'])
+                self.gpCAMstream['value'].append(value)
+                self.gpCAMstream['variance'].append(variance)
+                self.save_results_gpcam(self.spath)
+                self.gpiteration += 1
+
+            return data
+
+        def gpcam_prediction(my_ae):
+            # create a flattened array of all positions to be evaluated, maximize the use of numpy
+            prediction_positions = np.array(self.axes[0])
+            for i in range(1, len(self.axes)):
+                a = np.array([prediction_positions] * len(self.axes[i]))
+                # transpose the first two axes of a only
+                newshape = np.linspace(0, len(a.shape)-1, len(a.shape), dtype=int)
+                newshape[0] = 1
+                newshape[1] = 0
+                a = np.transpose(a, newshape)
+                b = np.array([self.axes[i]] * prediction_positions.shape[0])
+                prediction_positions = np.dstack((a, b))
+                # now flatten the first two dimensions
+                newshape = list(prediction_positions.shape[1:])
+                newshape[0] = newshape[0] * prediction_positions.shape[0]
+                newshape = tuple(newshape)
+                prediction_positions = np.reshape(prediction_positions, newshape)
+
+            res = my_ae.gp_optimizer.posterior_mean(prediction_positions)
+            f = res["f(x)"]
+            self.prediction_gpcam = f.reshape(self.steplist)
+
+            path1 = path.join(self.spath, 'plots')
+            if not path.isdir(path1):
+                mkdir(path1)
+            # self.plot_arr(self.prediction_gpcam, filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True)
+
+            if self.show_support_points:
+                support_points = np.array(self.gpCAMstream['position'])
+            else:
+                support_points = None
+
+            self.plot_arr(self.prediction_gpcam,
+                          filename=path.join(path1, 'prediction_gpcam'), mark_maximum=True,
+                          support_points=support_points)
+
+        def gridsearch_iterate_over_all_indices(refinement=False):
+            bWorkedOnIndex = False
+            # the complicated iteration syntax is due the unknown dimensionality of the results space / arrays
+            it = np.nditer(self.results_gmm, flags=['multi_index'])
+            while not it.finished:
+                itindex = it.multi_index
+                # parameter grids can be symmetric, and only one of the symmetry-related indices
+                # will be calculated unless calc_symmetric is True
+                if all(itindex[i] <= itindex[i + 1] for i in range(len(itindex) - 1)) or self.calc_symmetric:
+                    # run MCMC if it is first time or the value in results is inf
+                    invalid_result = np.isinf(self.results_gmm[itindex]) or fabs(self.results_gmm[itindex]) > 10000
+                    insufficient_iterations = self.n_mvn[itindex] < self.miniter
+
+                    outlier = False
+                    if refinement:
+                        # during refinement, check whether the GMM value follows that of the MVN with respect to its
+                        # nearest neighbors, implemented convolution because of ill-defined origin of scipy convolute
+                        conv_MVN = convolute(self.results_mvn)
+                        conv_GMM = convolute(self.results_gmm)
+                        dMVN = conv_MVN[itindex] - self.results_mvn[itindex]
+                        dGMM = conv_GMM[itindex] - self.results_gmm[itindex]
+                        if fabs(dMVN - dGMM) > self.convergence:
+                            outlier = True
+
+                    # Do we need to work on this particular index?
+                    if outlier or invalid_result or insufficient_iterations or self.bFetchMode:
+                        bWorkedOnIndex = True
+                        _ = gridsearch_work_on_index(it=it)
+
+                it.iternext()
+            return bWorkedOnIndex
+
+        def gridsearch_work_on_index(it=None, position=None, gpiteration=None):
+
+            if it is not None:
+                # grid mode, calculate which iteration we are on from itindex
+                # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
+                # be used independently of iterate_over_all_indices
+                itindex = it.multi_index
+                if self.calc_symmetric:
+                    iteration = it.iterindex
+                else:
+                    # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
+                    it2 = np.nditer(self.results_gmm, flags=['multi_index'])
+                    iteration = 0
+                    while not it2.finished:
+                        itindex2 = it2.multi_index
+                        if all(itindex2[i] <= itindex2[i + 1] for i in range(len(itindex2) - 1)):
+                            # iterations are only increased if this index is not dropped because of symmetry
+                            iteration += 1
+                        it2.iternext()
+            else:
+                # gpcam mode
+                iteration = gpiteration
+                itindex = None
+
+            dirname = 'iteration_' + str(iteration)
+            fulldirname = path.join(self.spath, dirname)
+            path1 = path.join(fulldirname, 'save')
+            chainname = path.join(path1, self.runfile+'-chain.mc')
+
+            # most relevant result for a particular index to return for general use of this function
+            avg_gmm_marginal = 0
+
+            # fetch mode and cluster mode are exclusive
+            if not self.bFetchMode:
+                # run a new fit, preparations are done in the root directory and the new fit is copied into the
+                # iteration directory, preparations in the iterations directory are not possible, because it would
+                # be lacking a result directory, which is needed for restoring a state/parameters
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile, load_state=False)
+                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
+                configurations = set_sim_pars_for_iteration(it, position)
+                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=qmin, qmax=qmax,
+                                            qrangefromfile=qrangefromfile, t_total=t_total)
+                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                # previous save needs to be removed as output serves as flag for HPC job termination
+                if path.isdir(path1):
+                    shutil.rmtree(path1)
+                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
+                self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
+
+            # Do not run entropy calculation when on cluster.
+            bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')
+            if not self.bClusterMode and bPriorResultExists:
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile)
+                avg_gmm_marginal = calc_entropy_for_iteration(molstat_iter, itindex)
+
+            # delete big files except in Cluster mode. They are needed there for future fetching
+            if self.deldir and not self.bClusterMode:
+                rm_file(path.join(path1, self.runfile+'-point.mc'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc'))
+                rm_file(path.join(path1, self.runfile+'-point.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
+                rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
+
+            if jupyter_clear_output:
+                clear_output(wait=True)
+
+            return avg_gmm_marginal
+
+        def gridsearch_writeout_result(_itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
+                                       points_std, parnames):
             # writes out entropy and parameter results into numpy arrays
             if not self.calc_symmetric:
                 # since symmetry-related points in the optimization were not calculated twice, the current
@@ -791,49 +978,7 @@ class Entropy:
                 self.sqstd_gmm_marginal[index] = running_sqstd(self.sqstd_gmm_marginal[index], n, avg_gmm_marginal,
                                                                old_gmm_marginal, self.results_gmm_marginal[index])
 
-        def calc_entropy_for_index(molstat_iter, itindex):
-            # Calculate Entropy n times and average
-            mvn_entropy = []
-            gmm_entropy = []
-            mvn_entropy_marginal = []
-            gmm_entropy_marginal = []
-            points_median = []
-            points_std = []
-            parnames = []
-
-            # GMM and MVN are much more stable than KVN. Averaging over several calculations appears
-            # not to be necessary
-            for j in range(1):  # was 10
-                # calculate entropy, dependent parameters == parameters of interest
-                # independent parameters == nuisance parameters
-                a, b, c, d, points_median, points_std, parnames = self.calc_entropy(molstat_iter)
-                mvn_entropy.append(a)
-                gmm_entropy.append(b)
-                mvn_entropy_marginal.append(c)
-                gmm_entropy_marginal.append(d)
-
-            # remove outliers and average calculated entropies, don't average over parameter stats
-            avg_mvn, std_mvn = average(mvn_entropy)
-            avg_gmm, std_gmm = average(gmm_entropy)
-            avg_mvn_marginal, std_mvn_marginal = average(mvn_entropy_marginal)
-            avg_gmm_marginal, std_gmm_marginal = average(gmm_entropy_marginal)
-
-            bValidResult = (std_gmm < self.convergence) and \
-                           (self.priorentropy_marginal - avg_gmm_marginal > (-0.5) * len(
-                               self.dependent_parameters)) and \
-                           (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
-
-            # no special treatment for first entry necessary, algorithm catches this
-            if bValidResult:
-                writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal, points_median,
-                                points_std, parnames)
-
-            # save results for every iteration and delete large files
-            self.save_results(self.spath)
-
-            return avg_gmm_marginal
-
-        def set_sim_pars_for_index(it):
+        def set_sim_pars_for_iteration(it=None, position=None):
             def _str2int(st):
                 if st == '*':
                     i = 0
@@ -900,9 +1045,14 @@ class Entropy:
                     value = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'value'].iloc[0]
                     lfit = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'l_fit'].iloc[0]
                     ufit = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'u_fit'].iloc[0]
-                    # TODO: Here we might implicitly assume an order. Check and resolve.
-                    simvalue = lsim + stepsim * it.multi_index[isim]
-                    # print(self.steppar['unique_name'], '  ', simvalue, '\n')
+
+                    if it is not None:
+                        # grid mode, calculate value from evaluation grid and index
+                        simvalue = lsim + stepsim * it.multi_index[isim]
+                        # print(self.steppar['unique_name'], '  ', simvalue, '\n')
+                    else:
+                        # gpcam mode, use position suggested by gpcam
+                        simvalue = position[isim]
 
                     if row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
                         if row.type == 'fd' or row.type == 'fi':
@@ -938,7 +1088,7 @@ class Entropy:
                     # must be instrument parameter
                     configurations = _fill_config(configurations, row.par, row.value, row.dataset, row.configuration)
 
-                if (row.dataset != 'n') and (row.dataset != '_') and ('b' not in row.dataset):
+                if (row.type != 'n') and (row.dataset != '_') and ('b' not in row.dataset):
                     # this is a parameter that will determine one or more isotropic backgrounds
                     configurations = _set_background(configurations, row.dataset, row.configuration, row.value)
 
@@ -946,110 +1096,15 @@ class Entropy:
             simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
             return configurations
 
-        def work_on_index(it):
-            # Recover itindex from 'it'. This is not an argument to the function anymore, as work_on_index might
-            # be used independently of iterate_over_all_indices
-            itindex = it.multi_index
-
-            # calculate which iteration we are on from itindex
-            if self.calc_symmetric:
-                iteration = it.iterindex
-            else:
-                # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
-                it2 = np.nditer(self.results_gmm, flags=['multi_index'])
-                iteration = 0
-                while not it2.finished:
-                    itindex2 = it2.multi_index
-                    if all(itindex2[i] <= itindex2[i + 1] for i in range(len(itindex2) - 1)):
-                        # iterations are only increased if this index is not dropped because of symmetry
-                        iteration += 1
-                    it2.iternext()
-
-            dirname = 'iteration_' + str(iteration)
-            fulldirname = path.join(self.spath, dirname)
-            path1 = path.join(fulldirname, 'save')
-            chainname = path.join(path1, self.runfile+'-chain.mc')
-
-            # most relevant result for a particular index to return for general use of this function
-            avg_gmm_marginal = 0
-
-            # fetch mode and cluster mode are exclusive
-            if not self.bFetchMode:
-                # run a new fit, preparations are done in the root directory and the new fit is copied into the
-                # iteration directory, preparations in the iterations directory are not possible, because it would
-                # be lacking a result directory, which is needed for restoring a state/parameters
-                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                                runfile=self.runfile, load_state=False)
-                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
-                configurations = set_sim_pars_for_index(it)
-                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=qmin, qmax=qmax,
-                                            qrangefromfile=qrangefromfile, t_total=t_total)
-                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
-                # previous save needs to be removed as output serves as flag for HPC job termination
-                if path.isdir(path1):
-                    shutil.rmtree(path1)
-                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
-                self.runmcmc(molstat_iter, iteration, dirname, fulldirname)
-
-            # Do not run entropy calculation when on cluster.
-            bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')
-            if not self.bClusterMode and bPriorResultExists:
-                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                                runfile=self.runfile)
-                avg_gmm_marginal = calc_entropy_for_index(molstat_iter, itindex)
-
-            # delete big files except in Cluster mode. They are needed there for future fetching
-            if self.deldir and not self.bClusterMode:
-                rm_file(path.join(path1, self.runfile+'-point.mc'))
-                rm_file(path.join(path1, self.runfile+'-chain.mc'))
-                rm_file(path.join(path1, self.runfile+'-stats.mc'))
-                rm_file(path.join(path1, self.runfile+'-point.mc.gz'))
-                rm_file(path.join(path1, self.runfile+'-chain.mc.gz'))
-                rm_file(path.join(path1, self.runfile+'-stats.mc.gz'))
-
-            if jupyter_clear_output:
-                clear_output(wait=True)
-
-            return avg_gmm_marginal
-
-        def iterate_over_all_indices(refinement=False):
-            bWorkedOnIndex = False
-            # the complicated iteration syntax is due the unknown dimensionality of the results space / arrays
-            it = np.nditer(self.results_gmm, flags=['multi_index'])
-            while not it.finished:
-                itindex = it.multi_index
-                # parameter grids can be symmetric, and only one of the symmetry-related indices
-                # will be calculated unless calc_symmetric is True
-                if all(itindex[i] <= itindex[i + 1] for i in range(len(itindex) - 1)) or self.calc_symmetric:
-                    # run MCMC if it is first time or the value in results is inf
-                    invalid_result = np.isinf(self.results_gmm[itindex]) or fabs(self.results_gmm[itindex]) > 10000
-                    insufficient_iterations = self.n_mvn[itindex] < self.miniter
-
-                    outlier = False
-                    if refinement:
-                        # during refinement, check whether the GMM value follows that of the MVN with respect to its
-                        # nearest neighbors, implemented convolution because of ill-defined origin of scipy convolute
-                        conv_MVN = convolute(self.results_mvn)
-                        conv_GMM = convolute(self.results_gmm)
-                        dMVN = conv_MVN[itindex] - self.results_mvn[itindex]
-                        dGMM = conv_GMM[itindex] - self.results_gmm[itindex]
-                        if fabs(dMVN - dGMM) > self.convergence:
-                            outlier = True
-
-                    # Do we need to work on this particular index?
-                    if outlier or invalid_result or insufficient_iterations or self.bFetchMode:
-                        bWorkedOnIndex = True
-                        _ = work_on_index(it)
-
-                it.iternext()
-            return bWorkedOnIndex
-
-        if optimizer == 'grid':
+        # ------------------------------------------------
+        # run_optimization main starting here
+        # ------------------------------------------------
+        if self.optimizer == 'grid':
             # Grid search
             # every index has at least one result before re-analyzing any data point (refinement)
             bRefinement = False
             while True:
-                bWorkedOnAnyIndex = iterate_over_all_indices(bRefinement)
+                bWorkedOnAnyIndex = gridsearch_iterate_over_all_indices(bRefinement)
                 if not bWorkedOnAnyIndex:
                     if not bRefinement:
                         # all indices have the minimum number of iterations -> start refinement
@@ -1067,40 +1122,10 @@ class Entropy:
                 while self.joblist:
                     self.waitforjob(bFinish=True)
 
-        elif optimizer == 'gpCAM' or optimizer == 'gpcam':
+        elif self.optimizer == 'gpCAM' or self.optimizer == 'gpcam':
             # Using the gpCAM global optimizer
             # follows the example from the gpCAM website
             from gpcam.autonomous_experimenter import AutonomousExperimenterGP
-
-            def instrument(data):
-                print("This is the current length of the data received by gpCAM: ", len(data))
-                for entry in data:
-                    # convert position into grid indices
-                    position_index = []
-                    for ax in range(len(self.axes)):
-                        list1 = [np.array(self.axes[ax]) - entry['position'][ax]]
-                        arr1 = np.array(list1)
-                        arr1 = np.abs(arr1)
-                        position_index.append(np.argmin(arr1))
-                    # convert grid indices into iterator
-                    # TODO: There must be a more effient way to set an iterator by an index
-                    it = np.nditer(self.results_gmm, flags=['multi_index'])
-                    while True:
-                        if np.array_equal(it.multi_index, position_index):
-                            break
-                        it.iternext()
-                    # We constrain ourselves to the initial grid, but we do not let gpCAM know (might change in future)
-                    # entry["position"] = position_index
-                    _ = work_on_index(it)
-                    entry["value"] = self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index]
-                    var = self.sqstd_gmm_marginal[it.multi_index]
-                    if var > 0:
-                        entry['variance'] = var
-                    else:
-                        entry['variance'] = 1
-                    # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
-                    self.plot_results(mark_maximum=True)
-                return data
 
             # initialization
             # feel free to try different acquisition functions, e.g. optional_acq_func, "covariance", "shannon_ig"
@@ -1112,88 +1137,83 @@ class Entropy:
             parlimits = np.array(parlimits)
             numpars = len(parlimits)
 
-            it = np.nditer(self.results_gmm_marginal, flags=['multi_index'])
-            x = []
-            y = []
-            v = []
-            while not it.finished:
-                if (self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index]) != 0.:
-                    position = []
-                    for i in range(len(self.axes)):
-                        position.append(self.axes[i][it.multi_index[i]])
-                    x.append(position)
-                    y.append(self.priorentropy_marginal - self.results_gmm_marginal[it.multi_index])
-                    if self.sqstd_gmm_marginal[it.multi_index] > 0:
-                        v.append(self.sqstd_gmm_marginal[it.multi_index])
-                    else:
-                        v.append(1.0)
-                it.iternext()
+            x = self.gpCAMstream['position']
+            y = self.gpCAMstream['value']
+            v = self.gpCAMstream['variance']
 
-            if len(x) > 10:
+            if len(x) >= gpcam_init_dataset_size:
                 x = np.array(x)
                 y = np.array(y)
                 v = np.array(v)
+                self.gpiteration = len(x)
+                bFirstEval = False
             else:
                 x = None
                 y = None
                 v = None
+                self.gpiteration = 0
+                bFirstEval = True
 
             hyperpars = np.ones([numpars+1])
+            # the zeroth hyper bound is associated with a signal variance
+            # the others with the length scales of the parameter inputs
             hyper_bounds = np.array([[0.001, 100]] * (numpars+1))
+            for i in range(len(parlimits)):
+                delta = parlimits[i][1]-parlimits[i][0]
+                hyper_bounds[i+1] = [delta * 1e-3, delta * 1e1]
 
-            my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
-                                             init_dataset_size=20, instrument_func=instrument,
-                                             acq_func="variance",  # optional_acq_func,
-                                             # cost_func = optional_cost_function,
-                                             # cost_update_func = optional_cost_update_function,
-                                             x=x, y=y, v=v,
-                                             # cost_func_params={"offset": 5.0, "slope": 10.0},
-                                             kernel_func=None, use_inv=True,
-                                             communicate_full_dataset=False, ram_economy=True)
-            # , prior_mean_func = optional_mean_func)
+            self.my_ae = AutonomousExperimenterGP(parlimits, hyperpars, hyper_bounds,
+                                                  init_dataset_size=gpcam_init_dataset_size,
+                                                  instrument_func=gpcam_instrument,
+                                                  acq_func=acq_func,  # optional_acq_func,
+                                                  # cost_func = optional_cost_function,
+                                                  # cost_update_func = optional_cost_update_function,
+                                                  x=x, y=y, v=v,
+                                                  # cost_func_params={"offset": 5.0, "slope": 10.0},
+                                                  kernel_func=None, use_inv=True,
+                                                  communicate_full_dataset=False, ram_economy=True)
 
-            print("length of the dataset: ", len(my_ae.x))
+            # save and evaluate initial data set if it has been freshly calculate
+            if bFirstEval:
+                self.save_results_gpcam(self.spath)
+                gpcam_prediction(self.my_ae)
 
-            # my_ae.train_async()                 #train asynchronously
-            my_ae.train(method="global")           # or not, or both, choose between "global","local" and "hgdl"
+            while len(self.my_ae.x) < gpcam_iterations:
+                print("length of the dataset: ", len(self.my_ae.x))
 
-            # update hyperparameters in case they are optimized asynchronously
-            # my_ae.update_hps()
+                self.my_ae.train(method="global", max_iter=10000)  # or not, or both, choose "global","local" and "hgdl"
+                # update hyperparameters in case they are optimized asynchronously
+                self.my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
+                # training and client can be killed if desired and in case they are optimized asynchronously
+                # self.my_ae.kill_training()
 
-            # training and client can be killed if desired and in case they are optimized asynchronously
-            # my_ae.kill_training()
+                if gpcam_step is not None:
+                    target_iterations = len(self.my_ae.x) + gpcam_step
+                    retrain_async_at = []
+                else:
+                    target_iterations = gpcam_iterations
+                    retrain_async_at = np.logspace(start=np.log10(len(self.my_ae.x)),
+                                                   stop=np.log10(gpcam_iterations/2), num=3, dtype=int)
+                # run the autonomous loop
+                self.my_ae.go(N=target_iterations,
+                              retrain_async_at=retrain_async_at,
+                              retrain_globally_at=[],
+                              retrain_locally_at=[],
+                              acq_func_opt_setting=lambda number: "global" if number % 2 == 0 else "local",
+                              training_opt_max_iter=20,
+                              training_opt_pop_size=10,
+                              training_opt_tol=1e-6,
+                              acq_func_opt_max_iter=20,
+                              acq_func_opt_pop_size=20,
+                              acq_func_opt_tol=1e-6,
+                              number_of_suggested_measurements=1,
+                              acq_func_opt_tol_adjust=0.1)
 
-            # here we see how python's help function is used to get info about a function
-            # help(my_ae.go)
+                # training and client can be killed if desired and in case they are optimized asynchronously
+                if gpcam_step is None:
+                    self.my_ae.kill_training()
 
-            # run the autonomous loop
-            my_ae.go(N=gpcam_iterations,
-                     retrain_async_at=retrain_async_at,
-                     retrain_globally_at=[],
-                     retrain_locally_at=[],
-                     acq_func_opt_setting=lambda number: "global" if number % 2 == 0 else "local",
-                     training_opt_max_iter=20,
-                     training_opt_pop_size=10,
-                     training_opt_tol=1e-6,
-                     acq_func_opt_max_iter=20,
-                     acq_func_opt_pop_size=20,
-                     acq_func_opt_tol=1e-6,
-                     number_of_suggested_measurements=1,
-                     acq_func_opt_tol_adjust=0.1)
+                self.save_results_gpcam(self.spath)
 
-            # save prediction
-            dimension = 1
-            for factor in self.steplist:
-                dimension *= factor
-            prediction_positions = np.zeros((dimension, len(self.steplist)))
-            it = np.nditer(self.results_gmm, flags=['multi_index'])
-            while not it.finished:
-                for i in range(len(self.axes)):
-                    prediction_positions[it.iterindex][i] = self.axes[i][it.multi_index[i]]
-                it.iternext()
+                gpcam_prediction(self.my_ae)
 
-            res = my_ae.gp_optimizer.posterior_mean(prediction_positions)
-            f = res["f(x)"]
-            self.prediction_gpcam = f.reshape(self.steplist)
-            self.plot_results(mark_maximum=True)
-            self.save_results(self.spath)

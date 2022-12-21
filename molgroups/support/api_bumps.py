@@ -3,7 +3,14 @@ from os import path
 from random import seed, random
 from re import VERBOSE, IGNORECASE, compile
 from sys import stdout
+
+import matplotlib
 from matplotlib import pyplot as plt
+
+from bumps.cli import load_model, save_best
+from bumps.mapper import MPMapper
+from bumps.fitters import fit, FitDriver, DreamFit
+
 import numpy
 import shutil
 import glob
@@ -188,12 +195,16 @@ class CBumpsAPI(api_base.CBaseAPI):
     def fnRestoreFit(self):
         self.problem = self.fnRestoreFitProblem()
         self.state = self.fnRestoreState()
+        if self.state is not None:
+            # repopulate state with best fit
+            p = self.state.best()[0]
+            self.problem.setp(p)
 
     def fnRestoreFitProblem(self):
         from bumps.fitproblem import load_problem
 
-        if path.isfile(self.spath + "/" + self.runfile + ".py"):
-            problem = load_problem(self.spath + "/" + self.runfile + ".py")
+        if path.isfile(os.path.join(self.spath, self.runfile + ".py")):
+            problem = load_problem(os.path.join(self.spath, self.runfile + ".py"))
         else:
             print("No problem to reload.")
             problem = None
@@ -258,9 +269,6 @@ class CBumpsAPI(api_base.CBaseAPI):
         """
 
         # Calling refl1d functions directly
-        from bumps.cli import load_model, save_best
-        from bumps.mapper import MPMapper
-        from bumps.fitters import fit, FitDriver, DreamFit
 
         model_file = os.path.join(self.spath, self.runfile) + '.py'
         mcmcpath = os.path.join(self.spath, self.mcmcpath)
@@ -278,6 +286,9 @@ class CBumpsAPI(api_base.CBaseAPI):
                            monitors=monitors, xtol=1e-6, ftol=1e-8)
         x, fx = driver.fit()
 
+        # try to deal with matplotlib memory leaks
+        matplotlib.interactive(False)
+
         # .err and .par files
         problem.output_path = os.path.join(mcmcpath, self.runfile)
         save_best(driver, problem, x)
@@ -285,9 +296,9 @@ class CBumpsAPI(api_base.CBaseAPI):
         # try to deal with matplotlib cache issues by deleting the cache
         fig = plt.figure()
         plt.figure().clear()
-        plt.close()
         plt.cla()
         plt.clf()
+        plt.close("all")
 
         # don't know what files
         if 'models' in dir(problem):

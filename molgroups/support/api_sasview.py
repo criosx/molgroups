@@ -10,6 +10,7 @@ import shapely.geometry
 import numpy.random
 
 import sasmodels.data
+import bumps.curve
 
 from molgroups.support import general
 from molgroups.support import api_bumps
@@ -47,6 +48,12 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     break
         return liData
 
+    def fnRestoreSmoothProfile(self, M):
+        # TODO: Decide what and if to return SLD profile for Bumps fits
+        # Returns nothing for the moment, here could be a SANS profile of any kind
+        z, rho, irho = [], [], []
+        return z, rho, irho
+
     def fnSaveData(self, basefilename, liData):
         """
         Saves all frames and comments in liData to files with the basefilenam filename.
@@ -81,7 +88,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # with irregular spacing. We need a regular spacing on which we will calculate SANS from different configs
         # and either average or keep data points with the same q separately
 
-        numpoints = int((numpy.log10(qmax) - numpy.log10(qmin)) * 30)
+        numpoints = int((numpy.log10(qmax) - numpy.log10(qmin)) * 60)
         qvec = numpy.logspace(numpy.log10(qmin), numpy.log10(qmax), num=numpoints, endpoint=True)
         ivec = numpy.zeros_like(qvec)
         divec = numpy.zeros_like(qvec)
@@ -141,8 +148,11 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             for M in self.problem.models:
                 M.chisq()
                 scatt = M.fitness.theory()
-                liData[i][1][data_column] = scatt
-                i += 1
+                if not isinstance(M.fitness, bumps.curve.Curve):
+                    # ignore Curve models, as they are sometimes used as auxiliary functions that do not contain
+                    # scattering data
+                    liData[i][1][data_column] = scatt
+                    i += 1
         else:
             self.problem.chisq()
             scatt = self.problem.fitness.theory()
@@ -191,7 +201,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             if configuration is None:
                 configuration = {}
             kl_list = [
-                ["pre", 1],
                 ["neutron_flux", 6.69e5],
                 ["beam_area", 1],
                 ["beam_center_x", 0],
