@@ -73,6 +73,7 @@ setattr(data0, 'qmax', qmax)
 # DEFINE THE MODEL
 # copied and initialized the custom model with up to 100 sld and thickness parameters in sasmodels/models
 # a second hard-coded limit in sasmodels/modelinfo.py line 594 was manually increased from 20 to 120.
+# further in sasmodels/data.py replace all imports from sas.sascalc ... to from sasdata. ...
 kernel = load_model('my_core_multi_shell@hardsphere')
 
 pars0 = dict(scale=0.002, background=0.15, sld_core=3.0, sld_solvent=2.4, radius=500.0, radius_pd=0.3, n=100, radius_effective=60.0, volfraction=0.01)

@@ -214,9 +214,9 @@ class CMolStat:
                    'hpc': fHighPercConv, 'sg': sGraphOutput})
 
         self.diStatResults['Convergence'] = fMaxConvergence
-        print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
-              {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
-        print('Confidence level: {fConfidence:.4f}')
+        # print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
+        #       {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
+        print(f'Confidence level: {fConfidence:.4f}')
 
     def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
@@ -480,15 +480,18 @@ class CMolStat:
                 fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
                 fMedian = stats.scoreatpercentile(diResults[element], 50.)
                 fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-                interval = {'element': element, 'lower_conf': fLowPerc, 'median': fMedian, 'upper_conf': fHighPerc}
-                results = results.append(interval, ignore_index=True)
+                interval = pandas.DataFrame(data={'element': element, 'lower_conf': fLowPerc, 'median': fMedian,
+                                                  'upper_conf': fHighPerc}, index=[0])
+                results = pandas.concat([results, interval], axis=0, ignore_index=True)
 
                 sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
 
                 soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
                                           'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
                 file.write(soutput + '\n')
-                if verbose: print(soutput)
+                if verbose:
+                    print(soutput)
+
         return results
 
     def fnCalcConfidenceLimits(self, data, method=1):

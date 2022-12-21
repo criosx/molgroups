@@ -182,7 +182,7 @@ def save_plot_2d(x, y, z, xlabel, ylabel, color, filename='plot', zmin=None, zma
     matplotlib.rc('font', **font)
 
     fig, ax = plt.subplots()
-    cs = ax.contourf(x, y, z, cmap=color, vmin=bounds[0], vmax=bounds[-1], levels=bounds)     # extend='both'
+    cs = ax.contourf(x, y, z, cmap=color, vmin=bounds[0], vmax=bounds[-1], levels=bounds, extend='both')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.ticklabel_format(scilimits=(-3, 3), useMathText=True)
