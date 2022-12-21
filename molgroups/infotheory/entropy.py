@@ -1010,6 +1010,9 @@ class Entropy:
                 cb = 0
                 if self.mode == 'SANS_linear':
                     cb = self.background_rule['y_intercept'] + self.background_rule['slope'] * value
+                if self.mode == 'water':
+                    # hardcoded water cb = 0.07 for D2O, cb = 1.00 for H2O
+                    cb = 0.9245 - 0.1348 * value
 
                 # search if there is a designated background parameter that takes the cb instead of a configuration
                 bFoundBackground = False
