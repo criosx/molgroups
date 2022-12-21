@@ -775,7 +775,7 @@ class CMolStat:
 
     # -------------------------------------------------------------------------------
 
-    def fnCreateBilayerPlotData(self):
+    def fnCreateBilayerPlotData(self, custom_groups=[]):
         # integrate over 1D array
         def fnIntegrate(axis, array, start, stop):
             startaxis = float(axis[0])
@@ -823,7 +823,7 @@ class CMolStat:
         print('Initializing ...')
         lGroupList = ['substrate', 'siox', 'tether', 'innerhg', 'inner_cg', 'inner_phosphate', 'inner_choline',
                       'innerhc', 'innerch2', 'innerch3', 'outerhc', 'outerch2', 'outerch3', 'outerhg',
-                      'outer_cg', 'outer_phosphate', 'outer_choline', 'protein', 'sum', 'water']
+                      'outer_cg', 'outer_phosphate', 'outer_choline', 'protein', 'sum', 'water'] + custom_groups
         diStat = {}
         for element in lGroupList:
             diStat[element] = []
@@ -919,6 +919,10 @@ class CMolStat:
 
         print('  protein ...')
         diIterations['protein'], __, __ = self.fnPullMolgroupLoader(['protein'])
+
+        for grp in custom_groups:
+            print(f'  {grp} ...')
+            diIterations[grp], __, __ = self.fnPullMolgroupLoader([grp])
 
         # save z-axis
         diStat['zaxis'] = numpy.copy(diIterations['substrate']['zaxis'])
