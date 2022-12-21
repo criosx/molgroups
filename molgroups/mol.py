@@ -1680,12 +1680,16 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
             resmol = aa[key]
         resvol[i] = resmol.cell_volume
         # TODO: Make new column for xray imaginary part (this is real part only)
-        resesl[i] = xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
-        resnslH[i] = resmol.sld * 1e-6
-        resnslD[i] = resmol.Dsld * 1e-6
+        resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
+        resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
+        resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
 
     resnums = numpy.array(resnums)
     rescoords = numpy.array(rescoords)
+
+    average_sldH = numpy.sum(resnslH[:, None]) / numpy.sum(resvol[:, None])
+    average_sldD = numpy.sum(resnslD[:, None]) / numpy.sum(resvol[:, None])
+    average_header = f'Average nSLD in H2O: {average_sldH}\nAverage nSLD in D2O: {average_sldD}\n'
 
     # replace base value in nsl calculation with proper deuterated scattering length\
     #resnsl = resscatter[:, 2]
@@ -1694,7 +1698,7 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
 
     numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
                                              resnslH[:, None], resnslD[:, None])), delimiter='\t', header=pdbfilename
-        + '\n' + deut_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
+        + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
     return datfilename  # allows this to be fed into ContinuousEuler directly
 
