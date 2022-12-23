@@ -133,6 +133,15 @@ class nSLDObj:
         rdict[name]['nsld'] = constsld
         return rdict
 
+    def fnPullProfile(self, z, z0=0.0):
+        """Returns dictionary containing the profiles"""
+
+        d = {}
+        d['area'], d['nsl'], d['nsld'] = self.fnGetProfiles(z - z0)
+        d['subgroups'] = {}
+
+        return {self.name: d}
+
     # Philosophy for this first method: You simply add more and more volume and nSLD to the
     # volume and nSLD array. After all objects have filled up those arrays the maximal area is
     # determined which is the area per molecule and unfilled volume is filled with bulk solvent.
@@ -237,6 +246,13 @@ class CompositenSLDObj(nSLDObj):
             rdict = g.fnWritePar2Dict(rdict, f"{cName}.{g.name}", z)
         return rdict
 
+    def fnPullProfile(self, z, z0=0.0):
+        """Returns dictionary containing all subgroup profiles as well"""
+        d = super().fnPullProfile(z, z0=z0)
+
+        d[self.name].update({'subgroups': {g.name: g.fnPullProfile(z, z0=z0) for g in self.subgroups}})
+
+        return d
 
 class Box2Err(nSLDObj):
     def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
@@ -920,6 +936,16 @@ class BLM(CompositenSLDObj):
         rdict = self.fnWriteConstant2Dict(rdict, f"{cName}.normarea", self.normarea, 0, z)
         return rdict
 
+    def fnPullProfile(self, z, z0=0.0):
+        d = super().fnPullProfile(z, z0=z0)
+
+        # add additional calculations here
+        addcalc = {'area_per_lipid': self.normarea}
+        addcalc.update({'hydrophobic_thickness': self.l_ihc + self.l_im + self.l_om + self.l_ohc})
+        
+        d[self.name].update(addcalc)
+
+        return d
 
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
