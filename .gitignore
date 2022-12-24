@@ -37,4 +37,6 @@
 /examples/information_theory/experimental_optimization/SANS/SphereSilica_TwoDatasets_SolventSLD_CountingTime_GPCam/T/
 /examples/information_theory/experimental_optimization/SANS/SphereSilica_TwoDatasets_SolventSLD_GridSearch/results/
 /examples/information_theory/experimental_optimization/SANS/SphereSilica_TwoDatasets_SolventSLD_GPCam/results/
-/molgroups.egg-info/
+/examples/information_theory/experimental_optimization/SANS/LUV_d54DMPC_ThreeContrasts/iteration*
+/examples/information_theory/experimental_optimization/SANS/SphereSilica_TwoDatasets_SolventSLD_GridSearch/iteration*
+/examples/information_theory/experimental_optimization/SANS/LUV_d54DMPC_ThreeContrasts/T/

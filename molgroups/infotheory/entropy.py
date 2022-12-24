@@ -10,6 +10,7 @@ from molgroups.support import molstat
 import os
 import pickle
 import pandas
+import sys
 import matplotlib.pyplot as plt
 import shutil
 
@@ -80,7 +81,7 @@ def convolute(a):
 
 def nice_interval(start=0, stop=1, step=None, numsteps=10):
     """
-    Paul Kienzle's method to obtain nicely spaced intevals for plot axes
+    Paul Kienzle's method to obtain nicely spaced intervals for plot axes
     """
 
     if step is None:
@@ -249,8 +250,7 @@ class GMMEntropy(object):
         return self.gmmpredictor.score_samples(x)
 
 
-# calculates entropy while varying a set of parameters in parlist and
-# keeping others fixed as specified in simpar.dat
+# calculates entropy while varying a set of parameters in parlist and keeping others fixed as specified in simpar.dat
 # requires a compiled and ready to go fit whose fit parameters are modified and fixed
 # avoid_symmetric prevents calculating symmetry-related results by enforcing the indices of varied parameters
 # are an ordered list
@@ -868,7 +868,7 @@ class Entropy:
                 if self.calc_symmetric:
                     iteration = it.iterindex
                 else:
-                    # TODO: This is potentially expensive. Find better method for symmetry-concious calculation
+                    # TODO: This is potentially expensive. Find better method for symmetry-conscious calculation
                     it2 = np.nditer(self.results_gmm, flags=['multi_index'])
                     iteration = 0
                     while not it2.finished:
@@ -1020,7 +1020,14 @@ class Entropy:
                     if row.dataset == 'b'+str(dset) or row.dataset == 'b' or row.dataset == 'b*':
                         self.simpar.loc[self.simpar['par'] == row.par, 'value'] = cb
                         bFoundBackground = True
-
+                        if cb < row.l_fit or cb > row.u_fit:
+                            print('Parameter with background rule outside of fit boundaries!')
+                            print('Parameter: ', row.par)
+                            print('Value: ', cb)
+                            print('Lower boundary: ', row.l_fit)
+                            print('Upper boundary: ', row.u_fit)
+                            sys.exit(1)
+                        return configurations
                 if bFoundBackground:
                     return configurations
 
@@ -1031,8 +1038,6 @@ class Entropy:
 
             # Configurations are imported externally, if not empty configuration initialization here
             # In any case, missing parameters are set to the default in the API simulation routines
-            # TODO: Properly implement 'mode' functionality
-
             configurations = self.configuration
             if configurations is None:
                 configurations = [[{}]]
@@ -1042,7 +1047,6 @@ class Entropy:
             for row in self.allpar.itertuples():
                 # is it a parameter to iterate over?
                 if row.unique_name in self.steppar['unique_name'].tolist():
-
                     lsim = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'l_sim'].iloc[0]
                     stepsim = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'step_sim'].iloc[0]
                     value = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'value'].iloc[0]
@@ -1070,7 +1074,10 @@ class Entropy:
                             # only change simpar when it will not be filled by a background rule
                             self.simpar.loc[self.simpar['unique_name'] == row.unique_name, 'value'] = simvalue
                             self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, lowersim, uppersim)
-
+                        else:
+                            print('Parameter with background rule cannot be varied!')
+                            print('Parameter: ', row.unique_name)
+                            sys.exit(1)
                     else:
                         # must be instrument parameter
                         configurations = _fill_config(configurations, row.par, simvalue, row.dataset, row.configuration)
@@ -1080,13 +1087,12 @@ class Entropy:
                                     self.simpar['configuration'][indx] == row.configuration:
                                 self.simpar.iloc[indx, self.simpar.columns.get_loc('value')] = simvalue
                                 break
+
                     isim += 1
-
                 elif row.type == 'd' or row.type == 'fd' or row.type == 'i' or row.type == 'fi':
-                    if 'b' not in row.dataset:
-                        # only change boundaries when it will not be filled by a background rule
-                        self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
-
+                    # We also fill parameters with background rule here. They are supposed to have fit boundaries
+                    # that encompass all possible values, and the particular row.par does not matter.
+                    self.molstat.Interactor.fnReplaceParameterLimitsInSetup(row.par, row.l_fit, row.u_fit)
                 else:
                     # must be instrument parameter
                     configurations = _fill_config(configurations, row.par, row.value, row.dataset, row.configuration)
@@ -1144,7 +1150,8 @@ class Entropy:
             y = self.gpCAMstream['value']
             v = self.gpCAMstream['variance']
 
-            if len(x) >= gpcam_init_dataset_size:
+            if len(x) >= 1:
+                # use any previously computed results
                 x = np.array(x)
                 y = np.array(y)
                 v = np.array(v)
@@ -1185,7 +1192,7 @@ class Entropy:
                 print("length of the dataset: ", len(self.my_ae.x))
 
                 self.my_ae.train(method="global", max_iter=10000)  # or not, or both, choose "global","local" and "hgdl"
-                # update hyperparameters in case they are optimized asynchronously
+                # update hyper parameters in case they are optimized asynchronously
                 self.my_ae.train(method="local")          # or not, or both, choose between "global","local" and "hgdl"
                 # training and client can be killed if desired and in case they are optimized asynchronously
                 # self.my_ae.kill_training()
