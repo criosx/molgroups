@@ -16,6 +16,20 @@ import pathlib
 
 from molgroups.support import general
 
+# adapted from https://favtutor.com/blogs/merge-dictionaries-python
+def mergeDictionary(dict_1, dict_2):
+    dict_3 = {**dict_1, **dict_2}
+    for key, value in dict_3.items():
+        if key in dict_1 and key in dict_2:
+            if isinstance(value, dict):
+                # allow nested merging
+                dict_3[key] = mergeDictionary(dict_1[key], value)
+            else:
+                # convert to lists and merge
+                val1 = dict_1[key] if isinstance(dict_1[key], list) else [dict_1[key]]
+                val2 = value if isinstance(value, list) else [value]
+                dict_3[key] = val1 + val2
+    return dict_3
 
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".",
