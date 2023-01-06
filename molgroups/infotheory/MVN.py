@@ -5,7 +5,11 @@ def cov_entropy(C):
     """
     Entropy estimate from covariance matrix C
     """
-    return 0.5 * (len(C) * np.log2(2 * np.pi * np.e) + np.log2(abs(np.linalg.det(C))))
+    absdet = np.abs(np.linalg.det(C))
+    if absdet > 0:
+        return 0.5 * (len(C) * np.log2(2 * np.pi * np.e) + np.log2(absdet))
+    else:
+        return None
 
 
 class MVNEntropy(object):

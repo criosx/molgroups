@@ -214,7 +214,7 @@ class Entropy:
                  calc_symmetric=True, upper_info_plotlevel=None, plotlimits_filename='', slurmscript='',
                  configuration=None, optimizer='grid', keep_plots=False, show_support_points=False, qmin=None,
                  qmax=None, qrangefromfile=False, t_total=None, jupyter_clear_output=False, gpcam_iterations=50,
-                 gpcam_init_dataset_size=20, gpcam_step=None, acq_func="variance", fitter='MCMC'):
+                 gpcam_init_dataset_size=20, gpcam_step=None, acq_func="variance", fitter='MCMC', remove_fit_dir=True):
 
         self.fitsource = fitsource
         self.spath = spath
@@ -248,6 +248,7 @@ class Entropy:
         self.gpcam_step = gpcam_step
         self.acq_func = acq_func
         self.fitter = fitter
+        self.remove_fit_dir = remove_fit_dir
 
         self.my_ae = None
 
@@ -433,46 +434,26 @@ class Entropy:
         return mvn_entropy, gmm_entropy, mvn_entropy_marginal, gmm_entropy_marginal, points_median, points_std, parnames
 
     def calc_entropy_for_iteration(self, molstat_iter, itindex=None, cov=False):
-        # Calculate Entropy n times and average
-        mvn_entropy = []
-        gmm_entropy = []
-        mvn_entropy_marginal = []
-        gmm_entropy_marginal = []
-        points_median = []
-        points_std = []
-        parnames = []
+        # calculate entropy, dependent parameters == parameters of interest
+        # independent parameters == nuisance parameters
+        mvn, gmm, mvn_marginal, gmm_marginal, points_median, points_std, parnames = \
+            self.calc_entropy(molstat_iter, cov=cov)
 
-        # GMM and MVN are much more stable than KVN. Averaging over several calculations appears
-        # not to be necessary
-        for j in range(1):  # was 10
-            # calculate entropy, dependent parameters == parameters of interest
-            # independent parameters == nuisance parameters
-            a, b, c, d, points_median, points_std, parnames = self.calc_entropy(molstat_iter, cov=cov)
-            mvn_entropy.append(a)
-            gmm_entropy.append(b)
-            mvn_entropy_marginal.append(c)
-            gmm_entropy_marginal.append(d)
-
-        # remove outliers and average calculated entropies, don't average over parameter stats
-        avg_mvn, std_mvn = average(mvn_entropy)
-        avg_gmm, std_gmm = average(gmm_entropy)
-        avg_mvn_marginal, std_mvn_marginal = average(mvn_entropy_marginal)
-        avg_gmm_marginal, std_gmm_marginal = average(gmm_entropy_marginal)
-
-        bValidResult = (std_gmm < self.convergence) and \
-                       (self.priorentropy_marginal - avg_gmm_marginal > (-0.5) * len(
-                           self.dependent_parameters)) and \
-                       (self.priorentropy - avg_gmm > (-0.5) * len(self.parlist))
+        if mvn_marginal is None or gmm_marginal is None:
+            bValidResult = False
+        else:
+            bValidResult = (self.priorentropy_marginal - gmm_marginal > (-0.5) * len(self.dependent_parameters)) and \
+                           (self.priorentropy - gmm > (-0.5) * len(self.parlist))
 
         # no special treatment for first entry necessary, algorithm catches this
         if itindex is not None:
             if bValidResult:
-                self.gridsearch_writeout_result(itindex, avg_mvn, avg_gmm, avg_mvn_marginal, avg_gmm_marginal,
-                                                points_median, points_std, parnames)
+                self.gridsearch_writeout_result(itindex, mvn, gmm, mvn_marginal, gmm_marginal, points_median,
+                                                points_std, parnames)
             # save results for every iteration
             self.save_results(self.spath)
 
-        return avg_gmm_marginal
+        return gmm_marginal
 
     # calculates prior entropy
     def calc_prior(self):
@@ -1052,6 +1033,7 @@ class Entropy:
         # cycle through all parameters
         isim = 0
         for row in self.allpar.itertuples():
+            simvalue = None
             # is it a parameter to iterate over?
             if row.unique_name in self.steppar['unique_name'].tolist():
                 lsim = self.steppar.loc[self.steppar['unique_name'] == row.unique_name, 'l_sim'].iloc[0]
@@ -1106,7 +1088,10 @@ class Entropy:
 
             if (row.type != 'n') and (row.dataset != '_') and ('b' not in row.dataset):
                 # this is a parameter that will determine one or more isotropic backgrounds
-                configurations = _set_background(configurations, row.dataset, row.configuration, row.value)
+                if simvalue is None:
+                    configurations = _set_background(configurations, row.dataset, row.configuration, row.value)
+                else:
+                    configurations = _set_background(configurations, row.dataset, row.configuration, simvalue)
 
         simparsave = self.simpar.loc[:, ['par', 'value']]
         simparsave.to_csv(path.join(self.spath, 'simpar.dat'), sep=' ', header=None, index=False)
@@ -1165,34 +1150,48 @@ class Entropy:
 
         # fetch mode and cluster mode are exclusive
         if not self.bFetchMode:
-            # run a new fit, preparations are done in the root directory and the new fit is copied into the
-            # iteration directory, preparations in the iterations directory are not possible, because it would
-            # be lacking a result directory, which is needed for restoring a state/parameters
-            self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
-            configurations = self.set_sim_pars_for_iteration(it, position)
-            self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=self.qmin, qmax=self.qmax,
-                                        qrangefromfile=self.qrangefromfile, t_total=self.t_total)
-            self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
-            # previous save needs to be removed as output serves as flag for HPC job termination
-            if path.isdir(path1):
-                shutil.rmtree(path1)
-            self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
+            # LM sometimes produces a singular matrix, which we try to avoid
+            fit_counter = 0
+            fit_success = False
+            while not fit_success:
+                # run a new fit, preparations are done in the root directory and the new fit is copied into the
+                # iteration directory, preparations in the iterations directory are not possible, because it would
+                # be lacking a result directory, which is needed for restoring a state/parameters
+                self.molstat.Interactor.fnBackup(target=path.join(self.spath, 'simbackup'))
+                configurations = self.set_sim_pars_for_iteration(it, position)
+                self.molstat.fnSimulateData(mode=self.mode, liConfigurations=configurations, qmin=self.qmin,
+                                            qmax=self.qmax, qrangefromfile=self.qrangefromfile, t_total=self.t_total)
+                self.molstat.Interactor.fnBackup(origin=self.spath, target=fulldirname)
+                # previous save needs to be removed as output serves as flag for HPC job termination
+                if path.isdir(path1):
+                    shutil.rmtree(path1)
+                self.molstat.Interactor.fnRemoveBackup(target=path.join(self.spath, 'simbackup'))
 
-            # changing the working directory became necessary at some point for loading the correct data
-            os.chdir(fulldirname)
-            molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
-                                            runfile=self.runfile, load_state=False)
-            os.chdir(self.spath)
+                # changing the working directory became necessary at some point for loading the correct data
+                os.chdir(fulldirname)
+                molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
+                                                runfile=self.runfile, load_state=False)
+                os.chdir(self.spath)
 
-            if self.fitter == 'LM':
-                # copy problem and state from
-                # molstat_iter.Interactor.problem = molstat_iter.Interactor.fnRestoreFitProblem()
-                molstat_iter.Interactor.problem.setp(self.molstat.Interactor.problem.getp())
-                self.run_fit(molstat_iter, iteration, dirname, fulldirname)
-                # use covariance matrix for entropy calculation in case of LM
-                avg_gmm_marginal = self.calc_entropy_for_iteration(molstat_iter, itindex=itindex, cov=True)
-            else:
-                self.run_fit(molstat_iter, iteration, dirname, fulldirname)
+                if self.fitter == 'LM':
+                    # copy best-fit parameters from data simulation instance
+                    molstat_iter.Interactor.problem.setp(self.molstat.Interactor.problem.getp())
+                    self.run_fit(molstat_iter, iteration, dirname, fulldirname)
+                    # use covariance matrix for entropy calculation in case of LM
+                    avg_gmm_marginal = self.calc_entropy_for_iteration(molstat_iter, itindex=itindex, cov=True)
+                    fit_counter += 1
+                    if avg_gmm_marginal is not None:
+                        fit_success = True
+                    else:
+                        if fit_counter > 5:
+                            print("Singular matrix encountered for five times in LM.")
+                            print("Assume information gain of zero.")
+                            avg_gmm_marginal = 0
+                            fit_success = True
+                else:
+                    self.run_fit(molstat_iter, iteration, dirname, fulldirname)
+                    fit_counter += 1
+                    fit_success = True
 
         # Do not run entropy calculation when on cluster, or no valid result, or entropy from covariance via LM.
         if self.fitter != 'LM':
@@ -1203,7 +1202,9 @@ class Entropy:
                 avg_gmm_marginal = self.calc_entropy_for_iteration(molstat_iter, itindex=itindex)
 
         # delete big files except in Cluster mode. They are needed there for future fetching
-        if self.deldir and not self.bClusterMode:
+        if self.remove_fit_dir and not self.bClusterMode:
+            shutil.rmtree(fulldirname)
+        elif self.deldir and not self.bClusterMode:
             rm_file(path.join(path1, self.runfile+'-point.mc'))
             rm_file(path.join(path1, self.runfile+'-chain.mc'))
             rm_file(path.join(path1, self.runfile+'-stats.mc'))

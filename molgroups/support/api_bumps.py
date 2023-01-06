@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 
 from bumps.cli import load_model, save_best
 from bumps.mapper import MPMapper
-from bumps.fitters import fit, FitDriver, DreamFit, LevenbergMarquardtFit
+from bumps.fitters import fit, FitDriver, DreamFit, LevenbergMarquardtFit, MPFit
 
 import numpy
 import shutil
@@ -163,9 +163,10 @@ class CBumpsAPI(api_base.CBaseAPI):
         file = open(os.path.join(self.spath, self.runfile) + '.py', 'r+')
         data = file.readlines()
         file.close()
-        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+"[\s\"\'].+?=).+?(\).+?range\().+?(,).+?(\).*)", IGNORECASE | VERBOSE)
+        smatch = compile(r"(.*?Parameter.*?name=\'"+sname+"[\"\'].+?=).+?(\).+?range\().+?(,).+?(\).*)",
+                         IGNORECASE | VERBOSE)
         # version when .range() is present but no parameter value is provided
-        smatch2 = compile(r"(.*?" + sname + '.+?range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
+        smatch2 = compile(r"(.*?\."+sname+'\.range\().+?(,).+?(\).*)', IGNORECASE | VERBOSE)
         newdata = []
         for line in data:
             # apply version 1 for general case
@@ -293,7 +294,7 @@ class CBumpsAPI(api_base.CBaseAPI):
             driver = FitDriver(fitclass=DreamFit, mapper=mapper, problem=self.problem, init='lhs', steps=steps,
                                burn=burn, monitors=monitors, xtol=1e-6, ftol=1e-8)
         elif fitter == 'LM':
-            driver = FitDriver(fitclass=LevenbergMarquardtFit, mapper=mapper, problem=self.problem, monitors=monitors,
+            driver = FitDriver(fitclass=MPFit, mapper=mapper, problem=self.problem, monitors=monitors,
                                steps=1000, xtol=1e-10, ftol=1e-10)
         else:
             driver = None
