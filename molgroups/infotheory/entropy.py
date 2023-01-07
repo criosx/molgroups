@@ -1,4 +1,6 @@
 import itertools
+
+import numpy
 import numpy as np
 import os
 import pickle
@@ -214,7 +216,8 @@ class Entropy:
                  calc_symmetric=True, upper_info_plotlevel=None, plotlimits_filename='', slurmscript='',
                  configuration=None, optimizer='grid', keep_plots=False, show_support_points=False, qmin=None,
                  qmax=None, qrangefromfile=False, t_total=None, jupyter_clear_output=False, gpcam_iterations=50,
-                 gpcam_init_dataset_size=20, gpcam_step=None, acq_func="variance", fitter='MCMC', remove_fit_dir=True):
+                 gpcam_init_dataset_size=20, gpcam_step=None, acq_func="variance", fitter='MCMC', remove_fit_dir=True,
+                 lm_iterations=3):
 
         self.fitsource = fitsource
         self.spath = spath
@@ -249,6 +252,7 @@ class Entropy:
         self.acq_func = acq_func
         self.fitter = fitter
         self.remove_fit_dir = remove_fit_dir
+        self.lm_iterations = lm_iterations
 
         self.my_ae = None
 
@@ -487,10 +491,19 @@ class Entropy:
                 variance = None  # 0.01 * np.abs(entry['value'])
                 entry['variance'] = variance
             else:
-                marginal_entropy = self.work_on_iteration(position=entry['position'],
-                                                          gpiteration=self.gpiteration)
-                value = self.priorentropy_marginal - marginal_entropy
-                variance = None
+                if self.fitter == 'LM':
+                    me = []
+                    for _ in range(self.lm_iterations):
+                        marginal_entropy = self.work_on_iteration(position=entry['position'],
+                                                                  gpiteration=self.gpiteration)
+                        me.append(self.priorentropy_marginal - marginal_entropy)
+                    value = numpy.mean(me)
+                    variance = numpy.var(me)
+                else:
+                    marginal_entropy = self.work_on_iteration(position=entry['position'],
+                                                              gpiteration=self.gpiteration)
+                    value = self.priorentropy_marginal - marginal_entropy
+                    variance = None
                 entry["value"] = value
                 entry['variance'] = variance
                 # entry["cost"]  = [np.array([0,0]),entry["position"],np.sum(entry["position"])]
@@ -621,20 +634,23 @@ class Entropy:
 
     def load_results(self, dirname):
         path1 = path.join(dirname, 'results')
-        self.results_mvn = np.load(path.join(path1, 'MVN_entropy.npy'))
-        self.results_gmm = np.load(path.join(path1, 'GMM_entropy.npy'))
-        self.results_mvn_marginal = np.load(path.join(path1, 'MVN_entropy_marginal.npy'))
-        self.results_gmm_marginal = np.load(path.join(path1, 'GMM_entropy_marginal.npy'))
+        if self.fitter != 'LM':
+            self.results_gmm = np.load(path.join(path1, 'GMM_entropy.npy'))
+            self.results_gmm_marginal = np.load(path.join(path1, 'GMM_entropy_marginal.npy'))
+            self.n_gmm = np.load(path.join(path1, 'GMM_n.npy'))
+            self.n_gmm_marginal = np.load(path.join(path1, 'GMM_n_marginal.npy'))
+            self.sqstd_gmm = np.load(path.join(path1, 'GMM_sqstd.npy'))
+            self.sqstd_gmm_marginal = np.load(path.join(path1, 'GMM_sqstd_marginal.npy'))
+
         if path.isfile(path.join(path1, 'Prediction_gpcam.npy')):
             self.prediction_gpcam = np.load(path.join(path1, 'Prediction_gpcam.npy'))
+
+        self.results_mvn = np.load(path.join(path1, 'MVN_entropy.npy'))
+        self.results_mvn_marginal = np.load(path.join(path1, 'MVN_entropy_marginal.npy'))
         self.n_mvn = np.load(path.join(path1, 'MVN_n.npy'))
-        self.n_gmm = np.load(path.join(path1, 'GMM_n.npy'))
         self.n_mvn_marginal = np.load(path.join(path1, 'MVN_n_marginal.npy'))
-        self.n_gmm_marginal = np.load(path.join(path1, 'GMM_n_marginal.npy'))
         self.sqstd_mvn = np.load(path.join(path1, 'MVN_sqstd.npy'))
-        self.sqstd_gmm = np.load(path.join(path1, 'GMM_sqstd.npy'))
         self.sqstd_mvn_marginal = np.load(path.join(path1, 'MVN_sqstd_marginal.npy'))
-        self.sqstd_gmm_marginal = np.load(path.join(path1, 'GMM_sqstd_marginal.npy'))
         self.par_median = np.load(path.join(path1, 'par_median.npy'))
         self.par_std = np.load(path.join(path1, 'par_std.npy'))
 
@@ -674,33 +690,39 @@ class Entropy:
         if not path.isdir(path1):
             mkdir(path1)
 
+        if self.fitter != 'LM':
+            self.plot_arr(self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm), vallabel='Entropy [bits]',
+                          filename=path.join(path1, 'GMM_entropy'))
+            self.plot_arr(self.results_gmm_marginal, arr_variance=np.sqrt(self.sqstd_gmm_marginal),
+                          vallabel='Entropy [bits]', filename=path.join(path1, 'GMM_entropy_marginal'))
+            self.plot_arr(self.priorentropy - self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm),
+                          vallabel='information gain [bits]', filename=path.join(path1, 'GMM_infocontent'), valmin=0,
+                          mark_maximum=mark_maximum)
+            self.plot_arr(self.priorentropy - self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm),
+                          vallabel='information gain [bits]', filename=path.join(path1, 'GMM_infocontent'), valmin=0,
+                          mark_maximum=mark_maximum)
+            self.plot_arr(self.priorentropy_marginal - self.results_gmm_marginal,
+                          arr_variance=np.sqrt(self.sqstd_gmm_marginal), vallabel='information gain [bits]',
+                          filename=path.join(path1, 'GMM_infocontent_marginal'), valmin=0,
+                          valmax=self.upper_info_plotlevel,
+                          mark_maximum=mark_maximum)
+            self.plot_arr(self.n_gmm, vallabel='computations', filename=path.join(path1, 'GMM_n'), valmin=0)
+            self.plot_arr(self.n_gmm_marginal, vallabel='computations', filename=path.join(path1, 'GMM_n_marginal'),
+                          valmin=0)
+
         self.plot_arr(self.results_mvn, arr_variance=np.sqrt(self.sqstd_mvn), vallabel='Entropy [bits]',
                       filename=path.join(path1, 'MVN_entropy'))
-        self.plot_arr(self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm), vallabel='Entropy [bits]',
-                      filename=path.join(path1, 'GMM_entropy'))
         self.plot_arr(self.results_mvn_marginal, arr_variance=np.sqrt(self.sqstd_mvn_marginal),
                       vallabel='Entropy [bits]', filename=path.join(path1, 'MVN_entropy_marginal'))
-        self.plot_arr(self.results_gmm_marginal, arr_variance=np.sqrt(self.sqstd_gmm_marginal),
-                      vallabel='Entropy [bits]', filename=path.join(path1, 'GMM_entropy_marginal'))
         self.plot_arr(self.priorentropy - self.results_mvn, arr_variance=np.sqrt(self.sqstd_mvn),
                       vallabel='information gain [bits]', filename=path.join(path1, 'MVN_infocontent'), valmin=0,
-                      mark_maximum=mark_maximum)
-        self.plot_arr(self.priorentropy - self.results_gmm, arr_variance=np.sqrt(self.sqstd_gmm),
-                      vallabel='information gain [bits]', filename=path.join(path1, 'GMM_infocontent'), valmin=0,
                       mark_maximum=mark_maximum)
         self.plot_arr(self.priorentropy_marginal - self.results_mvn_marginal,
                       arr_variance=np.sqrt(self.sqstd_mvn_marginal), vallabel='information gain [bits]',
                       filename=path.join(path1, 'MVN_infocontent_marginal'), valmin=0, valmax=self.upper_info_plotlevel,
                       mark_maximum=mark_maximum)
-        self.plot_arr(self.priorentropy_marginal - self.results_gmm_marginal,
-                      arr_variance=np.sqrt(self.sqstd_gmm_marginal), vallabel='information gain [bits]',
-                      filename=path.join(path1, 'GMM_infocontent_marginal'), valmin=0, valmax=self.upper_info_plotlevel,
-                      mark_maximum=mark_maximum)
         self.plot_arr(self.n_mvn,  vallabel='computations', filename=path.join(path1, 'MVN_n'), valmin=0)
-        self.plot_arr(self.n_gmm,  vallabel='computations', filename=path.join(path1, 'GMM_n'), valmin=0)
         self.plot_arr(self.n_mvn_marginal,  vallabel='computations', filename=path.join(path1, 'MVN_n_marginal'),
-                      valmin=0)
-        self.plot_arr(self.n_gmm_marginal,  vallabel='computations', filename=path.join(path1, 'GMM_n_marginal'),
                       valmin=0)
 
         for i, parname in enumerate(self.parlist):
@@ -891,47 +913,52 @@ class Entropy:
         path1 = path.join(dirname, 'results')
         if not path.isdir(path1):
             mkdir(path1)
-        np.save(path.join(path1, 'GMM_entropy'), self.results_gmm, allow_pickle=False)
+
+        if self.fitter != 'LM':
+            np.save(path.join(path1, 'GMM_entropy'), self.results_gmm, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_entropy_marginal'), self.results_gmm_marginal, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_infocontent'), self.priorentropy - self.results_gmm, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_infocontent_marginal'),
+                    self.priorentropy_marginal - self.results_gmm_marginal, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_sqstd'), self.sqstd_gmm, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_sqstd_marginal'), self.sqstd_gmm_marginal, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_n'), self.n_gmm, allow_pickle=False)
+            np.save(path.join(path1, 'GMM_n_marginal'), self.n_gmm_marginal, allow_pickle=False)
+
         np.save(path.join(path1, 'MVN_entropy'), self.results_mvn, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_entropy_marginal'), self.results_gmm_marginal, allow_pickle=False)
         np.save(path.join(path1, 'MVN_entropy_marginal'), self.results_mvn_marginal, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_infocontent'), self.priorentropy - self.results_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_infocontent'), self.priorentropy - self.results_mvn, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_infocontent_marginal'), self.priorentropy_marginal - self.results_gmm_marginal,
-                allow_pickle=False)
         np.save(path.join(path1, 'MVN_infocontent_marginal'), self.priorentropy_marginal - self.results_mvn_marginal,
                 allow_pickle=False)
-        np.save(path.join(path1, 'GMM_sqstd'), self.sqstd_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_sqstd'), self.sqstd_mvn, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_sqstd_marginal'), self.sqstd_gmm_marginal, allow_pickle=False)
         np.save(path.join(path1, 'MVN_sqstd_marginal'), self.sqstd_mvn_marginal, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_n'), self.n_gmm, allow_pickle=False)
         np.save(path.join(path1, 'MVN_n'), self.n_mvn, allow_pickle=False)
-        np.save(path.join(path1, 'GMM_n_marginal'), self.n_gmm_marginal, allow_pickle=False)
         np.save(path.join(path1, 'MVN_n_marginal'), self.n_mvn_marginal, allow_pickle=False)
         np.save(path.join(path1, 'par_median'), self.par_median, allow_pickle=False)
         np.save(path.join(path1, 'par_std'), self.par_std, allow_pickle=False)
 
         # save to txt when not more than two-dimensional array
         if len(self.steplist) <= 2:
+            if self.fitter != 'LM':
+                np.savetxt(path.join(path1, 'GMM_entropy.txt'), self.results_gmm - 0)
+                np.savetxt(path.join(path1, 'GMM_entropy_marginal.txt'), self.results_gmm_marginal - 0)
+                np.savetxt(path.join(path1, 'GMM_infocontent.txt'), self.priorentropy - self.results_gmm)
+                np.savetxt(path.join(path1, 'GMM_infocontent_marginal.txt'), self.priorentropy_marginal -
+                           self.results_gmm_marginal)
+                np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm - 0)
+                np.savetxt(path.join(path1, 'GMM_sqstd_marginal.txt'), self.sqstd_gmm_marginal - 0)
+                np.savetxt(path.join(path1, 'GMM_n.txt'), self.n_gmm - 0)
+                np.savetxt(path.join(path1, 'GMM_n_marginal.txt'), self.n_gmm_marginal - 0)
+
             np.savetxt(path.join(path1, 'MVN_entropy.txt'), self.results_mvn - 0)
-            np.savetxt(path.join(path1, 'GMM_entropy.txt'), self.results_gmm - 0)
             np.savetxt(path.join(path1, 'MVN_entropy_marginal.txt'), self.results_mvn_marginal - 0)
-            np.savetxt(path.join(path1, 'GMM_entropy_marginal.txt'), self.results_gmm_marginal - 0)
             np.savetxt(path.join(path1, 'MVN_infocontent.txt'), self.priorentropy - self.results_mvn)
-            np.savetxt(path.join(path1, 'GMM_infocontent.txt'), self.priorentropy - self.results_gmm)
             np.savetxt(path.join(path1, 'MVN_infocontent_marginal.txt'), self.priorentropy_marginal -
                        self.results_mvn_marginal)
-            np.savetxt(path.join(path1, 'GMM_infocontent_marginal.txt'), self.priorentropy_marginal -
-                       self.results_gmm_marginal)
             np.savetxt(path.join(path1, 'MVN_sqstd.txt'), self.sqstd_mvn - 0)
-            np.savetxt(path.join(path1, 'GMM_sqstd.txt'), self.sqstd_gmm - 0)
             np.savetxt(path.join(path1, 'MVN_sqstd_marginal.txt'), self.sqstd_mvn_marginal - 0)
-            np.savetxt(path.join(path1, 'GMM_sqstd_marginal.txt'), self.sqstd_gmm_marginal - 0)
             np.savetxt(path.join(path1, 'MVN_n.txt'), self.n_mvn - 0)
-            np.savetxt(path.join(path1, 'GMM_n.txt'), self.n_gmm - 0)
             np.savetxt(path.join(path1, 'MVN_n_marginal.txt'), self.n_mvn_marginal - 0)
-            np.savetxt(path.join(path1, 'GMM_n_marginal.txt'), self.n_gmm_marginal - 0)
             i = 0
             for parname in self.parlist:
                 np.savetxt(path.join(path1, 'Par_' + parname + '_median.txt'), self.par_median[i])
@@ -941,30 +968,32 @@ class Entropy:
         # save three-dimensional array in slices of the first parameter
         if len(self.steplist) == 3 and self.results_gmm.shape[0] < 6:
             for sl in range(self.results_gmm.shape[0]):
+                if self.fitter != 'LM':
+                    np.savetxt(path.join(path1, 'GMM_entropy_' + str(sl) + '.txt'), self.results_gmm[sl])
+                    np.savetxt(path.join(path1, 'GMM_entropy_marginal_' + str(sl) + '.txt'),
+                               self.results_gmm_marginal[sl])
+                    np.savetxt(path.join(path1, 'GMM_infocontent_' + str(sl) + '.txt'), self.priorentropy -
+                               self.results_gmm[sl])
+                    np.savetxt(path.join(path1, 'GMM_infocontent_marginal_' + str(sl) + '.txt'),
+                               self.priorentropy_marginal - self.results_gmm_marginal[sl])
+                    np.savetxt(path.join(path1, 'GMM_sqstd_' + str(sl) + '.txt'), self.sqstd_gmm[sl])
+                    np.savetxt(path.join(path1, 'GMM_sqstd_marginal_' + str(sl) + '.txt'),
+                               self.sqstd_gmm_marginal[sl])
+                    np.savetxt(path.join(path1, 'GMM_n_' + str(sl) + '.txt'), self.n_gmm[sl])
+                    np.savetxt(path.join(path1, 'GMM_n_marginal_' + str(sl) + '.txt'), self.n_gmm_marginal[sl])
+
                 np.savetxt(path.join(path1, 'MVN_entropy_' + str(sl) + '.txt'), self.results_mvn[sl])
-                np.savetxt(path.join(path1, 'GMM_entropy_' + str(sl) + '.txt'), self.results_gmm[sl])
                 np.savetxt(path.join(path1, 'MVN_entropy_marginal_' + str(sl) + '.txt'),
                            self.results_mvn_marginal[slice])
-                np.savetxt(path.join(path1, 'GMM_entropy_marginal_' + str(sl) + '.txt'),
-                           self.results_gmm_marginal[sl])
                 np.savetxt(path.join(path1, 'MVN_infocontent_' + str(sl) + '.txt'), self.priorentropy -
                            self.results_mvn[sl])
-                np.savetxt(path.join(path1, 'GMM_infocontent_' + str(sl) + '.txt'), self.priorentropy -
-                           self.results_gmm[sl])
                 np.savetxt(path.join(path1, 'MVN_infocontent_marginal_' + str(sl) + '.txt'),
                            self.priorentropy_marginal - self.results_mvn_marginal[sl])
-                np.savetxt(path.join(path1, 'GMM_infocontent_marginal_' + str(sl) + '.txt'),
-                           self.priorentropy_marginal - self.results_gmm_marginal[sl])
                 np.savetxt(path.join(path1, 'MVN_sqstd_' + str(sl) + '.txt'), self.sqstd_mvn[sl])
-                np.savetxt(path.join(path1, 'GMM_sqstd_' + str(sl) + '.txt'), self.sqstd_gmm[sl])
                 np.savetxt(path.join(path1, 'MVN_sqstd_marginal_' + str(sl) + '.txt'),
                            self.sqstd_mvn_marginal[sl])
-                np.savetxt(path.join(path1, 'GMM_sqstd_marginal_' + str(sl) + '.txt'),
-                           self.sqstd_gmm_marginal[sl])
                 np.savetxt(path.join(path1, 'MVN_n_' + str(sl) + '.txt'), self.n_mvn[sl])
-                np.savetxt(path.join(path1, 'GMM_n_' + str(sl) + '.txt'), self.n_gmm[sl])
                 np.savetxt(path.join(path1, 'MVN_n_marginal_' + str(sl) + '.txt'), self.n_mvn_marginal[sl])
-                np.savetxt(path.join(path1, 'GMM_n_marginal_' + str(sl) + '.txt'), self.n_gmm_marginal[sl])
 
     def set_sim_pars_for_iteration(self, it=None, position=None):
         def _str2int(st):
