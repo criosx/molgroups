@@ -1,0 +1,43 @@
+-- Model 0 sim0.dat
+.background = background0 = 0.328188 in [0,2]
+.radius = 54.436 in [40,90]
+.radius_pd = 0.5 in [0.1,0.5]
+.radius_pd_n = 35
+.radius_pd_nsigma = 3
+.scale = 0.00146225 in [0.0001,0.005]
+.sld = 3.10904 in [1,4]
+.sld_M0 = 0
+.sld_mphi = 0
+.sld_mtheta = 0
+.sld_solvent = sld_solvent0 = 2.87842 in [2.86864,2.90864]
+.sld_solvent_M0 = 0
+.sld_solvent_mphi = 0
+.sld_solvent_mtheta = 0
+.up_angle = 0
+.up_frac_f = 0
+.up_frac_i = 0
+.up_phi = 0
+
+[chisq=0.776(41), nllf=66.771]
+-- Model 1 sim1.dat
+.background = background1 = 0.315884 in [0,2]
+.radius = 54.436 in [40,90]
+.radius_pd = 0.5 in [0.1,0.5]
+.radius_pd_n = 35
+.radius_pd_nsigma = 3
+.scale = 0.00146225 in [0.0001,0.005]
+.sld = 3.10904 in [1,4]
+.sld_M0 = 0
+.sld_mphi = 0
+.sld_mtheta = 0
+.sld_solvent = sld_solvent1 = 2.95979 in [2.94526,2.98526]
+.sld_solvent_M0 = 0
+.sld_solvent_mphi = 0
+.sld_solvent_mtheta = 0
+.up_angle = 0
+.up_frac_f = 0
+.up_frac_i = 0
+.up_phi = 0
+
+[chisq=0.992(44), nllf=78.9003]
+[overall chisq=0.902(29), nllf=145.671]
