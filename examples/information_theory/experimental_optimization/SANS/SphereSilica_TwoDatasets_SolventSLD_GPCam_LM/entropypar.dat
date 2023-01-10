@@ -1,8 +1,8 @@
 i b0 * background0 0.509283 0.0 2.0
 i b1 * background1 0.295525 0.0 2.0
-i 0 * sld_solvent0 2.0 1.98 2.02 1.5 4.5 0.1
-i 1 * sld_solvent1 2.0 1.98 2.02 1.5 4.5 0.1
-d _ _ scale 0.0013 0.0001 0.005
+i 0 * sld_solvent0 2.0 1.95 2.05 1.5 4.5 0.5
+i 1 * sld_solvent1 2.0 1.95 2.05 1.5 4.5 0.5
+i _ _ scale 0.0013 0.0011 0.0015
 d _ _ sld  3.1 1.0 4.0
 d _ _ radius  65 40 90
 d _ _ radius_pd  0.3 0.1 0.5

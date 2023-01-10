@@ -295,7 +295,7 @@ class CBumpsAPI(api_base.CBaseAPI):
                                burn=burn, monitors=monitors, xtol=1e-6, ftol=1e-8)
         elif fitter == 'LM':
             driver = FitDriver(fitclass=MPFit, mapper=mapper, problem=self.problem, monitors=monitors,
-                               steps=1000, xtol=1e-10, ftol=1e-10)
+                               steps=steps, xtol=1e-6, ftol=1e-8)
         else:
             driver = None
 

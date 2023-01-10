@@ -1200,7 +1200,6 @@ class Entropy:
                 os.chdir(fulldirname)
                 molstat_iter = molstat.CMolStat(fitsource=self.fitsource, spath=fulldirname, mcmcpath='save',
                                                 runfile=self.runfile, load_state=False)
-                os.chdir(self.spath)
 
                 if self.fitter == 'LM':
                     # copy best-fit parameters from data simulation instance
@@ -1221,6 +1220,9 @@ class Entropy:
                     self.run_fit(molstat_iter, iteration, dirname, fulldirname)
                     fit_counter += 1
                     fit_success = True
+
+                os.chdir(self.spath)
+
 
         # Do not run entropy calculation when on cluster, or no valid result, or entropy from covariance via LM.
         if self.fitter != 'LM':
