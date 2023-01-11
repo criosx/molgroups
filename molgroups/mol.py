@@ -565,6 +565,9 @@ class CompositeHeadgroup(CompositenSLDObj):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
         return rdict
 
+# ------------------------------------------------------------------------------------------------------
+# Bilayer models
+# ------------------------------------------------------------------------------------------------------
 
 class BLM(CompositenSLDObj):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
@@ -1325,7 +1328,7 @@ class tBLM(BLM):
 
 
 # ------------------------------------------------------------------------------------------------------
-# Hermite Spline
+# Protein models
 # ------------------------------------------------------------------------------------------------------
 """
 Notes on usage:
@@ -1834,4 +1837,73 @@ class DiscreteEuler(nSLDObj):
         rdict[cName]['gamma'] = self.gamma
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteData2Dict(rdict[cName], z)
+        return rdict
+
+
+# ------------------------------------------------------------------------------------------------------
+# Bilayer + protein models
+# ------------------------------------------------------------------------------------------------------
+
+class BLMProteinComplex(CompositenSLDObj):
+    """Composite bilayer/protein model
+
+    Requires:
+    blm: list of at least one bilayer object (BLM or its subclasses)
+    proteins: list of any number of protein or protein-like objects (i.e. has fnGetVolume),
+                e.g. Hermite, SLDHermite, DiscreteEuler, ContinuousEuler
+    
+    Example usage:
+    blm = BLM(...)
+    prot1 = Hermite(...)
+    prot2 = Hermite(...)
+    blmprot = BLMProteinComplex(blms=[blm], proteins=[prot1, prot2]
+    
+    Setting parameters should occur as usual on subgroups:
+    blmprot.blm0.fnSet(...) or blmprot.blms[0].fnSet(...)
+    blmprot.prot0.fnSet(...) or blmprot.proteins[0].fnSet(...)
+    blmprot.prot1.fnSet(...) or blmprot.proteins[1].fnSet(...)
+
+    Adjusts bilayer when protein is present:
+    blmprot.fnAdjustBLM() # adjusts bilayer for presence of protein
+    """
+    def __init__(self, blms=[], proteins=[]):
+        super().__init__()
+
+        assert len(blms) > 0, 'At least one bilayer is required in BLMProteinComplex'
+        self.blms = blms
+        for i, gp in enumerate(self.proteins):
+            self.__setattr__(f'blm{i}', gp)
+
+        self.proteins = proteins
+        for i, gp in enumerate(self.proteins):
+            self.__setattr__(f'prot{i}', gp)
+
+        self.fnFindSubgroups()
+
+    def fnAdjustBLMs(self):
+        
+        for blm in self.blms:
+            # inner leaflet
+            z1 = blm.methylenes1[0].z - 0.5 * blm.methylenes1[0].l
+            z2 = blm.methyls1[0].z + 0.5 * blm.methyls1[0].l
+            lipidvol = sum(methylene.vol for methylene in blm.methylenes1) \
+                        + sum(methyl.vol for methyl in blm.methyls1)
+            lipidvol *= blm.vf_bilayer
+            blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
+
+            # outer leaflet
+            lipidvol = sum(methylene.vol for methylene in blm.methylenes2) \
+                        + sum(methyl.vol for methyl in blm.methyls2)
+            lipidvol *= self.vf_bilayer
+            z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].l
+            z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].l
+            blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
+
+            blm.fnAdjustParameters()
+
+    def fnWritePar2Dict(self, rdict, cName, z):
+        rdict = super().fnWritePar2Dict(rdict, cName, z)
+
+        # TODO: FRANK INSERT CALCULATIONS HERE
+
         return rdict
