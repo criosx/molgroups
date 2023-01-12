@@ -1,0 +1,54 @@
+-- Model 0 sim0.dat
+.background = background0 = 0.158972 in [0.01,0.8]
+.radius = 59.8419 in [40,80]
+.radius_pd = 0.49737 in [0.3,0.5]
+.radius_pd_n = 35
+.radius_pd_nsigma = 3
+.scale = 0.00127609 in [0.001,0.006]
+.sld = 3.18807 in [2,4]
+.sld_M0 = 0
+.sld_mphi = 0
+.sld_mtheta = 0
+.sld_solvent = sld_solvent0 = 4.44597 in [-0.56,6.4]
+.sld_solvent_M0 = 0
+.sld_solvent_mphi = 0
+.sld_solvent_mtheta = 0
+.up_angle = 0
+.up_frac_f = 0
+.up_frac_i = 0
+.up_phi = 0
+
+[chisq=15.110(28), nllf=1896.34]
+-- Model 1 sim1.dat
+.background = background1 = 0.295578 in [0.01,0.8]
+.radius = 59.8419 in [40,80]
+.radius_pd = 0.49737 in [0.3,0.5]
+.radius_pd_n = 35
+.radius_pd_nsigma = 3
+.scale = 0.00127609 in [0.001,0.006]
+.sld = 3.18807 in [2,4]
+.sld_M0 = 0
+.sld_mphi = 0
+.sld_mtheta = 0
+.sld_solvent = sld_solvent1 = 2.92768 in [-0.56,6.4]
+.sld_solvent_M0 = 0
+.sld_solvent_mphi = 0
+.sld_solvent_mtheta = 0
+.up_angle = 0
+.up_frac_f = 0
+.up_frac_i = 0
+.up_phi = 0
+
+[chisq=18.723(28), nllf=2349.7]
+[overall chisq=17.190(19), nllf=4246.04]
+              Parameter       mean  median    best [   68% interval] [   95% interval]
+ 1          background0 0.158996(69) 0.158998 0.158972 [0.15894 0.15906] [0.15888 0.15911]
+ 2               radius   61.7(25)   60.84   59.84 [   59.7    64.0] [   58.8    69.0]
+ 3            radius_pd  0.472(30)   0.485   0.497 [   0.44    0.50] [   0.39    0.50]
+ 4                scale 2.6(14)e-3 0.00218 0.00128 [ 0.0013  0.0044] [ 0.0010  0.0054]
+ 5                  sld   3.10(54)   3.165   3.188 [   2.43    3.73] [   2.05    3.89]
+ 6         sld_solvent0    3.2(11)   3.140   4.446 [   1.99    4.49] [   1.09    4.94]
+ 7          background1 0.295544(97) 0.295549 0.295578 [0.29544 0.29561] [0.29535 0.29571]
+ 8         sld_solvent1   3.12(57)   3.258   2.928 [   2.37    3.74] [   2.03    4.04]
+
+Statistics and plots based on 8658 samples (100.0% of total samples drawn)

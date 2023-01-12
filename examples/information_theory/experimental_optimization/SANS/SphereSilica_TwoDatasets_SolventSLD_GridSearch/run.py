@@ -26,12 +26,12 @@ background1 = Parameter(name='background1', value=0.4).range(0.01, 0.8)
 sld_solvent0 = Parameter(name='sld_solvent0', value=2.0).range(-0.56, 6.4)
 sld_solvent1 = Parameter(name='sld_solvent1', value=2.0).range(-0.56, 6.4)
 
-model0.scale.range(0.0001, 0.05)
+model0.scale.range(0.001, 0.006)
 model0.background = background0
-model0.sld.range(1, 4)
+model0.sld.range(2, 4)
 model0.sld_solvent = sld_solvent0
-model0.radius.range(40., 120.)
-model0.radius_pd.range(0.05, 0.7)
+model0.radius.range(40., 80.)
+model0.radius_pd.range(0.3, 0.5)
 
 model1.scale = model0.scale
 model1.background = background1
