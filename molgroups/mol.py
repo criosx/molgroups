@@ -1871,7 +1871,7 @@ class BLMProteinComplex(CompositenSLDObj):
 
         assert len(blms) > 0, 'At least one bilayer is required in BLMProteinComplex'
         self.blms = blms
-        for i, gp in enumerate(self.proteins):
+        for i, gp in enumerate(self.blms):
             self.__setattr__(f'blm{i}', gp)
 
         self.proteins = proteins
