@@ -221,7 +221,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 ["unit_solid_angle", 1],
                 ["differential_cross_section_cuvette", 0],
                 ["differential_cross_section_buffer", 0],
-                ["dq_q", 0.125],
+                ["dq_q", None],
                 ["lambda", 6],
                 ["dlambda_lambda", 0.125],
                 ["sascalc", False]
@@ -232,7 +232,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             return configuration
 
         def _calc_configuration(Q, Iq, configuration):
-
             # 4PI integration is valid only until q_max given by lambda
             q_max = 4 * numpy.pi / configuration['lambda']
             # index for closest q-value to q_max
@@ -256,7 +255,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             if Q[idx] > q_max2 and idx > 0:
                 idx -= 1
             Q = Q[0:idx+1]
-            Iq = Iq[0:idx+1]
+            # Iq = Iq[0:idx+1]
 
             theta = 2 * numpy.arcsin(Q * configuration['lambda'] / 4 / numpy.pi)
             r = configuration['sample_detector_distance'] * numpy.tan(theta)
@@ -272,8 +271,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 # calculate n_cell(q) and dq/q using Jeff's sascalc implementation
                 # li_n_cell, li_dq_q = jeff.sascalc(liData, configuration)
                 # TODO: Update once Jeff's routine is available, until then use this placeholder:
-                n_cell = numpy.full(Q, 1)
-                dq_q = numpy.full(n_cell.shape, configuration['dq_q'])
+                n_cell = delta_omega * 1
+                dq_q = numpy.full(Q.shape, 0.15)
             else:
                 # estimate n_cell(q) and dq/q from configuration parameters
                 # draw detector dimensions and solid angle projections in shapely
@@ -296,41 +295,42 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                 # n_cell(q) is the entire solid angle of this q-value times the fraction that is detected
                 n_cell = delta_omega * (area_detected / omega_circle_area)
-                dq_q = numpy.full(n_cell.shape, configuration['dq_q'])
 
-            # pad numpy arrays with zeros back to original length
-            append_array = numpy.zeros(initial_q_length-len(n_cell))
-            n_cell = numpy.append(n_cell, append_array)
-            delta_omega = numpy.append(delta_omega, append_array)
+                if configuration['dq_q'] is not None:
+                    dqq = numpy.full(Q.shape, configuration['dq_q'])
+                else:
+                    # calculate dq_q based on SANS toolbox page 154, equation (30), approximated for sigma_x = sigma_y
+                    L1 = configuration["source_sample_distance"]
+                    L2 = configuration["sample_detector_distance"]
+                    R1 = configuration["source_aperture_radius"]
+                    R2 = configuration["sample_aperture_radius"]
+                    dx = configuration["detector_pixelsize_x"]
+                    dy = configuration["detector_pixelsize_y"]
+                    dL_L = configuration["dlambda_lambda"]
+                    L = configuration["lambda"]
 
-            # calculate dq_q based on SANS toolbox page 154, equation (30), approximated for sigma_x = sigma_y
-            L1 = configuration["source_sample_distance"]
-            L2 = configuration["sample_detector_distance"]
-            R1 = configuration["source_aperture_radius"]
-            R2 = configuration["sample_aperture_radius"]
-            dx = configuration["detector_pixelsize_x"]
-            dy = configuration["detector_pixelsize_y"]
-            dL_L = configuration["dlambda_lambda"]
-            L = configuration["lambda"]
+                    dqx2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dx/2)**2
+                    dqx2 *= (numpy.pi*2/L/L2)**2
+                    dqx2 += (1/6)*dL_L**2*Q*Q
+                    A = L2 * (L1 + L2) * 3.073e-9
+                    dqy2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dy/2)**2+A**2*L**4*(2/3)*dL_L**2
+                    dqy2 *= (numpy.pi*2/L/L2)**2
+                    dqy2 += (1/6)*dL_L**2*Q*Q
 
-            dqx2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dx/2)**2
-            dqx2 *= (numpy.pi*2/L/L2)**2
-            dqx2 += (1/6)*dL_L**2*Q*Q
-            A = L2 * (L1 + L2) * 3.073e-9
-            dqy2 = (L2*R1/L1/2)**2+((L1+L2)*R2/L1/2)**2+(1/3)*(dy/2)**2+A**2*L**4*(2/3)*dL_L**2
-            dqy2 *= (numpy.pi*2/L/L2)**2
-            dqy2 += (1/6)*dL_L**2*Q*Q
+                    dqq = _divide(numpy.sqrt(dqx2 + dqy2)/numpy.sqrt(2), Q)
 
-            dqq = _divide(numpy.sqrt(dqx2 + dqy2)/numpy.sqrt(2), Q)
-
-            dq_q = numpy.append(dqq, append_array)
+                # pad numpy arrays with zeros back to original length
+                append_array = numpy.zeros(initial_q_length - len(n_cell))
+                n_cell = numpy.append(n_cell, append_array)
+                dq_q = numpy.append(dqq, append_array)
+                delta_omega = numpy.append(delta_omega, append_array)
 
             return n_cell, dq_q, delta_omega, Sigma
 
         def _divide(a, b):
             return numpy.divide(a, b, out=numpy.zeros_like(a), where=b != 0)
 
-        # prepare configurations
+        # Prepare configurations.
         if liConfigurations is not None:
             # check if a single set of configurations is provided for more than one dataset and
             # multiply the configurations accordingly
@@ -383,7 +383,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 dQ.fill(0)
                 dIq.fill(0)
 
-                confignumber = 0
                 for configuration in liConfigurations[dataset_n]:
 
                     li_n_cell, li_dq_q, d_omeg, Sigma_s_4pi = _calc_configuration(Q, Iq, configuration)
@@ -418,8 +417,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     Sigma_d = configuration['dark_count_f']
                     I_dark = neutron_intensity * Sigma_d
 
-                    counts_sample = neutron_intensity * li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c\
-                                    * D + I_dark
+                    counts_sample = neutron_intensity * li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c
+                    counts_sample *= D
+                    counts_sample += I_dark
                     counts_cuvette = neutron_intensity * li_n_cell * (I_buffer + I_cuvette) * T_b * T_c * D + I_dark
                     counts_dark = neutron_intensity * li_n_cell * I_dark
 
@@ -430,7 +430,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     sqrt_counts_dark = numpy.minimum(numpy.sqrt(counts_dark), counts_dark)
 
                     # calculate new relative uncertainty
-                    # Approximat Poisson by Gaussian
+                    # Approximate Poisson by Gaussian
                     delta_I_s = (sqrt_counts_sample/(T_s * T_b * T_c))**2
                     delta_I_s += (sqrt_counts_cuvette/(T_b * T_c))**2
                     delta_I_s += (sqrt_counts_dark * ((1 / T_s / T_b / T_c) - (1 / T_b / T_c)))**2
@@ -439,10 +439,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     delta_I_I = _divide(delta_I_I, li_n_cell)
                     delta_I_I = _divide(delta_I_I, D)
                     delta_I_I = _divide(delta_I_I, Iq)
-
-                    # mark each dQ by configuration number to avoid any identical data points between configurations,
-                    # which cause a problem for bumps, has negligibel effect on dQ
-                    # this is relevant for zero counting time simulations
 
                     if average:
                         # update current dI and dQ entries in data set with data from this frame
@@ -465,8 +461,6 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                         Iq_append = numpy.append(Iq_append, Iq)
                         dIq_append = numpy.append(dIq_append, delta_I_I * Iq)
                         dQ_append = numpy.append(dQ_append, li_dq_q * Q)
-
-                    confignumber += 1
 
                 if average:
                     dataset[1]['dI'] = dIq
