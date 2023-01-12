@@ -1864,7 +1864,7 @@ class BLMProteinComplex(CompositenSLDObj):
     blmprot.prot1.fnSet(...) or blmprot.proteins[1].fnSet(...)
 
     Adjusts bilayer when protein is present:
-    blmprot.fnAdjustBLM() # adjusts bilayer for presence of protein
+    blmprot.fnAdjustBLMs() # adjusts bilayers for presence of protein
     """
     def __init__(self, blms=[], proteins=[]):
         super().__init__()
