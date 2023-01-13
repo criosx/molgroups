@@ -241,7 +241,6 @@ class CompositenSLDObj(nSLDObj):
             rdict = g.fnWritePar2Dict(rdict, f"{cName}.{g.name}", z)
         return rdict
 
-
 class Box2Err(nSLDObj):
     def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
         super().__init__(name=name)
@@ -1882,6 +1881,8 @@ class BLMProteinComplex(CompositenSLDObj):
         for i, gp in enumerate(self.proteins):
             self.__setattr__(f'prot{i}', gp)
 
+        self.nf = 1.0
+
         self.fnFindSubgroups()
 
     def fnAdjustBLMs(self):
@@ -1898,7 +1899,7 @@ class BLMProteinComplex(CompositenSLDObj):
             # outer leaflet
             lipidvol = sum(methylene.vol for methylene in blm.methylenes2) \
                         + sum(methyl.vol for methyl in blm.methyls2)
-            lipidvol *= self.vf_bilayer
+            lipidvol *= blm.vf_bilayer
             z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].l
             z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].l
             blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
