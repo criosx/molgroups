@@ -12,6 +12,24 @@ from molgroups import components as cmp
 D2O_SLD *= 1e-6
 H2O_SLD *= 1e-6
 
+def _overlay_profiles(dMaxArea, area1, area2, nsl1, nsl2):
+    """Overlays area2 (and nsl1) onto area1 (nsl2), replacing area1 if
+        the total area is larger than dMaxArea"""
+    temparea = area1 + area2
+
+    # find any area for which the final area will be greater than dMaxArea
+    overmax = temparea > dMaxArea
+    # note: unphysical overfill will trigger the following assertion error
+    # TODO: implement a correction instead of throwing an error
+    assert (not numpy.any((temparea - dMaxArea) > area1))
+    nsl1[overmax] = nsl1[overmax] * (1 - ((temparea[overmax] - dMaxArea) / area1[overmax])) + nsl2[overmax]
+    area1[overmax] = dMaxArea
+
+    # deal with area for which the final area is not greater than dMaxArea
+    area1[~overmax] += area2[~overmax]
+    nsl1[~overmax] += nsl2[~overmax]
+
+    return area1, nsl1
 
 class nSLDObj:
     def __init__(self, name=None):
@@ -171,22 +189,8 @@ class nSLDObj:
         # TODO implement absorption
 
         area, nsl, _ = self.fnGetProfiles(z)
-        temparea = aArea + area
-
-        # find any area for which the final area will be greater than dMaxArea
-        overmax = temparea > dMaxArea
-        # note: unphysical overfill will trigger the following assertion error
-        # TODO: implement a correction instead of throwing an error
-        assert (not numpy.any((temparea - dMaxArea) > aArea))
-        anSL[overmax] = anSL[overmax] * (1 - ((temparea[overmax] - dMaxArea) / aArea[overmax])) + nsl[overmax]
-        aArea[overmax] = dMaxArea
-
-        # deal with area for which the final area is not greater than dMaxArea
-        aArea[~overmax] += area[~overmax]
-        anSL[~overmax] += nsl[~overmax]
-
-        return aArea, anSL
-
+        
+        return _overlay_profiles(dMaxArea, aArea, area, anSL, nsl)
 
 class CompositenSLDObj(nSLDObj):
     def __init__(self, **kwargs):
@@ -1900,6 +1904,36 @@ class BLMProteinComplex(CompositenSLDObj):
             blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
 
             blm.fnAdjustParameters()
+
+    def fnGetProfiles(self, z):
+        # NOTE: Do not use CompositenSLDObj.fnGetProfiles, which adds the profiles of all subgroups
+        #    but does not overlay the proteins with the bilayers properly
+
+        # calculate area from bilayers
+        blm_area, blm_nsl = numpy.zeros_like(z), numpy.zeros_like(z)
+        for blm in self.blms:
+            area, nsl, _ = blm.fnGetProfiles(z)
+            blm_area += area
+            blm_nsl += nsl
+
+        dMaxArea = blm_area.max()
+
+        # calculate area from proteins
+        prot_area, prot_nsl = numpy.zeros_like(z), numpy.zeros_like(z)
+        for prot in self.proteins:
+            area, nsl, _ = prot.fnGetProfiles(z)
+            prot_area += area
+            prot_nsl += nsl
+
+        # overlay proteins on bilayers
+        area, nsl = _overlay_profiles(dMaxArea, blm_area, prot_area, blm_nsl, prot_nsl)
+
+        # Calculate nSLD
+        nsld = numpy.zeros_like(area)
+        pos = (area > 0)
+        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+
+        return area * self.nf, nsl * self.nf, nsld
 
     def fnWritePar2Dict(self, rdict, cName, z):
         rdict = super().fnWritePar2Dict(rdict, cName, z)
