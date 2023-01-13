@@ -241,6 +241,25 @@ class CompositenSLDObj(nSLDObj):
             rdict = g.fnWritePar2Dict(rdict, f"{cName}.{g.name}", z)
         return rdict
 
+class nSLDObjList(CompositenSLDObj):
+    def __init__(self, items=[], **kwargs):
+        super().__init__(**kwargs)
+
+        self.subgroups = items
+        self.nf = 1.0
+
+    def __getitem__(self, index):
+        return self.subgroups[index]
+
+    def __setitem__(self, index, item):
+        self.subgroups[index] = item
+
+    def __contains__(self, item):
+        return item in self.subgroups
+
+    def fnFindSubgroups(self):
+        pass
+
 class Box2Err(nSLDObj):
     def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
         super().__init__(name=name)
@@ -1859,28 +1878,22 @@ class BLMProteinComplex(CompositenSLDObj):
     blm = BLM(...)
     prot1 = Hermite(...)
     prot2 = Hermite(...)
-    blmprot = BLMProteinComplex(blms=[blm], proteins=[prot1, prot2]
+    blmprot = BLMProteinComplex(blms=[blm], proteins=[prot1, prot2])
     
     Setting parameters should occur as usual on subgroups:
-    blmprot.blm0.fnSet(...) or blmprot.blms[0].fnSet(...)
-    blmprot.prot0.fnSet(...) or blmprot.proteins[0].fnSet(...)
-    blmprot.prot1.fnSet(...) or blmprot.proteins[1].fnSet(...)
+    blmprot.blms[0].fnSet(...) or blmprot.blms[0].fnSet(...)
+    blmprot.proteins[0].fnSet(...)
+    blmprot.proteins[1].fnSet(...)
 
     Adjusts bilayer when protein is present:
     blmprot.fnAdjustBLMs() # adjusts bilayers for presence of protein
     """
-    def __init__(self, blms=[], proteins=[]):
-        super().__init__()
+    def __init__(self, blms=[], proteins=[], name=None):
+        super().__init__(name=name)
 
         assert len(blms) > 0, 'At least one bilayer is required in BLMProteinComplex'
-        self.blms = blms
-        for i, gp in enumerate(self.blms):
-            self.__setattr__(f'blm{i}', gp)
-
-        self.proteins = proteins
-        for i, gp in enumerate(self.proteins):
-            self.__setattr__(f'prot{i}', gp)
-
+        self.blms = nSLDObjList(blms, name='blms')
+        self.proteins = nSLDObjList(proteins, name='proteins')
         self.nf = 1.0
 
         self.fnFindSubgroups()
@@ -1910,21 +1923,12 @@ class BLMProteinComplex(CompositenSLDObj):
         # NOTE: Do not use CompositenSLDObj.fnGetProfiles, which adds the profiles of all subgroups
         #    but does not overlay the proteins with the bilayers properly
 
-        # calculate area from bilayers
-        blm_area, blm_nsl = numpy.zeros_like(z), numpy.zeros_like(z)
-        for blm in self.blms:
-            area, nsl, _ = blm.fnGetProfiles(z)
-            blm_area += area
-            blm_nsl += nsl
-
+        # calculate total area from bilayers
+        blm_area, blm_nsl, _ = self.blms.fnGetProfiles(z)
         dMaxArea = blm_area.max()
 
-        # calculate area from proteins
-        prot_area, prot_nsl = numpy.zeros_like(z), numpy.zeros_like(z)
-        for prot in self.proteins:
-            area, nsl, _ = prot.fnGetProfiles(z)
-            prot_area += area
-            prot_nsl += nsl
+        # calculate total area from proteins
+        prot_area, prot_nsl, _ = self.proteins.fnGetProfiles(z)
 
         # overlay proteins on bilayers
         area, nsl = _overlay_profiles(dMaxArea, blm_area, prot_area, blm_nsl, prot_nsl)
