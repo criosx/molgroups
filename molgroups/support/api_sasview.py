@@ -201,7 +201,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
             if configuration is None:
                 configuration = {}
             kl_list = [
-                ["neutron_flux", 6.69e5],
+                ["neutron_flux", 1e5],
                 ["beam_area", 1],
                 ["beam_center_x", 0],
                 ["beam_center_y", 0],
@@ -398,30 +398,44 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     # Cuvette counts
                     # Not sure, how to treat empty cuvette scattering that takes place over a shorter path length
                     # through material than a buffer-filled cuvette. At the moment it is treated as it would occur over
-                    # the entire length of the cuvette.
+                    # the entire length of the cuvette. See theory document.
+
                     Sigma_c = configuration["differential_cross_section_cuvette"]
-                    T_c = numpy.exp(-1 * Sigma_c * 4 * numpy.pi * D)
-                    I_cuvette = Sigma_c
-
-                    # Buffer counts
+                    Sigma_c_4pi = Sigma_c * 4 * numpy.pi
                     Sigma_b = configuration["differential_cross_section_buffer"]
-                    T_b = numpy.exp(-1 * Sigma_b * 4 * numpy.pi * D)
-                    I_buffer = Sigma_b
-
-                    # Sample counts
+                    Sigma_b_4pi = Sigma_b * 4 * numpy.pi
                     Sigma_s = Iq
-                    T_s = numpy.exp(-1 * Sigma_s_4pi * D)
-                    I_sample = Sigma_s
+                    Sigma_T_4pi = Sigma_s_4pi + Sigma_b_4pi + Sigma_c_4pi
 
-                    # Dark counts
+                    T_T = numpy.exp(-1 * Sigma_T_4pi * D)
+                    T_bc = numpy.exp(-1 * (Sigma_b_4pi + Sigma_b_4pi) * D)
+                    T_c = numpy.exp(-1 * Sigma_c_4pi * D)
+                    T_b = numpy.exp(-1 * Sigma_b_4pi * D)
+                    T_s = numpy.exp(-1 * Sigma_s_4pi * D)
+
+                    Sigma_bmT = Sigma_b_4pi - Sigma_T_4pi
+                    Sigma_smT = Sigma_s_4pi - Sigma_T_4pi
+                    T_1mT = 1 - T_T
+                    T_1mb = 1 - T_b
+
+                    # sample intensity
+                    I_sample = neutron_intensity * (Sigma_s / Sigma_bmT) * (T_T - T_b)
+                    # buffer intensity
+                    I_buffer = neutron_intensity * (1 / (Sigma_bmT * Sigma_T_4pi))
+                    I_buffer *= (Sigma_b_4pi**2 * T_1mT + Sigma_b_4pi * Sigma_smT * T_1mT - Sigma_s_4pi * Sigma_s_4pi \
+                                * T_1mb)
+                    I_buffer /= (4 * numpy.pi)
+                    # self-shielding correction (Barker, Mildner, J. Appl. Cr., 2015)
+                    I_buffer *= (1 + 0.625 * Sigma_T_4pi * D)
+                    # cuvette intensity
+                    I_cuvette = neutron_intensity * Sigma_c_4pi / Sigma_T_4pi * T_1mT / (4 * numpy.pi)
+                    # Dark count intensity
                     Sigma_d = configuration['dark_count_f']
                     I_dark = neutron_intensity * Sigma_d
 
-                    counts_sample = neutron_intensity * li_n_cell * (I_sample + I_buffer + I_cuvette) * T_s * T_b * T_c
-                    counts_sample *= D
-                    counts_sample += I_dark
-                    counts_cuvette = neutron_intensity * li_n_cell * (I_buffer + I_cuvette) * T_b * T_c * D + I_dark
-                    counts_dark = neutron_intensity * li_n_cell * I_dark
+                    counts_sample = li_n_cell * (I_sample + I_buffer + I_cuvette + I_dark)
+                    counts_cuvette = li_n_cell * (I_buffer + I_cuvette + I_dark)
+                    counts_dark = li_n_cell * I_dark
 
                     # calculate new relative uncertainty, approximate Poisson by Gaussian
                     # make sure that the uncertainty is not larger than the count (counts below one).
@@ -431,9 +445,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
                     # calculate new relative uncertainty
                     # Approximate Poisson by Gaussian
-                    delta_I_s = (sqrt_counts_sample/(T_s * T_b * T_c))**2
-                    delta_I_s += (sqrt_counts_cuvette/(T_b * T_c))**2
-                    delta_I_s += (sqrt_counts_dark * ((1 / T_s / T_b / T_c) - (1 / T_b / T_c)))**2
+                    delta_I_s = (sqrt_counts_sample / T_T)**2
+                    delta_I_s += (sqrt_counts_cuvette / T_bc)**2
+                    delta_I_s += (sqrt_counts_dark * ((1 / T_T) - (1 / T_bc)))**2
                     delta_I_s = numpy.sqrt(delta_I_s)
                     delta_I_I = delta_I_s / neutron_intensity
                     delta_I_I = _divide(delta_I_I, li_n_cell)
