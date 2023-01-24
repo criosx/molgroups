@@ -8,6 +8,7 @@ bumps
 matplotlib
 ipython
 sasmodels
+sasdata
 setuptools
 shapely
 dill
