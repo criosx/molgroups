@@ -20,4 +20,4 @@ n * 0 time 1600
 n * 1 time 3600
 n * 2 time 4400
 n * 0 beam_center_x 26.416
-n * * cuvette_thickness 0.2 0 0 0.1 4.1 0.25
+n * * cuvette_thickness 0.2 0 0 0.02 4.1 0.1
