@@ -39,8 +39,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_surfasil, vf_surf
     problem.groups = [substrate, surfasil]
     problem.dimension = dimension
     problem.stepsize = stepsize
-    dict1 = substrate.fnWritePar2Dict({}, 'substrate', np.arange(dimension) * stepsize)
-    dict2 = substrate.fnWritePar2Dict({}, 'surfasil', np.arange(dimension) * stepsize)
+    dict1 = substrate.fnWriteGroup2Dict({}, 'substrate', np.arange(dimension) * stepsize)
+    dict2 = substrate.fnWriteGroup2Dict({}, 'surfasil', np.arange(dimension) * stepsize)
     problem.moldat = {**dict1, **dict2}
 
 

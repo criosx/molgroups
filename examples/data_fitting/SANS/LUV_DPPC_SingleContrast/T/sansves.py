@@ -32,7 +32,7 @@ def bilayer(z, bulknsld, l_lipid1, l_lipid2, sigma=3.0, vf_bilayer=1.0):
     problem.bilayers = [blm]
     problem.dimension = dimension
     problem.stepsize = stepsize
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
+    problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
 
     # Return nSLD profile in Refl1D units
     return nsld*1e6

@@ -338,10 +338,10 @@ class CBumpsAPI(api_base.CBaseAPI):
         fp = open(self.spath + '/mol.dat', "w")
         z = numpy.linspace(0, problem.dimension * problem.stepsize, problem.dimension, endpoint=False)
         try:
-            problem.extra[0].fnWritePar2File(fp, 'bilayer', z)
-            problem.extra[1].fnWritePar2File(fp, 'protein', z)
+            problem.extra[0].fnWriteGroup2File(fp, 'bilayer', z)
+            problem.extra[1].fnWriteGroup2File(fp, 'protein', z)
         except:
-            problem.extra.fnWritePar2File(fp, 'bilayer', z)
+            problem.extra.fnWriteGroup2File(fp, 'bilayer', z)
         fp.close()
         stdout.flush()
 

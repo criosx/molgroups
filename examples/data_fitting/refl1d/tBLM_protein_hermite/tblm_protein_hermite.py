@@ -53,7 +53,7 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tet
     problem.bilayers = [blm]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
@@ -115,8 +115,8 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
     # for statistical analysis of molgroups
-    moldict1 = blm.fnWritePar2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
-    moldict2 = protein.fnWritePar2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
+    moldict1 = blm.fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    moldict2 = protein.fnWriteGroup2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
     problem.moldat = {**moldict1, **moldict2}
 
     # Return nSLD profile in Refl1D units
