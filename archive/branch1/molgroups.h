@@ -12,7 +12,7 @@ class nSLDObj
 		virtual double fnGetnSLD(double z);
 	    virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
 	    virtual void fnOverlayProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
         virtual void fnWriteData2File (FILE *fp, int dimension, double stepsize);
 		
 		bool bWrapping;
@@ -29,7 +29,7 @@ class BoxErr : public nSLDObj
 		virtual double fnGetUpperLimit();
 		virtual double fnGetArea(double z);
 		virtual double fnGetnSLD(double z);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 		
 		double z, sigma, vol, nSL, nf, l;               //variable used internally
 };
@@ -46,7 +46,7 @@ class Box2Err : public nSLDObj
 		virtual double fnGetnSLD(double z);
 		virtual void fnSetAllSigma(double sigma);
 		virtual void fnSetZ(double dz);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 		
 		double z, sigma1, sigma2, vol, nSL, nf, l;               //variable used internally
 };
@@ -63,7 +63,7 @@ class Gaussian : public nSLDObj
 		virtual double fnGetUpperLimit();
 		virtual double fnGetArea(double z);
 		virtual double fnGetnSLD(double z);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 		
 		double z, sigma, vol, nSL, nf;               //variable used internally
 };
@@ -79,7 +79,7 @@ class Parabolic: public nSLDObj
 		virtual double fnGetUpperLimit();
 		virtual double fnGetArea(double z);
 		virtual double fnGetnSLD(double z);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 		
 		double C, H, n, nSLD, nf;               //variable used internally
 };
@@ -93,7 +93,7 @@ class StretchGaussian : public nSLDObj
 		virtual double fnGetUpperLimit();
 		virtual double fnGetArea(double z);
 		virtual double fnGetnSLD(double z);
-        virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+        virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 		
 		double z, sigma, vol, nSL, nf, l;               //variable used internally
 };
@@ -126,7 +126,7 @@ class PC: public nSLDObj
 				virtual double fnGetZ() {return z;};
                 virtual void fnSetAllSigma(double sigma);
                 virtual void fnSetZ(double dz);
-                virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+                virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
                 
                 Box2Err *cg;
                 Box2Err *phosphate;
@@ -145,7 +145,7 @@ class PCm: public PC
 			virtual void fnAdjustParameters();
 			virtual double fnGetLowerLimit();
 			virtual double fnGetUpperLimit();
-			virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+			virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 };
 
 
@@ -169,7 +169,7 @@ class FreeBox: public nSLDObj
 		virtual void fnSetNormarea(double dnormarea);
 		virtual void fnSetnSLD(double dnSLD);
 		virtual void fnSetAllSigma(double sigma);
-		virtual void fnWritePar2File(FILE *fp, char *cName, int dimension, double stepsize);
+		virtual void fnWriteGroup2File(FILE *fp, char *cName, int dimension, double stepsize);
 		
 		Box2Err *box1, *box2, *box3, *box4, *box5, *box6, *box7, *box8, *box9, *box10;
 		
@@ -343,7 +343,7 @@ class ssBLM: public nSLDObj
                 virtual double fnGetUpperLimit();
                 virtual double fnGetArea(double z);
                 virtual double fnGetnSLD(double z);
-                virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+                virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 				virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
                 
 				Box2Err   *substrate;
@@ -377,7 +377,7 @@ class tBLM: public nSLDObj
                 virtual double fnGetUpperLimit();
                 virtual double fnGetArea(double z);
                 virtual double fnGetnSLD(double z);
-                virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+                virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 				virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
                 
 				Box2Err   *substrate;
@@ -415,7 +415,7 @@ class tBLM_binary: public tBLM
                 virtual double fnGetUpperLimit();
                 virtual double fnGetArea(double z);
                 virtual double fnGetnSLD(double z);
-                virtual void fnWritePar2File (FILE *fp, char *cName, int dimension, double stepsize);
+                virtual void fnWriteGroup2File (FILE *fp, char *cName, int dimension, double stepsize);
 				virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
                 
 				Box2Err	  *headgroup1_2;	  

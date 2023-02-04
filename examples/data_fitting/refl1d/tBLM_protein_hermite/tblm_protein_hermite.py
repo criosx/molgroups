@@ -28,6 +28,7 @@ NSLDD2O = 6.36e-6
 blm = mol.tBLM(tether=lipids.HC18SAc, filler=cmp.bmeSAc, lipids=[lipids.POPC], lipid_nf=[1.0])
 protein = mol.Hermite(10)
 protein.numberofcontrolpoints = CONTROLPOINTS
+blm_prot = mol.BLMProteinComplex(blms=[blm], proteins=[protein])
 
 
 # Bilayer profile definition function
@@ -42,10 +43,10 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tet
     blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate,
               nf_tether=nf_tether, mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
               vf_bilayer=vf_bilayer)
-
     # Calculate scattering properties of volume occupied by bilayer
-    normarea, area, nsl = blm.fnWriteProfile(z)
-
+    maxarea, area, nsl = blm.fnWriteProfile(z)
+    # normarea equals maxarea because of substrate layers, otherwise normarea = blm.normarea
+    normarea = maxarea
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
@@ -67,56 +68,27 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
     bulknsld = bulknsld * 1e-6
     rho_substrate = rho_substrate * 1e-6
 
-    blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate,
+    # Calculate scattering properties of volume occupied by bilayer
+    protSLD = PROTNONDEUT + protexchratio * (bulknsld-NSLDH2O) / (NSLDD2O-NSLDH2O) * (PROTDEUT-PROTNONDEUT)
+    blm_prot.proteins[0].fnSetRelative(SPACING, blm.headgroups2[0].fnGetZ() + 0.5 * 9.56 - PENETRATION, dDp, dVf, protSLD, nf_protein)
+    blm_prot.blms[0].fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate,
               nf_tether=nf_tether, mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
               vf_bilayer=vf_bilayer)
-
-    # Calculate scattering properties of volume occupied by bilayer
-    normarea, area, nsl = blm.fnWriteProfile(z)
-
-    protein.fnSetNormarea(normarea)
-    protSLD = PROTNONDEUT + protexchratio * (bulknsld-NSLDH2O) / (NSLDD2O-NSLDH2O) * (PROTDEUT-PROTNONDEUT)
-    protein.fnSetRelative(SPACING, blm.headgroups2[0].fnGetZ() + 0.5 * 9.56 - PENETRATION, dDp, dVf, protSLD,
-                          nf_protein)
-
-    z1 = blm.methylenes1[0].z - 0.5 * blm.methylenes1[0].l
-    z2 = blm.methyls1[0].z + 0.5 * blm.methyls1[0].l
-    lipidvol = 0
-    for methylene in blm.methylenes1:
-        lipidvol += methylene.vol
-    for methyl in blm.methyls1:
-        lipidvol += methyl.vol
-    lipidvol *= vf_bilayer
-    v1 = protein.fnGetVolume(z1, z2) / lipidvol
-
-    lipidvol = 0
-    for methylene in blm.methylenes2:
-        lipidvol += methylene.vol
-    for methyl in blm.methyls2:
-        lipidvol += methyl.vol
-    lipidvol *= vf_bilayer
-    z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].l
-    z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].l
-    v2 = protein.fnGetVolume(z1, z2) / lipidvol
-
-    blm.fnSet(sigma=sigma, bulknsld=bulknsld, global_rough=global_rough, rho_substrate=rho_substrate,
-              nf_tether=nf_tether, mult_tether=mult_tether, l_tether=l_tether, l_lipid1=l_lipid1, l_lipid2=l_lipid2,
-              vf_bilayer=vf_bilayer, hc_substitution_1=v1, hc_substitution_2=v2)
-
-    normarea, area, nsl = blm.fnWriteProfile(z)
-    area, nsl = protein.fnOverlayProfile(z, area, nsl, normarea)
+    blm_prot.fnAdjustBLMs()
+    maxarea, area, nsl = blm_prot.fnWriteProfile(z)
+    # normarea equals maxarea because of substrate layers, otherwise normarea = blm_prot.blms[0].normarea, for example
+    normarea = maxarea
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be in this function
-
     # for plotting best-fits
     problem.bilayers = [blm]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
     # for statistical analysis of molgroups
-    moldict1 = blm.fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
-    moldict2 = protein.fnWriteGroup2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
+    moldict1 = blm_prot.blms[0].fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    moldict2 = blm_prot.proteins[0].fnWriteGroup2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
     problem.moldat = {**moldict1, **moldict2}
 
     # Return nSLD profile in Refl1D units
@@ -170,7 +142,7 @@ layer_h2o_prot = Slab(material=h2o_prot, thickness=0.0000, interface=5.0000)
 layer_siox = Slab(material=siox, thickness=d_oxide, interface=global_rough)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=global_rough)
 layer_cr = Slab(material=cr, thickness=d_Cr, interface=rough_cr_au)
-layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm.substrate.l), interface=0.0000)
+layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm.substrate.length), interface=0.0000)
 
 # Use the bilayer definition function to generate the bilayer SLD profile, passing in the relevant parameters.
 # Note that substrate and bulk SLDs are linked to their respective materials.

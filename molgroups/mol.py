@@ -1,17 +1,17 @@
 import numpy
-import MDAnalysis
 from scipy.special import erf
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
 
-
+import MDAnalysis
 from MDAnalysis.lib.util import convert_aa_code
+
 from periodictable.fasta import Molecule, AMINO_ACID_CODES as aa
 from periodictable.core import default_table
-
 from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
+
 from molgroups import components as cmp
 
 D2O_SLD *= 1e-6
@@ -169,6 +169,7 @@ class nSLDObj:
         self.nf = 0
         self.sigma = 0
         self.bulknsld = None
+        self.z = 0.
 
         # allows to flip groups, eg. inner vs. outer leaflet, outer leaflet is default
         self.flip = False
@@ -214,6 +215,9 @@ class nSLDObj:
         # generic area function using fnGetProfile, can be replaced with a more efficient routine in derived objects
         return self.fnGetProfiles(z)[2][z]
 
+    def fnGetZ(self):
+        return self.z
+
     def fnSetBulknSLD(self, bulknsld):
         self.bulknsld = bulknsld
 
@@ -257,7 +261,7 @@ class nSLDObj:
         # volume and nSLD array. After all objects have filled up those arrays the maximal area is
         # determined which is the area per molecule and unfilled volume is filled with bulk solvent.
         # Hopefully the fit algorithm finds a physically meaningful solution. There has to be a global
-        # hydration paramter for the bilayer.
+        # hydration parameter for the bilayer.
         # Returns maximum area
 
         # Do we want a 0.5 * stepsize shift? I believe refl1d FunctionalLayer uses
@@ -1115,7 +1119,8 @@ class ssBLM(BLM):
         self._adjust_outer_lipids()
         self._adjust_inner_lipids()
         self._adjust_substrate()
-        self._adjust_z(self.substrate.z + self.substrate.length / 2 + self.siox.length + self.l_submembrane + self.av_hg1_l)
+        self._adjust_z(self.substrate.z + self.substrate.length / 2 + self.siox.length + self.l_submembrane +
+                       self.av_hg1_l)
         self._adjust_defects()
         self.fnSetSigma(self.sigma)
 
@@ -1873,6 +1878,8 @@ class BLMProteinComplex(CompositenSLDObj):
     blm: list of at least one bilayer object (BLM or its subclasses)
     proteins: list of any number of protein or protein-like objects (i.e. has fnGetVolume),
                 e.g. Hermite, SLDHermite, DiscreteEuler, ContinuousEuler
+
+    Note: Bilayers should be non-overlapping for hc substitution to work. This is currently not enforced or tested for.
     
     Example usage:
     blm = BLM(...)
@@ -1896,11 +1903,26 @@ class BLMProteinComplex(CompositenSLDObj):
             self.blms = nSLDObjList(blms, name='blms')
         if proteins is not None:
             self.proteins = nSLDObjList(proteins, name='proteins')
-        self.nf = 1.0
 
+        self.nf = 1.0
+        self.normarea = 0.0
         self.fnFindSubgroups()
 
     def fnAdjustBLMs(self):
+        dMaxArea = 0
+        for blm in self.blms:
+            # intial bilayer adjustment with respect to the current parameters and withouth hc substitution
+            blm.hc_substitution_1 = 0
+            blm.hc_substitution_2 = 0
+            blm.fnAdjustParameters()
+            normarea = blm.normarea
+            dMaxArea = max(normarea, dMaxArea)
+
+        self.normarea = dMaxArea
+
+        for prot in self.proteins:
+            prot.fnSetNormarea(dMaxArea)
+
         for blm in self.blms:
             # inner leaflet
             z1 = blm.methylenes1[0].z - 0.5 * blm.methylenes1[0].length
@@ -1916,6 +1938,7 @@ class BLMProteinComplex(CompositenSLDObj):
             z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].length
             blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
 
+            # final adjustement of the bilayer after determining the hc substitution values.
             blm.fnAdjustParameters()
 
     def fnGetProfiles(self, z):
@@ -1925,13 +1948,10 @@ class BLMProteinComplex(CompositenSLDObj):
         # calculate total area from bilayers
         blm_area, blm_nsl, _ = self.blms.fnGetProfiles(z)
         dMaxArea = blm_area.max()
-
         # calculate total area from proteins
         prot_area, prot_nsl, _ = self.proteins.fnGetProfiles(z)
-
         # overlay proteins on bilayers
         area, nsl = overlay_profiles(dMaxArea, blm_area, prot_area, blm_nsl, prot_nsl)
-
         # Calculate nSLD
         nsld = numpy.zeros_like(area)
         pos = (area > 0)
