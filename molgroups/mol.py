@@ -72,28 +72,6 @@ def fill_bucket(bucket_volume, volume, fill_level=None):
 
     return volume, current_fill_level
 
-
-def overlay_profiles(dMaxArea, area1, area2, nsl1, nsl2):
-    """
-    Overlays area2 (and nsl1) onto area1 (nsl2), replacing area1 if the total area is larger than dMaxArea.
-    """
-    temparea = area1 + area2
-
-    # find any area for which the final area will be greater than dMaxArea
-    overmax = temparea > dMaxArea
-    # note: unphysical overfill will trigger the following assertion error
-    # TODO: implement a correction instead of throwing an error
-    assert (not numpy.any((temparea - dMaxArea) > area1))
-    nsl1[overmax] = nsl1[overmax] * (1 - ((temparea[overmax] - dMaxArea) / area1[overmax])) + nsl2[overmax]
-    area1[overmax] = dMaxArea
-
-    # deal with area for which the final area is not greater than dMaxArea
-    area1[~overmax] += area2[~overmax]
-    nsl1[~overmax] += nsl2[~overmax]
-
-    return area1, nsl1
-
-
 def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
               deuterated_residues=[],
               xray_wavelength=1.5418):
@@ -256,6 +234,10 @@ class nSLDObj:
         # Same as fnWriteGroup2File, but output is saved in a dictionary
         raise NotImplementedError()
 
+    def fnWriteResults2Dict(self, rdict, cName):
+        # empty return function, children might implement their own results (combined parameters to return)
+        return rdict
+
     def fnWriteProfile(self, z, aArea=None, anSL=None):
         # Philosophy for this first method: You simply add more and more volume and nSLD to the
         # volume and nSLD array. After all objects have filled up those arrays the maximal area is
@@ -301,6 +283,26 @@ class nSLDObj:
         return rdict
 
     def fnOverlayProfile(self, z, aArea, anSL, dMaxArea):
+        def overlay_profiles(dMaxArea, area1, area2, nsl1, nsl2):
+            """
+            Overlays area2 (and nsl1) onto area1 (nsl2), replacing area1 if the total area is larger than dMaxArea.
+            """
+            temparea = area1 + area2
+
+            # find any area for which the final area will be greater than dMaxArea
+            overmax = temparea > dMaxArea
+            # note: unphysical overfill will trigger the following assertion error
+            # TODO: implement a correction instead of throwing an error
+            assert (not numpy.any((temparea - dMaxArea) > area1))
+            nsl1[overmax] = nsl1[overmax] * (1 - ((temparea[overmax] - dMaxArea) / area1[overmax])) + nsl2[overmax]
+            area1[overmax] = dMaxArea
+
+            # deal with area for which the final area is not greater than dMaxArea
+            area1[~overmax] += area2[~overmax]
+            nsl1[~overmax] += nsl2[~overmax]
+
+            return area1, nsl1
+
         # z, aArea, anSL must be numpy arrays with the same shape
         assert (aArea.shape == z.shape)
         assert (anSL.shape == z.shape)
@@ -314,10 +316,23 @@ class nSLDObj:
 
 
 class CompositenSLDObj(nSLDObj):
-    def __init__(self, **kwargs):
+    def __init__(self, items=None,  **kwargs):
         super().__init__(**kwargs)
-        # abstract object without subgroups
-        self.subgroups = []
+        if items is not None:
+            self.subgroups = items
+        else:
+            # abstract object without subgroups
+            self.subgroups = []
+        self.nf = 1.0
+
+    def __getitem__(self, index):
+        return self.subgroups[index]
+
+    def __setitem__(self, index, item):
+        self.subgroups[index] = item
+
+    def __contains__(self, item):
+        return item in self.subgroups
 
     def fnFindSubgroups(self):
         # this should be run at the end of init. Could also store keys if memory is an issue
@@ -362,26 +377,10 @@ class CompositenSLDObj(nSLDObj):
             rdict = g.fnWriteGroup2Dict(rdict, f"{cName}.{g.name}", z)
         return rdict
 
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
 
-class nSLDObjList(CompositenSLDObj):
-    def __init__(self, items=None, **kwargs):
-        super().__init__(**kwargs)
-
-        if items is not None:
-            self.subgroups = items
-        self.nf = 1.0
-
-    def __getitem__(self, index):
-        return self.subgroups[index]
-
-    def __setitem__(self, index, item):
-        self.subgroups[index] = item
-
-    def __contains__(self, item):
-        return item in self.subgroups
-
-    def fnFindSubgroups(self):
-        pass
+        return rdict
 
 
 class Box2Err(nSLDObj):
@@ -807,7 +806,7 @@ class BLM(CompositenSLDObj):
         self.vf_bilayer = max(self.vf_bilayer, 1E-5)
         self.vf_bilayer = min(self.vf_bilayer, 1)
 
-        #TODO: Check if still appropriate here after splitting _adjust_lipids
+        # TODO: Check if still appropriate here after splitting _adjust_lipids
         self._calc_av_hg()
 
         # outer hydrocarbons
@@ -1068,6 +1067,14 @@ class BLM(CompositenSLDObj):
     def fnWriteGroup2Dict(self, rdict, cName, z):
         rdict = super().fnWriteGroup2Dict(rdict, cName, z)
         rdict = self.fnWriteConstant2Dict(rdict, f"{cName}.normarea", self.normarea, 0, z)
+        return rdict
+
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        rdict[cName]['area_per_lipid'] = self.normarea
+        rdict[cName]['volume_fraction'] = self.vf_bilayer
+        rdict[cName]['thickness_inner_leaflet'] = self.l_ihc
+        rdict[cName]['thickness_outer_leaflet'] = self.l_ohc
         return rdict
 
 
@@ -1900,9 +1907,9 @@ class BLMProteinComplex(CompositenSLDObj):
 
         assert len(blms) > 0, 'At least one bilayer is required in BLMProteinComplex'
         if blms is not None:
-            self.blms = nSLDObjList(blms, name='blms')
+            self.blms = CompositenSLDObj(blms, name='blms')
         if proteins is not None:
-            self.proteins = nSLDObjList(proteins, name='proteins')
+            self.proteins = CompositenSLDObj(proteins, name='proteins')
 
         self.nf = 1.0
         self.normarea = 0.0
@@ -1929,6 +1936,8 @@ class BLMProteinComplex(CompositenSLDObj):
             z2 = blm.methyls1[0].z + 0.5 * blm.methyls1[0].length
             lipidvol = sum(methylene.vol for methylene in blm.methylenes1) + sum(methyl.vol for methyl in blm.methyls1)
             lipidvol *= blm.vf_bilayer
+            # TODO: Create numerical volume function on the level of nSLDObj, which might be faster than the spline
+            #  integration and more flexible
             blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins)
 
             # outer leaflet
@@ -1942,20 +1951,12 @@ class BLMProteinComplex(CompositenSLDObj):
             blm.fnAdjustParameters()
 
     def fnGetProfiles(self, z):
-        # NOTE: Do not use CompositenSLDObj.fnGetProfiles, which adds the profiles of all subgroups
-        # but does not overlay the proteins with the bilayers properly
-
         # calculate total area from bilayers
         blm_area, blm_nsl, _ = self.blms.fnGetProfiles(z)
         dMaxArea = blm_area.max()
-        # calculate total area from proteins
-        prot_area, prot_nsl, _ = self.proteins.fnGetProfiles(z)
-        # overlay proteins on bilayers
-        area, nsl = overlay_profiles(dMaxArea, blm_area, prot_area, blm_nsl, prot_nsl)
-        # Calculate nSLD
-        nsld = numpy.zeros_like(area)
-        pos = (area > 0)
-        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+        # calculate total area from proteins and overlay proteins on bilayers
+        area, nsl = self.proteins.fnOverlayProfile(z, blm_area, blm_nsl, dMaxArea)
+        nsld = numpy.divide(nsl, area * numpy.gradient(z), out=numpy.zeros_like(area), where=area > 0)
 
         return area * self.nf, nsl * self.nf, nsld
 

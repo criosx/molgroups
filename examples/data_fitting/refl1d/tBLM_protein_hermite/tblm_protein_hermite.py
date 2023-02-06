@@ -116,8 +116,10 @@ nf_protein = 1
 protexchratio = 0.8
 for i in range(len(dDp)):
     dDp[i] = Parameter(name='dDp'+str(i), value=0.0).range(-1 * SPACING / 3., SPACING / 3.)
-for i in range(len(dVf)):
+for i in range(1, len(dVf)-1):
     dVf[i] = Parameter(name='dVf'+str(i), value=0.001).range(-0.001, 0.4)
+# first and last controlpoint is at zero volume fraction
+dVf[0] = dVf[-1] = 0.0
 
 # === Stack ===
 # First, we create a 'material' for each bulk layer, which has an real and imaginary
