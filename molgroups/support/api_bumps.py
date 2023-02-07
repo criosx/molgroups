@@ -7,9 +7,9 @@ from sys import stdout
 import matplotlib
 from matplotlib import pyplot as plt
 
-from bumps.cli import load_model, save_best
+from bumps.cli import save_best
 from bumps.mapper import MPMapper
-from bumps.fitters import fit, FitDriver, DreamFit, LevenbergMarquardtFit, MPFit
+from bumps.fitters import FitDriver, DreamFit, MPFit
 
 import numpy
 import shutil
@@ -53,6 +53,27 @@ class CBumpsAPI(api_base.CBaseAPI):
         logp = draw.logp
 
         return points, lParName, logp
+
+    def fnLoadMolgroups(self, problem=None):
+        diMolgroups = {}
+        diResults = problem.results
+        moldict = problem.moldat
+
+        for group in moldict:
+            tdata = (moldict[group]['header']).split()  # read header that contains molgroup data
+            diMolgroups[tdata[1]] = {}
+            diMolgroups[tdata[1]].update({'headerdata': {}})
+            diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
+            diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
+            for j in range(2, len(tdata), 2):
+                diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
+
+            zax = moldict[group]['zaxis']
+            areaax = moldict[group]['area']
+            nslax = moldict[group]['nsl']
+            diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
+
+        return diMolgroups, diResults
 
     # LoadStatResults returns a list of variable names, a logP array, and a numpy.ndarray
     # [values,var_numbers].
@@ -220,11 +241,6 @@ class CBumpsAPI(api_base.CBaseAPI):
             print("No state to reload.")
             state = None
         return state
-
-    def fnRestoreMolgroups(self, problem):
-        # Populates the diMolgroups dictionary based from a saved molgroups.dat file
-        diMolgroups = self.fnLoadMolgroups(problem=problem)
-        return diMolgroups
 
     def fnRestoreSmoothProfile(self, M):
         # TODO: Decide what and if to return SLD profile for Bumps fits

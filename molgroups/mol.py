@@ -378,8 +378,8 @@ class CompositenSLDObj(nSLDObj):
         return rdict
 
     def fnWriteResults2Dict(self, rdict, cName):
-        rdict = super().fnWriteResults2Dict(rdict, cName)
-
+        for g in self.subgroups:
+            rdict = g.fnWriteResults2Dict(rdict, f"{cName}.{g.name}")
         return rdict
 
 
@@ -717,7 +717,7 @@ class CompositeHeadgroup(CompositenSLDObj):
 
 class BLM(CompositenSLDObj):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
-                 lipid_nf=None, xray_wavelength=None, **kwargs):
+                 lipid_nf=None, xray_wavelength=None, name='blm', **kwargs):
         """ Free bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
@@ -731,7 +731,7 @@ class BLM(CompositenSLDObj):
                                       'outer_lipids', respectively.
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
 
-        super().__init__(**kwargs)
+        super().__init__(name=name, **kwargs)
 
         # symmetric bilayers can provide only one list of lipids and number fractions
         if lipids is not None:
@@ -1071,6 +1071,8 @@ class BLM(CompositenSLDObj):
 
     def fnWriteResults2Dict(self, rdict, cName):
         rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
         rdict[cName]['area_per_lipid'] = self.normarea
         rdict[cName]['volume_fraction'] = self.vf_bilayer
         rdict[cName]['thickness_inner_leaflet'] = self.l_ihc
@@ -1080,7 +1082,7 @@ class BLM(CompositenSLDObj):
 
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
-                 lipid_nf=None, xray_wavelength=None, **kwargs):
+                 lipid_nf=None, xray_wavelength=None, name='ssblm', **kwargs):
         """ Solid supported bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
@@ -1112,7 +1114,7 @@ class ssBLM(BLM):
         self.global_rough = 2.0
 
         super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf,
-                         lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, **kwargs)
+                         lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, name=name, **kwargs)
 
     def _adjust_substrate(self):
         self.substrate.vol = self.normarea * self.substrate.length
@@ -1151,7 +1153,7 @@ class ssBLM(BLM):
 
 class tBLM(BLM):
     def __init__(self, tether, filler, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None,
-                 lipids=None, lipid_nf=None, xray_wavelength=None, **kwargs):
+                 lipids=None, lipid_nf=None, xray_wavelength=None, name='tblm', **kwargs):
         """
         Tethered lipid bilayer. Requires:
 
@@ -1194,7 +1196,7 @@ class tBLM(BLM):
 
         super().__init__(inner_lipids=inner_lipids, inner_lipid_nf=inner_lipid_nf, outer_lipids=outer_lipids,
                          outer_lipid_nf=outer_lipid_nf, lipids=lipids, lipid_nf=lipid_nf,
-                         xray_wavelength=xray_wavelength, **kwargs)
+                         xray_wavelength=xray_wavelength, name=name, **kwargs)
 
     def _adjust_inner_lipids(self):
         self.vol_methylene_inner, self.nsl_methylene_inner = self._unpack_component_pars(self.methylenes1)
@@ -1462,8 +1464,8 @@ Notes on usage:
 
 
 class Hermite(nSLDObj):
-    def __init__(self, dnormarea, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, dnormarea=60, name='hermite'):
+        super().__init__(name=name)
         self.numberofcontrolpoints = 10
         self.nSLD = None
         self.normarea = dnormarea
@@ -1959,4 +1961,5 @@ class BLMProteinComplex(CompositenSLDObj):
         nsld = numpy.divide(nsl, area * numpy.gradient(z), out=numpy.zeros_like(area), where=area > 0)
 
         return area * self.nf, nsl * self.nf, nsld
+
 

@@ -26,7 +26,7 @@ NSLDD2O = 6.36e-6
 
 # Define bilayer and protein objects
 blm = mol.tBLM(tether=lipids.HC18SAc, filler=cmp.bmeSAc, lipids=[lipids.POPC], lipid_nf=[1.0])
-protein = mol.Hermite(10)
+protein = mol.Hermite()
 protein.numberofcontrolpoints = CONTROLPOINTS
 blm_prot = mol.BLMProteinComplex(blms=[blm], proteins=[protein])
 
@@ -51,10 +51,10 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mult_tet
     nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be from this function
-    problem.bilayers = [blm]
-    problem.dimension = DIMENSION
-    problem.stepsize = STEPSIZE
-    problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
+    # problem.bilayers = [blm]
+    # problem.dimension = DIMENSION
+    # problem.stepsize = STEPSIZE
+    # problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
@@ -83,13 +83,14 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
 
     # export objects for post analysis, needs to be in this function
     # for plotting best-fits
-    problem.bilayers = [blm]
+    problem.bilayers = [blm_prot]
     problem.dimension = DIMENSION
     problem.stepsize = STEPSIZE
     # for statistical analysis of molgroups
     moldict1 = blm_prot.blms[0].fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
     moldict2 = blm_prot.proteins[0].fnWriteGroup2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
     problem.moldat = {**moldict1, **moldict2}
+    problem.results = blm_prot.fnWriteResults2Dict({}, 'bilayer')
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6

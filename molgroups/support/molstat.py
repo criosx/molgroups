@@ -1,60 +1,58 @@
 from __future__ import print_function
-from math import fabs, pow, floor, ceil, sqrt, log10
+from math import floor, sqrt
 from collections import defaultdict
-from numpy import subtract, minimum, maximum, average, array
-from operator import itemgetter
+from numpy import average
 from os import path
-from re import VERBOSE, IGNORECASE, compile
 from scipy import stats, special
-from subprocess import call
-from time import sleep
 import numpy
 import pandas
 import os
 import bumps.curve
-import pathlib
-
-from molgroups.support import general
 
 
 class CMolStat:
     def __init__(self, fitsource="refl1d", spath=".", mcmcpath=".",
                  runfile="run", state=None, problem=None,
                  load_state=True, save_stat_data=False):
+        """
+        self.diParameters is a dictionary containing all parameters. Structure:
+
+        dictionary: sparameter : dictionary
+                                 'number'    : int       # order of initialization in ga_refl
+                                 'lowerlimit'  : float   # constraint range lower limit
+                                 'upperlimit'  : float   # constraint range upper limit
+                                 'value'  : float        # absolute value
+                                 'error'  : float        # error derived from covariance matrix
+                                 'relval' : float        # relative value between 0 and 1 in terms of the constraints
+                                 'variable': string       # associated ga_refl variable
+
+        self.diStatRestuls is a dictionary of statistical results with entries from various routines:
+            (from fnAnalyzeStatFile)
+            'Parameters' is itself a dictionary with the following keys:
+                      'Values' key contains ordered list of all MC parameters
+                      'LowPerc' contains lower percentile
+                      'Median' contains median
+                      'HighPerc' contains higher percentile
+                      'MaxParameterLength' contains length of the longest parameter name
+
+            (from fnLoadStatData)
+            'NumberOfStatValues' number of MC points
+            'nSLDProfiles' contains all profiles 'nSLDProfiles'[MCiteration][model][z,rho]
+            'Molgroups' contains a list of dictionaries storing all molgroups
+                'Molgroups'[MCiteration] {'molgroupname' {'zaxis' [z]
+                                                          'areaxis' [area]
+                                                          'nslaxis' [nsl]
+                                                          'headerdata' {'property' value}
+                                                          'property1' value
+                                                          'property2' value}}
+           'Results' contains a dictionary of derived values from fit paramters for post-analysis
+                'Results' {'valuename' {value}}
+        """
+
         self.diParameters = {}
-        # Dictionary with all the parameters
-        # self.diParameters data structure:
-        # dictionary: sparameter : dictionary
-        #                          'number'    : int       # order of initialization in ga_refl
-        #                          'lowerlimit'  : float   # constraint range lower limit
-        #                          'upperlimit'  : float   # constraint range upper limit
-        #                          'value'  : float        # absolute value
-        #                          'error'  : float        # error derived from covariance matrix
-        #                          'relval' : float        # relative value between 0 and 1 in terms of the constraints
-        #                          'variable: string       # associated ga_refl variable
         self.diMolgroups = {}
         self.diStatResults = {}
-        # dictionary of statistical results for various routines
-        # from fnAnalyzeStatFile
-        #   'Parameters' key contains dictionary
-        #       parameter names are keys contain dictionary
-        #           'Values' key contains ordered list of all MC parameters
-        #           'LowPerc' contains lower percentile
-        #           'Median' contains median
-        #           'HighPerc' contains higher percentile
-        #   'MaxParameterLength' contains length of longest parameter name
-        # from fnRecreateStatFile
-        #   'NumberOfStatValues' number of MC points
-        #   'nSLDProfiles' key contains list of lists of lists
-        #      of all profiles 'nSLDProfiles'[MCiteration][model][z,rho]
-        # from fnLoadMolgroups
-        #   'Molgroups' contains information about molecular groups
-        #     of all iterations 'Molgroups'[MCiteration] {molgroupname {'zaxis' [z]
-        #                                                               'areaxis' [area]
-        #                                                               'nslaxis' [nsl]
-        #                                                               'headerdata' {'property' value}
-        #                                                               'property1' value
-        #                                                               'property2' value}}
+        self.diResults = {}
 
         self.fitsource = fitsource  # define fitting software
         self.spath = spath
@@ -494,7 +492,8 @@ class CMolStat:
 
         return results
 
-    def fnCalcConfidenceLimits(self, data, method=1):
+    @staticmethod
+    def fnCalcConfidenceLimits(data, method=1):
         # what follows is a set of three routines, courtesy to P. Kienzle, calculating
         # the shortest confidence interval
 
@@ -503,18 +502,21 @@ class CMolStat:
             Find the credible interval covering the portion *ci* of the data.
             Returns the minimum and maximum values of the interval.
             *x* are samples from the posterior distribution.
-           *ci* is the portion in (0,1], and defaults to 0.95.
+            *ci* is the portion in (0,1], and defaults to 0.95.
             This function is faster if the inputs are already sorted.
             If *ci* is a vector, return a vector of intervals.
             """
             x.sort()
+            if numpy.isscalar(ci):
+                ci = [ci]
 
             # Simple solution: ci*N is the number of points in the interval, so
             # find the width of every interval of that size and return the smallest.
-            if numpy.isscalar(ci):
-                return _find_interval(x, ci)
-            else:
-                return [_find_interval(x, i) for i in ci]
+            result = [_find_interval(x, i) for i in ci]
+
+            if len(ci) == 1:
+                result = result[0]
+            return result
 
         def _find_interval(x, ci):
             """
@@ -586,196 +588,10 @@ class CMolStat:
             reported = 0.5 * (onesigmam + onesigmap)
             return [twosigmam, onesigmam, reported, onesigmap, twosigmap]
 
-    def fnContourData(self, sname, dZGrid, dRhoGrid, dAreaGrid=0.1):
-
-        def fnMap2Array(liArray, liDimensions, dx1, dy1, dx2, dy2):  # map nSLD profile onto array
-            # by drawing lines between (dz1,drho1)
-            # and (dz2,drho2)
-
-            if not liArray:  # if array is empty create with first point
-                liArray.append([0])
-                liDimensions[0] = dx1
-                liDimensions[1] = dx1
-                liDimensions[3] = dy1
-                liDimensions[4] = dy1
-
-            while dx1 > liDimensions[1]:  # check if array has to be extended
-                for i in range(len(liArray)):  # and extend it if necessary
-                    liArray[i].append(0)
-                liDimensions[1] = liDimensions[1] + liDimensions[2]
-            while dx1 < liDimensions[0]:
-                for i in range(len(liArray)):
-                    liArray[i].insert(0, 0)
-                liDimensions[0] = liDimensions[0] - liDimensions[2]
-            while dy1 > liDimensions[4]:
-                li = [0] * len(liArray[0])
-                liArray.append(li)
-                liDimensions[4] = liDimensions[4] + liDimensions[5]
-            while dy1 < liDimensions[3]:
-                li = [0] * len(liArray[0])
-                liArray.insert(0, li)
-                liDimensions[3] = liDimensions[3] - liDimensions[5]
-            while dx2 > liDimensions[1]:
-                for i in range(len(liArray)):
-                    liArray[i].append(0)
-                liDimensions[1] = liDimensions[1] + liDimensions[2]
-            while dx2 < liDimensions[0]:
-                for i in range(len(liArray)):
-                    liArray[i].insert(0, 0)
-                liDimensions[0] = liDimensions[0] - liDimensions[2]
-            while dy2 > liDimensions[4]:
-                li = [0] * len(liArray[0])
-                liArray.append(li)
-                liDimensions[4] = liDimensions[4] + liDimensions[5]
-            while dy2 < liDimensions[3]:
-                li = [0] * len(liArray[0])
-                liArray.insert(0, li)
-                liDimensions[3] = liDimensions[3] - liDimensions[5]
-
-            iXStart = int((dx1 - liDimensions[0]) / liDimensions[2])  # calculate coordinates from (z,rho)
-            iXEnd = int((dx2 - liDimensions[0]) / liDimensions[2])  # data points
-            iYStart = int((dy1 - liDimensions[3]) / liDimensions[5])
-            iYEnd = int((dy2 - liDimensions[3]) / liDimensions[5])
-
-            diffX = iXEnd - iXStart  # how many indizes do go?
-            diffY = iYEnd - iYStart
-            diff = max(abs(diffX), abs(diffY))  # which direction more steps?
-
-            if diff == 0:  # treat single point differently because
-                liArray[iYStart][iXStart] = liArray[iYStart][iXStart]  # of division by zero error -> do nothing!
-            else:
-                fStepX = float(diffX) / float(diff)  # calculate stepsize for each direction
-                fStepY = float(diffY) / float(diff)
-
-                i = 0  # draw by increasing field occupancy
-                while i < diff:  # and thus create surface/contour plot
-                    iX = iXStart + int(round(fStepX * float(i), 0))
-                    iY = iYStart + int(round(fStepY * float(i), 0))
-                    liArray[iY][iX] += 1
-                    i += 1
-
-        self.fnRecreateStatistical()  # Load Parameters and profiles from stat data
-        iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
-
-        liContourArray = []  # initiate array
-        liContourArrayDimensions = []  # array dimensions
-        # result for contour plot of profiles
-        for i in range(iNumberOfModels):  # list of lists for each profile
-            liContourArray = liContourArray + [[]]
-            liContourArrayDimensions = liContourArrayDimensions + [[0., 0., dRhoGrid, 0., 0., dZGrid]]
-            # dimension format ymin, ymax, ystep, xmin, xmax, xstep
-
-        for iteration in self.diStatResults['nSLDProfiles']:  # cycle through all individual stat. results
-            for i, model in enumerate(iteration):  # cycle through all models
-                for l in range(len(model[0])):  # extract nSLD profile data point by point
-                    dz = round(model[0][l] / dZGrid) * dZGrid  # round to grid precision
-                    drho = round(model[1][l] / dRhoGrid) * dRhoGrid  # round nSLD to grid precision
-                    if l != 0:
-                        fnMap2Array(liContourArray[i],
-                                    liContourArrayDimensions[i],
-                                    drhoold, dzold, drho, dz)
-
-                    dzold = dz
-                    drhoold = drho
-
-        print('Processing data for output ...')
-        for i in range(iNumberOfModels):  # loop through all models
-            print('Model %i: %i x %i' % (i, len(liContourArray[i][0]),
-                                         len(liContourArray[i])))
-            sFileName = f'Cont_nSLD_Array{i}.dat'  # write out array
-            with open(sFileName, "w") as file:
-                for line in liContourArray[i]:
-                    sLine = ' '.join(map(str, line))
-                    file.write(sLine + ' \n')
-
-            dRhoMin = liContourArrayDimensions[i][0]
-            dRhoMax = liContourArrayDimensions[i][1]
-            dRhoStep = liContourArrayDimensions[i][2]
-            dZMin = liContourArrayDimensions[i][3]
-            dZMax = liContourArrayDimensions[i][4]
-            dZStep = liContourArrayDimensions[i][5]
-
-            dZ = dZMin  # write out x-dimension wave
-            sFileName = f'Cont_nSLD_DimZ{i}.dat'  # dimension wave has one point extra for Igor
-            with open(sFileName, "w") as file:
-                while dZ <= dZMax + dZStep:
-                    sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
-                    file.write(sLine)
-                    dZ = dZ + dZStep
-
-            dRho = dRhoMin  # write out y-dimension wave
-            sFileName = f'Cont_nSLD_DimRho{i}.dat'  # dimension wave has one point extra for Igor
-            with open(sFileName, "w") as file:
-                while dRho <= dRhoMax + dRhoStep:
-                    sLine = f'{round(dRho / dRhoGrid) * dRhoGrid}\n'
-                    file.write(sLine)
-                    dRho += dRhoStep
-
-        if 'Molgroups' in self.diStatResults:
-            liContourArray = []  # initiate array
-            liContourArrayDimensions = []  # array dimensions
-            for _ in self.diStatResults['Molgroups'][0]:  # iterate through molecular group names
-                liContourArray = liContourArray + [[]]
-                liContourArrayDimensions = liContourArrayDimensions + [[0., 0., dAreaGrid, 0., 0., dZGrid]]
-                # dimension format ymin, ymax, ystep, xmin, xmax, xstep
-
-            for iteration in self.diStatResults['Molgroups']:  # cycle through all individual stat. results
-                dareaold = 0
-                dzold = 0
-                for i, molgroup in enumerate(iteration):  # cycle through all molecular groups
-                    for l in range(len(iteration[molgroup]['zaxis'])):  # extract area profile data point by point
-                        dz = round(iteration[molgroup]['zaxis'][l] / dZGrid) * dZGrid  # round to grid precision
-                        darea = round(
-                            iteration[molgroup]['areaaxis'][l] / dAreaGrid) * dAreaGrid  # round nSLD to grid precision
-                        if l != 0:
-                            fnMap2Array(liContourArray[i],
-                                        liContourArrayDimensions[i],
-                                        dareaold, dzold, darea, dz)
-
-                        dzold = dz
-                        dareaold = darea
-
-            for i, molgroup in enumerate(self.diStatResults['Molgroups'][0]):  # loop through all models
-
-                print('%s %i: %i x %i' % (molgroup, i, len(liContourArray[i][0]),
-                                          len(liContourArray[i])))
-                sFileName = 'Cont_' + molgroup + '_Array' + '.dat'  # write out array
-                with open(sFileName, "w") as file:
-                    for line in liContourArray[i]:
-                        sLine = ' '.join(map(str, line)) + ' \n'
-                        file.write(sLine)
-
-                dAreaMin = liContourArrayDimensions[i][0]
-                dAreaMax = liContourArrayDimensions[i][1]
-                dAreaStep = liContourArrayDimensions[i][2]
-                dZMin = liContourArrayDimensions[i][3]
-                dZMax = liContourArrayDimensions[i][4]
-                dZStep = liContourArrayDimensions[i][5]
-
-                dZ = dZMin  # write out x-dimension wave
-                sFileName = 'Cont_' + molgroup + '_DimZ' + '.dat'  # dimension wave has one point extra for Igor
-                with open(sFileName, "w") as file:
-                    while dZ <= dZMax + dZStep:
-                        sLine = str(round(dZ / dZGrid) * dZGrid) + '\n'
-                        file.write(sLine)
-                        dZ = dZ + dZStep
-
-                dArea = dAreaMin  # write out y-dimension wave
-                sFileName = 'Cont_' + molgroup + '_DimArea' + '.dat'  # dimension wave has one point extra for Igor
-                with open(sFileName, "w") as file:
-                    while dArea <= dAreaMax + dAreaStep:
-                        sLine = str(round(dArea / dAreaGrid) * dAreaGrid) + '\n'
-                        file.write(sLine)
-                        dArea = dArea + dAreaStep
-
-    # -------------------------------------------------------------------------------
-
     def fnGetChiSq(self):  # export chi squared
         return self.chisq
 
-    # -------------------------------------------------------------------------------
-
-    def fnCreateBilayerPlotData(self, custom_groups=[]):
+    def fnCreateBilayerPlotData(self, custom_groups=None):
         # integrate over 1D array
         def fnIntegrate(axis, array, start, stop):
             startaxis = float(axis[0])
@@ -796,7 +612,6 @@ class CMolStat:
         def fnMaximumHalfPoint(data):
             fmax = numpy.amax(data)
             point1 = False
-            point2 = False
             hm1 = 0
             hm2 = 0
 
@@ -804,8 +619,7 @@ class CMolStat:
                 if data[i] > (fmax / 2) and not point1:
                     point1 = True
                     hm1 = i
-                if data[i] < (fmax / 2) and point1 and not point2:
-                    point2 = True
+                if data[i] < (fmax / 2) and point1:
                     hm2 = i - 1
                     break
 
@@ -821,9 +635,12 @@ class CMolStat:
 
         # initialize Statistical Dictionary
         print('Initializing ...')
+        if custom_groups is None:
+            custom_groups = []
         lGroupList = ['substrate', 'siox', 'tether', 'innerhg', 'inner_cg', 'inner_phosphate', 'inner_choline',
                       'innerhc', 'innerch2', 'innerch3', 'outerhc', 'outerch2', 'outerch3', 'outerhg',
                       'outer_cg', 'outer_phosphate', 'outer_choline', 'protein', 'sum', 'water'] + custom_groups
+
         diStat = {}
         for element in lGroupList:
             diStat[element] = []
@@ -1013,27 +830,13 @@ class CMolStat:
         print('Saving data to bilayerplotdata.dat ...\n')
         self.Interactor.fnSaveSingleColumns(f'{self.mcmcpath}/bilayerplotdata.dat', diStat)
 
-    def fnGetNumberOfModelsFromSetupC(self):
-        with open(self.setupfilename, "r") as file:  # open setup.c
-            data = file.readlines()
-        smatch = compile(r'define\s+MODELS\s+(.+?)\n', IGNORECASE | VERBOSE)
-        for line in data:  # search through setup.c
-            if smatch.search(line):  # searching for MODELS constant
-                i = smatch.search(line).group(1)
-                return int(i)
-        return 0
-
     def fnGetParameterValue(self, sname):  # export absolute parameter value
         return self.diParameters[sname]['value']  # for given name
-
-    # -------------------------------------------------------------------------------
 
     def fnGetSortedParNames(self):  # return a list of sorted parameter
         litest = list(self.diParameters.keys())
         litest = sorted(litest, key=lambda keyitem: self.diParameters[keyitem]['number'])
         return litest
-
-    # -------------------------------------------------------------------------------
 
     def fnGetSortedParValues(self):  # the same as above but it returns
         litest = list(self.diParameters.keys())  # a list of sorted parameter values
@@ -1044,7 +847,7 @@ class CMolStat:
         return lvalue
 
     def fnLoadAndPrintPar(self, sPath='./'):
-        self.fnLoadParameters(sPath)
+        self.fnLoadParameters()
         self.fnLoadCovar(sPath)
         self.fnPrintPar()
 
@@ -1083,487 +886,87 @@ class CMolStat:
 
     def fnLoadStatData(self, sparse=0):
         self.fnLoadParameters()
-        if self.diStatResults == {}:
-            try:
-                self.diStatResults = self.fnLoadObject(os.path.join(self.spath, self.mcmcpath, 'StatDataPython.dat'))
-                print('Loaded statistical data from StatDataPython.dat')
-            except IOError:
-                print('No StatDataPython.dat.')
-                print('Recreate statistical data from sErr.dat.')
-                self.diStatResults = self.Interactor.fnLoadStatData(sparse)
-                # cycle through all parameters
-                # determine length of the longest parameter name for displaying
-                iMaxParameterNameLength = 0
-                for parname in list(self.diStatResults['Parameters'].keys()):
-                    if len(parname) > iMaxParameterNameLength:
-                        iMaxParameterNameLength = len(parname)
-                self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
-                self.diStatResults['NumberOfStatValues'] = \
-                    len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
-                self.fnRecreateStatistical()
+        if self.diStatResults != {}:
+            return
 
-    def fnnSLDEnvelopes(self, fGrid, fSigma, sname, shortflag=False, iContrast=-1):
-        def fnInterpolateData(xdata, ydata, fMin, fMax, fGrid):
-
-            f = fMin  # target start
-            ix = 0  # data start
-            liInterpolated = [[], []]  # interpolation result
-
-            while f <= fMax:  # main loop
-                # print f,fMin,fMax,fGrid,ix,xdata[ix],len(xdata)
-                if f < xdata[0]:  # fill area where no data available with first value
-                    liInterpolated[0].append(f)
-                    liInterpolated[1].append(ydata[0])
-                    f += fGrid
-                elif f > xdata[-1]:  # fill remaining cells with last value
-                    liInterpolated[0].append(f)
-                    liInterpolated[1].append(ydata[-1])
-                    f += fGrid
-                else:  # at least one data point surpassed by f
-                    while (f > xdata[ix]) and (ix < (len(xdata) - 1)):  # searching first data point past f
-                        ix += 1
-                    if f < xdata[ix]:  # was there a data point past f?
-                        LowerX = ix - 1  # calculate data surrounding f
-                        UpperX = ix
-                        fDataGrid = xdata[UpperX] - xdata[LowerX]
-                        fInterpolate = ydata[LowerX] * ((f - xdata[LowerX]) / fDataGrid  # do the interpolation
-                                                        ) + ydata[UpperX] * ((xdata[UpperX] - f) / fDataGrid)
-                        liInterpolated[0].append(f)
-                        liInterpolated[1].append(fInterpolate)
-                        f += fGrid
-                    elif f == xdata[ix]:  # no interpolation needed
-                        liInterpolated[0].append(xdata[ix])
-                        liInterpolated[1].append(ydata[ix])
-                        f += fGrid
-
-            return liInterpolated
-
-        def fnStoreEnvelope(liStoredEnvelopes, liStoredEnvelopeHeaders, envelope, percentile):
-            iposition = len(liStoredEnvelopes) / 2
-            liStoredEnvelopes.insert(iposition, envelope[1])
-            liStoredEnvelopes.insert(iposition, envelope[0])
-            liStoredEnvelopeHeaders.insert(iposition, str(1 - percentile / 2))
-            liStoredEnvelopeHeaders.insert(iposition, str(percentile / 2))
-
-        def fnSaveEnvelopes(liStoredEnvelopes, liStoredEnvelopeHeaders, iModel, fMin, fMax, fGrid, fSigma):
-            file = open(f'Envelopes{iModel}.dat', "w")
-
-            if fSigma == 0:  # save all computed envelopes
-                liSaveEnvelopeHeaders = liStoredEnvelopeHeaders
-                liSaveEnvelopes = liStoredEnvelopes
-
-            else:  # save only multiples of fSigma in Sigma
-                liSaveEnvelopeHeaders = []
-                liSaveEnvelopes = []
-
-                fmult = 0.
-                while True:
-                    fConfidence = special.erf(fmult / sqrt(2))  # upper and lower Percentiles for fmult*sigma
-                    fLowerPerc = (1 - fConfidence) / 2
-                    fUpperPerc = 1 - (1 - fConfidence) / 2
-
-                    fStepSize = 1 / float(len(liStoredEnvelopeHeaders))  # positions in envelopes list
-                    iLowerPerc = int(floor(fLowerPerc / fStepSize))
-                    iUpperPerc = int(ceil(fUpperPerc / fStepSize))
-
-                    if (iLowerPerc == 0) or (iUpperPerc >= len(liStoredEnvelopeHeaders) - 1):
-                        break
-
-                    liSaveEnvelopeHeaders.insert(0, f'minus{fmult}sigma')
-                    liSaveEnvelopes.insert(0, liStoredEnvelopes[iLowerPerc])
-
-                    if iUpperPerc != iLowerPerc:
-                        liSaveEnvelopeHeaders.append(f'plus{fmult}sigma')
-                        liSaveEnvelopes.append(liStoredEnvelopes[iUpperPerc])
-
-                    fmult += fSigma
-
-                liSaveEnvelopeHeaders.insert(0, 'LowerEnvelope')
-                liSaveEnvelopes.insert(0, liStoredEnvelopes[0])
-                liSaveEnvelopeHeaders.append('UpperEnvelope')
-                liSaveEnvelopes.append(liStoredEnvelopes[len(liStoredEnvelopeHeaders) - 1])
-
-            file.write("z ")
-            for element in liSaveEnvelopeHeaders:
-                if fSigma == 0:
-                    file.write(f"p{element} ")
-                else:
-                    file.write(f"{element} ")
-            file.write("\n")
-
-            f = fMin
-            for i in range(len(liSaveEnvelopes[0])):
-                file.write(f'{f} ')
-                for element in liSaveEnvelopes:
-                    file.write(f'{element[i]} ')
-                file.write("\n")
-                f = f + fGrid
-
-            file.close()
-
-        def fnCalculateEnvelope(profilelist):
-
-            LowerEnvelope = array(profilelist[0][1])
-            UpperEnvelope = array(profilelist[0][1])
-
-            for iteration in profilelist:
-                LowerEnvelope = minimum(LowerEnvelope, array(iteration[1]))
-                UpperEnvelope = maximum(UpperEnvelope, array(iteration[1]))
-
-            fArea = sum(subtract(UpperEnvelope, LowerEnvelope))
-
-            envelope = [LowerEnvelope.tolist(), UpperEnvelope.tolist()]
-
-            return fArea, envelope
-
-        self.fnRecreateStatistical()  # Load Parameters and profiles from stat data
-        iNumberOfModels = self.fnGetNumberOfModelsFromSetupC()  # how many profiles to analyze?
-
-        if iContrast == -1:
-            iModelStart = 0
-            iModelEnd = len(self.diStatResults['nSLDProfiles'][0])
-        else:
-            iModelStart = iContrast
-            iModelEnd = iContrast + 1
-
-        for iModel in range(iModelStart, iModelEnd):  # do the analysis separately for each model
-            print(f'Analyzing model {iModel} ...')
-
-            liStoredEnvelopes = []  # List of stored envelopes
-            liStoredEnvelopeHeaders = []  # and their headers
-
-            fMin = fMax = 0  # initializing boundaries
-            profilelist = []  # extracting all profiles related to the actual
-            for iteration in self.diStatResults['nSLDProfiles']:  # model
-                profilelist.append(iteration[iModel][:])
-                fMin = min(fMin, profilelist[-1][0][0])
-                fMax = max(fMax, profilelist[-1][0][-1])
-            fMax = floor((fMax - fMin) / fGrid) * fGrid + fMin  # make fMax compatible with fGrid and fMin
-
-            print('Rebinning data...')
-            iNumberOfProfiles = len(profilelist)
-            for i in range(iNumberOfProfiles):
-                profilelist[i] = fnInterpolateData(profilelist[i][0], profilelist[i][1], fMin, fMax, fGrid)
-
-            if not shortflag:
-                for iPercentile in range(iNumberOfProfiles):
-
-                    print(f'Calculating {1 - float(iPercentile) / float(iNumberOfProfiles)} percentile...')
-
-                    fArea, liEnvelope = fnCalculateEnvelope(profilelist)  # calculate envelope
-                    fnStoreEnvelope(liStoredEnvelopes, liStoredEnvelopeHeaders,
-                                    liEnvelope, float(iPercentile) / float(iNumberOfProfiles))  # store envlope in list
-
-                    if iPercentile != iNumberOfProfiles - 1:
-                        iMaxReduction = 0
-                        for i in range(len(profilelist)):  # eliminate the profile with the largest reduction
-                            # in area
-                            profiletestlist = profilelist[:]
-                            profiletestlist.pop(i)
-                            fTestArea, fTestEnvelope = fnCalculateEnvelope(profiletestlist)
-                            if fArea > fTestArea:
-                                iMaxReduction = i
-                                fArea = fTestArea
-
-                        profilelist.pop(iMaxReduction)  # eliminate profile
-            else:
-                fSigmaStep = 0.1
-                iPercentile = 0
-                fArea, liEnvelope = fnCalculateEnvelope(profilelist)  # calculate envelope
-                fnStoreEnvelope(liStoredEnvelopes, liStoredEnvelopeHeaders,
-                                liEnvelope, float(iPercentile) / float(iNumberOfProfiles))  # store envlope in list
-                iPercentile += 1
-
-                while iPercentile < iNumberOfProfiles:
-                    print(f'Short: Calculating {1 - float(iPercentile) / float(iNumberOfProfiles)} percentile...')
-
-                    lScoring = []  # list of profile scores
-                    for i in range(len(profilelist)):  # eliminate the profile with the largest reduction
-                        # in area
-                        profiletestlist = profilelist[:]
-                        profiletestlist.pop(i)
-                        fTestArea, fTestEnvelope = fnCalculateEnvelope(profiletestlist)
-                        lScoring.append([i, fTestArea])
-                        # print lScoring
-
-                    lScoring = sorted(lScoring, key=itemgetter(1))  # sort by lowest area
-
-                    fConf = (1 - float(iPercentile) / float(iNumberOfProfiles))  # momentary confidence level
-                    fSig = special.erfinv(fConf) * sqrt(2)  # related sigma value
-                    fSigT = floor(fSig / fSigmaStep) * fSigmaStep  # get to the lower sigma step
-                    fConfT = special.erf(fSigT / sqrt(2))  # target confidence level
-                    # number of profiles to eliminate
-                    iElimination = iNumberOfProfiles - iPercentile - int(fConfT * iNumberOfProfiles)
-
-                    print("iPercentile %i iNumberOfProfiles %i iElimination %i fConf %e fSig %e fSigT %e fConfT %e" % (
-                        iPercentile, iNumberOfProfiles, iElimination, fConf, fSig, fSigT, fConfT))
-
-                    lScoring = sorted(lScoring[0:iElimination], key=itemgetter(0), reverse=True)
-
-                    for i in range(iElimination):
-                        profilelist.pop(lScoring[i][0])  # delete profiles starting with highest indices
-                        fArea, liEnvelope = fnCalculateEnvelope(profilelist)  # calculate envelope
-                        fnStoreEnvelope(liStoredEnvelopes, liStoredEnvelopeHeaders,
-                                        liEnvelope,
-                                        float(iPercentile) / float(iNumberOfProfiles))  # store envlope in list
-                        iPercentile += 1
-
-                        # raw_input("Press Enter to continue...")
-
-            fnSaveEnvelopes(liStoredEnvelopes, liStoredEnvelopeHeaders, iModel,
-                            fMin, fMax, fGrid, fSigma)
-
-    def fnPlotMolgroups(self):
-        from matplotlib.font_manager import fontManager, FontProperties
-        import matplotlib.pyplot as plt
-
-        font = FontProperties(size='x-small')
-        plotname = 'Molgroups'
-
-        self.fnLoadParameters()  # Load Parameters and modify setup.cc
-        self.fnBackup()  # Backup setup.c, and other files
         try:
-            liParameters = list(self.diParameters.keys())  # get list of parameters from setup.c/par.dat
-            liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem][
-                'number'])  # sort by number of appereance in setup.c
-            # change setup.c to quasi fix all parameters
-            self.fnWriteConstraint2SetupC(liAddition)  # write out
-            liAddition = [f"{self.diParameters[parameter]['variable']} = {self.diParameters[parameter]['value']};\n" for
-                          parameter in liParameters]
-            call(["rm", "-f", "mol.dat"])
-            self.fnMake()  # compile changed setup.c
-            call(["./fit", "-o"])  # write out profile.dat and fit.dat
-            call(["sync"])  # synchronize file system
-            sleep(1)  # wait for system to clean up
+            self.diStatResults = self.fnLoadObject(os.path.join(self.spath, self.mcmcpath, 'StatDataPython.dat'))
+            print('Loaded statistical data from StatDataPython.dat')
+            return
+        except IOError:
+            print('No StatDataPython.dat.')
+            print('Recreate statistical data from sErr.dat.')
 
-        finally:
-            self.fnRemoveBackup()
+        self.diStatResults = self.Interactor.fnLoadStatData(sparse)
+        # cycle through all parameters, determine length of the longest parameter name for displaying
+        iMaxParameterNameLength = 0
+        for parname in list(self.diStatResults['Parameters'].keys()):
+            if len(parname) > iMaxParameterNameLength:
+                iMaxParameterNameLength = len(parname)
+        self.diStatResults['MaxParameterLength'] = iMaxParameterNameLength
+        self.diStatResults['NumberOfStatValues'] = \
+            len(self.diStatResults['Parameters'][list(self.diStatResults['Parameters'].keys())[0]]['Values'])
 
-        self.fnLoadMolgroups()  # Load Molgroups into self.diMolgroups
-        normarea = 100  # default, if no normarea is provided
+        # Recreates profile and fit data associated with parameter stats
+        if self.Interactor.problem is not None:
+            problem = self.Interactor.problem
+        else:
+            problem = self.Interactor.fnRestoreFitProblem()
 
-        with open('areatab.dat', 'w') as File:  # save all molgroupdata in table for loading
-            # into Igor
-            File.write('z ')  # write header line
-            for element in self.diMolgroups:
-                File.write(self.diMolgroups[element]['headerdata']['ID'] + ' ')
-            File.write('summol water waterperc\n')
+        j = 0
+        self.diStatResults['nSLDProfiles'] = []
+        self.diStatResults['Molgroups'] = []
+        self.diStatResults['Results'] = []
 
-            element = list(self.diMolgroups.keys())[0]
-            datalength = len(self.diMolgroups[element]['zaxis'])
+        for iteration in range(self.diStatResults['NumberOfStatValues']):
+            try:
+                # appends a new list for profiles for the current MC iteration
+                self.diStatResults['nSLDProfiles'].append([])
+                liParameters = list(self.diParameters.keys())
 
-            for i in range(datalength):
-                File.write(f"{self.diMolgroups[element]['zaxis'][i]} ")
-                sum = 0
-                normarea = 0
-                for element in self.diMolgroups:
-                    if element != 'normarea':
-                        sum += self.diMolgroups[element]['areaaxis'][i]
-                    else:
-                        normarea = self.diMolgroups[element]['areaaxis'][i]
-                    File.write(f"{self.diMolgroups[element]['areaaxis'][i]} ")
-                File.write(f'{sum} {normarea - sum} {(normarea - sum) / normarea}\n')
+                # sort by number of appereance in setup file
+                liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+                bConsistency = set(liParameters).issubset(self.diStatResults['Parameters'].keys())
+                if not bConsistency:
+                    raise RuntimeError('Statistical error data and setup file do not match')
 
-        plt.figure(1, figsize=(14, 10))
+                p = []
+                for parameter in liParameters:
+                    val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
+                    p.append(val)
+                problem.setp(p)
+                problem.model_update()
 
-        plt.subplot(221)
+                # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
+                #   way, also implement which contrast to use for pulling groups garefl based code should save a
+                #   mol.dat automatically on updating the model
+                if 'models' in dir(problem):
+                    for M in problem.models:
+                        M.chisq()
+                        break
+                else:
+                    problem.chisq()
 
-        areasum = []  # add up area
-        nSLsum = []  # calculate nSL
-        zax = []
-        for element in self.diMolgroups:
-            area = []
-            nSL = []
-            zax = self.diMolgroups[element]['zaxis']
-            stepsize = float(zax[1] - zax[0])
-            length = len(zax)
-            for i in range(length):
-                area.append(self.diMolgroups[element]['areaaxis'][i])
-                nSL.append(self.diMolgroups[element]['nslaxis'][i] * 1e4)
-            plt.subplot(221)
-            plt.plot(zax, area, label=element)
-            plt.subplot(222)
-            plt.plot(zax, nSL, label=element)
+                # distinguish between FitProblem and MultiFitProblem
+                if 'models' in dir(problem):
+                    for M in problem.models:
+                        if not isinstance(M.fitness, bumps.curve.Curve):
+                            z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
+                            self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
+                else:
+                    z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
+                    self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
 
-            if element == 'normarea':  # Get normarea for nSLD calculations
-                normarea = self.diMolgroups[element]['areaaxis'][0]
-            else:  # do not sum up normarea indicator
-                if not areasum:
-                    for i in range(length):
-                        areasum.append(0.)
-                        nSLsum.append(0.)
-                for i in range(length):
-                    areasum[i] = areasum[i] + area[i]
-                    nSLsum[i] = nSLsum[i] + nSL[i]
+                # Recreate Molgroups and Derived Results Dictionaries
+                self.diMolgroups, self.diResults = self.Interactor.fnLoadMolgroups(problem)
+                self.diStatResults['Molgroups'].append(self.diMolgroups)
 
-        plt.subplot(221)
-        plt.plot(zax, areasum, label='Sum')
-        plt.subplot(222)
-        plt.plot(zax, nSLsum, label='Sum')
+            finally:
+                j += 1
 
-        nSLDSum = []  # calculate nSLD sum
-        nSLDtVolFracSum = []  # calculate nSLD times vol frac sum
-        for i in range(len(areasum)):
-            nSLDSum.append(0)
-            nSLDtVolFracSum.append(0)
-
-        for element in self.diMolgroups:
-            nSLDtVolFrac = []  # calculate nSLD times volfrac, at the moment times volfrac is not used
-            if element != 'normarea':  # Get normarea for nSLD calculations
-                for i in range(len(self.diMolgroups[element]['areaaxis'])):
-                    area = self.diMolgroups[element]['areaaxis'][i]
-                    if area:
-                        nSLD = self.diMolgroups[element]['nslaxis'][i] / (stepsize * area) * 1e6
-                    else:
-                        nSLD = 0
-                    nSLDtVolFrac.append(nSLD)  # *(area/normarea))
-                    nSLDtVolFracSum[i] = nSLDtVolFracSum[i] + nSLDtVolFrac[i]
-                plt.subplot(223)
-                plt.plot(zax, nSLDtVolFrac, label=element)
-        plt.subplot(223)
-        # plt.plot(zax,nSLDtVolFracSum,label='nSLDtVolFracSum')
-
-        fBulknSLDs = [6.34, 4.00, 0.00, -0.56]
-        for fBulknSLD in fBulknSLDs:  # loop over contrast mixtures
-            for i in range(length):  # calculate nSLD for several cases
-                nSLDSum[i] = nSLsum[i] * 1E2 / (stepsize * normarea) + fBulknSLD * (1 - (areasum[i] / normarea))
-            plt.subplot(224)
-            plt.plot(zax, nSLDSum, label=f'nSLDsum CM{fBulknSLD}')
-
-        plt.subplot(221)
-        plt.ylabel('area / Ang+2')
-        plt.xlabel('z / Ang')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(222)
-        plt.ylabel('nSL / 1e-4 Ang')
-        plt.xlabel('z / Ang')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(223)
-        plt.ylabel('nSLD')  # * volfrac / 1e-6 Ang-2')
-        plt.xlabel('z / Ang')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(224)
-        plt.ylabel('nSLD / 1e-6 Ang-2')
-        plt.xlabel('z / Ang')
-        plt.legend(loc=0, prop=font)
-
-        plt.suptitle(f'{plotname} \n\n Area and nSLD Profile')
-        plt.savefig(f'{plotname}', format='png')
-        plt.show()
-
-    # -------------------------------------------------------------------------------
-
-    def fnPlotFit(self, plotname):
-
-        from matplotlib.font_manager import fontManager, FontProperties
-        import matplotlib.pyplot as plt
-
-        font = FontProperties(size='x-small')
-
-        plt.figure(1, figsize=(14, 10))
-
-        iCounter = 0
-        sfilename = 'fit' + str(iCounter) + '.dat'
-        while path.isfile(sfilename):
-            with open(sfilename, 'r') as file:
-                data = file.readlines()
-            data = data[1:]
-
-            k = 0
-            l = 0
-            qlist = []
-            dqlist = []
-            Rlist = []
-            dRlist = []
-            fitlist = []
-            fitRFlist = []
-            RFlist = []
-            dRFlist = []
-            reslist = []
-            resplus = []
-            resminus = []
-            for line in data:
-                splitline = line.split()
-                qlist.append(float(splitline[0]))
-                dqlist.append(float(splitline[1]))
-                Rlist.append(float(splitline[2]))
-                dRlist.append(float(splitline[3]))
-                fitlist.append(float(splitline[4]))
-                RFlist.append(float(splitline[2]) * pow(float(splitline[0]), 4))
-                dRFlist.append(float(splitline[3]) * pow(float(splitline[0]), 4))
-                fitRFlist.append(float(splitline[4]) * pow(float(splitline[0]), 4))
-                reslist.append((float(splitline[2]) - float(splitline[4])) * pow(float(splitline[3]), -1))
-                resplus.append(1)
-                resminus.append(-1)
-
-            plt.subplot(221)
-            plt.errorbar(qlist, Rlist, yerr=dRlist, xerr=dqlist, fmt='.')
-            plt.semilogy(qlist, fitlist, label='fit' + str(iCounter))
-            plt.xlim(xmin=-0.01)
-
-            plt.subplot(222)
-            plt.errorbar(qlist, RFlist, yerr=dRFlist, xerr=dqlist, fmt='.')
-            plt.semilogy(qlist, fitRFlist, label='fit' + str(iCounter))
-            plt.xlim(xmin=-0.01)
-
-            plt.subplot(223)
-            plt.plot(qlist, reslist, label='fit' + str(iCounter))
-            plt.plot(qlist, resplus, 'r')
-            plt.plot(qlist, resminus, 'r')
-
-            iCounter += 1
-            sfilename = 'fit' + str(iCounter) + '.dat'
-
-        iCounter = 0
-        sfilename = 'profile' + str(iCounter) + '.dat'
-        while path.isfile(sfilename):
-            with open(sfilename, 'r') as file:
-                data = file.readlines()
-            data = data[1:]
-
-            k = 0;
-            l = 0
-            zlist = [];
-            rholist = []
-            for line in data:
-                splitline = line.split()
-                zlist.append(float(splitline[0]))
-                rholist.append(float(splitline[1]) * 1e6)
-
-            plt.subplot(224)
-            plt.plot(zlist, rholist, label=f'profile{iCounter}')
-
-            iCounter = iCounter + 1
-            sfilename = f'profile{iCounter}.dat'
-
-        plt.subplot(221)
-        plt.ylabel('Reflectivity / R')
-        plt.xlabel('q / Ang-1')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(222)
-        plt.ylabel('R*Q^4')
-        plt.xlabel('q / Ang-1')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(223)
-        plt.ylabel('Normalized Residuals/ (R -F(q))/dR')
-        plt.xlabel('q / Ang-1')
-        plt.legend(loc=0, prop=font)
-
-        plt.subplot(224)
-        plt.ylabel('nSLD / 1e-6 Ang-2')
-        plt.xlabel('z / Ang')
-        plt.legend(loc=0, prop=font)
-
-        plt.suptitle(f'{plotname} \n\n Reflectivity data and fit, residuals and profile')
-        plt.savefig(f'{plotname}_fit.png', format='png')
-        plt.show()
-
-    # -------------------------------------------------------------------------------
+        # save stat data to disk, if flag is set
+        if self.save_stat_data:
+            self.fnSaveObject(self.diStatResults, f'{self.spath}/{self.mcmcpath}/StatDataPython.dat')
 
     def fnPrintPar(self):  # prints parameters and their errors
         # from the covariance matrix on the screen
@@ -1677,80 +1080,6 @@ class CMolStat:
 
         return diarea, dinsl, dinsld
 
-    def fnRecreateStatistical(self, bRecreateMolgroups=True, verbose=False):
-        """
-        Recreates profile and fit data associated with parameter stats
-        """
-        if self.Interactor.problem is not None:
-            problem = self.Interactor.problem
-        else:
-            problem = self.Interactor.fnRestoreFitProblem()
-
-        j = 0
-        self.diStatResults['nSLDProfiles'] = []
-        self.diStatResults['Molgroups'] = []
-
-        for iteration in range(self.diStatResults['NumberOfStatValues']):
-            try:
-                # appends a new list for profiles for the current MC iteration
-                self.diStatResults['nSLDProfiles'].append([])
-                liParameters = list(self.diParameters.keys())
-                # sort by number of appereance in setup.c
-                liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
-                bConsistency = set(liParameters).issubset(self.diStatResults['Parameters'].keys())
-                if bConsistency:
-                    if verbose:
-                        print(f'Processing parameter set {j}.\n')
-                    p = []
-                    for parameter in liParameters:
-                        val = self.diStatResults['Parameters'][parameter]['Values'][iteration]
-                        # Rescaling is currently disabled
-                        # if 'rho_' in parameter or 'background' in parameter:
-                        #    val *= 1E6
-                        p.append(val)
-                    problem.setp(p)
-                    problem.model_update()
-                    # TODO: By calling .chisq() I currently force an update of the BLM function. There must be a better
-                    #   way, also implement which contrast to use for pulling groups garefl based code should save a
-                    #   mol.dat automatically on updating the model
-                    if 'models' in dir(problem):
-                        for M in problem.models:
-                            M.chisq()
-                            break
-                    else:
-                        problem.chisq()
-
-                    # explicit saving is not needed anymore
-                    # garefl is automatically saved and refl1d / bumps contains a directory in problem.moldat
-                    # self.Interactor.fnSaveMolgroups(problem)
-
-                    # distinguish between FitProblem and MultiFitProblem
-                    if 'models' in dir(problem):
-                        for M in problem.models:
-                            if not isinstance(M.fitness, bumps.curve.Curve):
-                                z, rho, irho = self.Interactor.fnRestoreSmoothProfile(M)
-                                self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                                if verbose:
-                                    print(M.chisq())
-                    else:
-                        z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
-                        self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
-                        if verbose:
-                            print(problem.chisq())
-
-                    if bRecreateMolgroups:
-                        self.diMolgroups = self.Interactor.fnRestoreMolgroups(problem)
-                        # append molgroup information to self.diStatResults
-                        self.diStatResults['Molgroups'].append(self.diMolgroups)
-                else:
-                    raise RuntimeError('Statistical error data and setup file do not match')
-            finally:
-                j += 1
-
-        # save stat data to disk, if flag is set
-        if self.save_stat_data:
-            self.fnSaveObject(self.diStatResults, f'{self.spath}/{self.mcmcpath}/StatDataPython.dat')
-
     def fnRestoreFit(self):
         self.Interactor.fnRestoreFit()
 
@@ -1762,7 +1091,6 @@ class CMolStat:
             os.remove(os.path.join(path1,  "isErr.dat"))
         if os.path.isfile(os.path.join(path1,  "StatDataPython.dat")):
             os.remove(os.path.join(path1,  "StatDataPython.dat"))
-
         self.Interactor.fnRunMCMC(burn, steps, batch=False)
 
     @staticmethod
@@ -1810,59 +1138,3 @@ class CMolStat:
 
         finally:
             pass
-
-    def fnStatTable(self, sTableName, fConfidence):
-
-        def fnTexFormatf(fLow, fMed, fHigh):
-
-            def fnDetPrec(fF):
-                if fabs(fF) < 1e-4:  # applies to nSLDs
-                    fF *= 1E6
-                fPrec = ceil(log10(fF) * (-1)) if fF > 0 else 0  # determine precision
-                if fPrec > 0:  # takes care of numbers like fF=0.0095
-                    iPrec = int(fPrec)
-                    if round(fF, iPrec) == round(fF, iPrec - 1):  # which should be rounded to 0.01 and
-                        fPrec -= 1  # not to 0.010
-                return fF, fPrec
-
-            fLowDiff, fLowPrec = fnDetPrec(fMed - fLow)
-            fHighDiff, fHighPrec = fnDetPrec(fHigh - fMed)
-            fMed, fMedPrec = fnDetPrec(fMed)
-            fPrec = (max(fLowPrec, fHighPrec)) + 1.0
-            iPrec = int(fPrec)
-
-            fLowDiff = round(fLowDiff + 0.5 * pow(10, (-1) * (fPrec + 1.0)), iPrec)  # conservative rounding
-            fHighDiff = round(fHighDiff + 0.5 * pow(10, (-1) * (fPrec + 1.0)), iPrec)
-            fMed = round(fMed, iPrec)
-            return fLowDiff, fMed, fHighDiff, iPrec
-
-        self.fnAnalyzeStatFile(fConfidence)  # analyze stat data and
-        # populate self.diStatresults
-
-        with open(sTableName, 'r') as file:  # load in template
-            template = file.readlines()
-
-        table = []  # table to be created
-
-        for line in template:
-            splitline = line.split()
-            for i, phrasetex in enumerate(splitline):  # look at each string in template
-                phrase = phrasetex.replace('\\', '')  # remove all '\'
-                if phrase in self.diStatResults['Parameters']:  # if it resembles a paramter name -> replace
-                    fMedian = self.diStatResults['Parameters'][phrase]['Median']
-                    fLowPerc = self.diStatResults['Parameters'][phrase]['LowPerc']
-                    fHighPerc = self.diStatResults['Parameters'][phrase]['HighPerc']
-                    fLowPercDiff, fMedianDiff, fHighPercDiff, iPrec = fnTexFormatf(fLowPerc, fMedian, fHighPerc)
-                    sPrec = f'%(#).{iPrec}f'
-                    temp = '$'  # Latex format
-                    temp += (sPrec % {'#': fMedianDiff})
-                    temp += '_{'
-                    temp = temp + '-' + (sPrec % {'#': fLowPercDiff})
-                    temp += '}^{'
-                    temp = temp + '+' + (sPrec % {'#': fHighPercDiff})
-                    temp += '}$'
-                    splitline[i] = temp
-            table.append(' '.join(splitline) + '\n')
-
-        with open("StatTable.tex", 'w') as file:  # save table to file
-            file.writelines(table)
