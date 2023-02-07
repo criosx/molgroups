@@ -29,7 +29,7 @@ class CMolStat:
         self.diStatRestuls is a dictionary of statistical results with entries from various routines:
             (from fnAnalyzeStatFile)
             'Parameters' is itself a dictionary with the following keys:
-                      'Values' key contains ordered list of all MC parameters
+                      'Values' key contains ordered list of all MCMC parameters
                       'LowPerc' contains lower percentile
                       'Median' contains median
                       'HighPerc' contains higher percentile
@@ -46,7 +46,8 @@ class CMolStat:
                                                           'property1' value
                                                           'property2' value}}
            'Results' contains a dictionary of derived values from fit paramters for post-analysis
-                'Results' {'valuename' {value}}
+                'Results' is itself a dictionary with the following keys:
+                        'Values' key contains ordered list of all MCMC derived parameters
         """
 
         self.diParameters = {}
@@ -84,52 +85,71 @@ class CMolStat:
 
         self.save_stat_data = save_stat_data
 
-    def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):  # summarizes stat file
+    def fnAnalyzeStatFile(self, fConfidence=-1, sparse=0):
 
-        self.fnLoadParameters()  # Load Parameters for limits
-        self.fnLoadStatData(sparse)  # Load data from file into list
+        def data_append(data, origin, name, vis, lower_limit, upper_limit, lower_percentile, median_percentile,
+                        upper_percentile, interval_lower, interval_upper, confidence):
+            data['origin'].append(origin)
+            data['name'].append(name)
+            data['vis'].append(vis)
+            data['lower limit'].append(lower_limit)
+            data['upper limit'].append(upper_limit)
+            data['lower percentile'].append(lower_percentile)
+            data['median percentile'].append(median_percentile)
+            data['upper percentile'].append(upper_percentile)
+            data['interval lower'].append(interval_lower)
+            data['interval upper'].append(interval_upper)
+            data['confidence'].append(confidence)
+            return data
+
+        self.fnLoadParameters()
+        self.fnLoadStatData(sparse)
+
+        data = {'origin': [],
+                'name': [],
+                'vis': [],
+                'lower limit': [],
+                'upper limit': [],
+                'lower percentile': [],
+                'median percentile': [],
+                'upper percentile': [],
+                'interval lower': [],
+                'interval upper': [],
+                'confidence': []
+                }
 
         fConfidence = min(fConfidence, 1)
         if fConfidence < 0:
             fConfidence = special.erf(-1 * fConfidence / sqrt(2))
+        percentiles = (100.0 * (1 - fConfidence) / 2, 50., 100.0 - 100.0 * (1 - fConfidence) / 2)
+        iNumberOfMCIterations = self.diStatResults['NumberOfStatValues']
 
-        fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
-        fHigherPercentileMark = (100 - fLowerPercentileMark)
-
-        iNumberOfMCIterations = self.diStatResults['NumberOfStatValues']  # how many iterations already done
-        iMaxParameterNameLength = self.diStatResults['MaxParameterLength']
-        print('Analysis of current MC simulation ...')
+        print('Analysis of MCMC fit ...')
         print('Number of iterations: %(ni)d' % {'ni': iNumberOfMCIterations})
+        print('')
+        print('Fit Parameters:')
 
-        fMaxConvergence = 0
-        iHistoryLength = 5
-
+        # Fit Parameters
         for element in sorted(list(self.diParameters.keys()),
                               key=lambda sParameter: self.diParameters[sParameter]['number']):
-
-            fLowPerc = stats.scoreatpercentile \
-                (self.diStatResults['Parameters'][element]['Values'], fLowerPercentileMark)  # Calculate Percentiles
-            fMedian = stats.scoreatpercentile \
-                (self.diStatResults['Parameters'][element]['Values'], 50.)
-            fHighPerc = stats.scoreatpercentile \
-                (self.diStatResults['Parameters'][element]['Values'], fHigherPercentileMark)
-
-            self.diStatResults['Parameters'][element]['LowPerc'] = fLowPerc
-            self.diStatResults['Parameters'][element]['Median'] = fMedian
-            self.diStatResults['Parameters'][element]['HighPerc'] = fHighPerc
+            vals = self.diStatResults['Parameters'][element]['Values']
+            perc = stats.scoreatpercentile(vals, percentiles)
+            self.diStatResults['Parameters'][element]['LowPerc'] = perc[0]
+            self.diStatResults['Parameters'][element]['Median'] = perc[1]
+            self.diStatResults['Parameters'][element]['HighPerc'] = perc[2]
 
             flowerlimit = self.diParameters[element]['lowerlimit']
             fupperlimit = self.diParameters[element]['upperlimit']
             temp = abs(fupperlimit - flowerlimit)
 
             sGraphOutput = '['
-            itemp1 = int((fLowPerc - flowerlimit) / temp * 10 + 0.5)
-            itemp2 = int((fMedian - flowerlimit) / temp * 10 + 0.5)
-            itemp3 = int((fHighPerc - flowerlimit) / temp * 10 + 0.5)
-
+            itemp1 = int((perc[0] - flowerlimit) / temp * 10 + 0.5)
+            itemp2 = int((perc[1] - flowerlimit) / temp * 10 + 0.5)
+            itemp3 = int((perc[2] - flowerlimit) / temp * 10 + 0.5)
             for i in range(11):
                 s1 = ' '
-                if itemp1 == i or itemp3 == i: s1 = '|'
+                if itemp1 == i or itemp3 == i:
+                    s1 = '|'
                 if itemp2 == i:
                     if s1 == '|':
                         s1 = '+'
@@ -137,84 +157,30 @@ class CMolStat:
                         s1 = '-'
                 sGraphOutput += s1
             sGraphOutput += ']'
-
-            if (fLowPerc - flowerlimit) < temp * 0.01:
+            if (perc[0] - flowerlimit) < temp * 0.01:
                 self.diStatResults['Parameters'][element]['LowerLimitCollision'] = True
                 sGraphOutput = '#' + sGraphOutput[1:]
             else:
                 self.diStatResults['Parameters'][element]['LowerLimitCollision'] = False
-
-            if (fupperlimit - fHighPerc) < temp * 0.01:
+            if (fupperlimit - perc[2]) < temp * 0.01:
                 self.diStatResults['Parameters'][element]['UpperLimitCollision'] = True
                 sGraphOutput = sGraphOutput[:-1] + '#'
             else:
                 self.diStatResults['Parameters'][element]['UpperLimitCollision'] = False
 
-            if iNumberOfMCIterations > iHistoryLength:  # at least five iterations
+            data = data_append(data, 'fit', element, sGraphOutput, flowerlimit, fupperlimit, perc[0], perc[1],
+                               perc[2], perc[0]-perc[1], perc[2]-perc[1], fConfidence)
 
-                fLowPercHistory = []
-                fMedianHistory = []
-                fHighPercHistory = []
+        # Derived parameters – results
+        for origin in self.diStatResults['Results']:
+            for name in self.diStatResults['Results'][origin]:
+                vals = self.diStatResults['Results'][origin][name]
+                perc = stats.scoreatpercentile(vals, percentiles)
+                data = data_append(data, origin, name, '', None, None, perc[0], perc[1], perc[2], perc[0]-perc[1],
+                                   perc[2]-perc[1], fConfidence)
 
-                for i in range((iHistoryLength - 1) * (-1), 0):
-                    fLowPercHistory.append(
-                        stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:i],
-                                                fLowerPercentileMark))
-                    fMedianHistory.append(
-                        stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:i], 50))
-                    fHighPercHistory.append(
-                        stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:i],
-                                                fHigherPercentileMark))
-
-                fLowPercHistory.append(fLowPerc)
-                fMedianHistory.append(fMedian)
-                fHighPercHistory.append(fHighPerc)
-
-                fLowPercAverage = average(fLowPercHistory)
-                fMedianAverage = average(fMedianHistory)
-                fHighPercAverage = average(fHighPercHistory)
-
-                fSigma = []
-                for i in range(iHistoryLength):
-                    fSigma.append(abs(fLowPercHistory[i] - fLowPercAverage) / temp)
-                    fSigma.append(abs(fMedianHistory[i] - fMedianAverage) / temp)
-                    fSigma.append(abs(fHighPercHistory[i] - fHighPercAverage) / temp)
-
-                fMaxConvergence = max(fMaxConvergence, max(fSigma))
-
-                fLowPercConv = abs(
-                    fLowPerc - stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:-1],
-                                                       fLowerPercentileMark)) / temp
-                fMedianConv = abs(
-                    fMedian - stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:-1],
-                                                      50)) / temp
-                fHighPercConv = abs(
-                    fHighPerc - stats.scoreatpercentile(self.diStatResults['Parameters'][element]['Values'][:-1],
-                                                        fHigherPercentileMark)) / temp
-
-                self.diStatResults['Parameters'][element]['LowPercConv'] = fLowPercConv
-                self.diStatResults['Parameters'][element]['MedianConv'] = fMedianConv
-                self.diStatResults['Parameters'][element]['HighPercConv'] = fHighPercConv
-
-            else:
-                fMaxConvergence = 1e6
-                fLowPercConv = fMedianConv = fHighPercConv = 0
-
-            sPrintString = '%(el)'
-            sPrintString += str(iMaxParameterNameLength)
-            sPrintString += 's  %(sg)s  [%(ll)10.4g,%(ul)10.4g]  [%(lp)10.4g(%(lpc).3f), %(m)10.4g(%(mc).3f), ' \
-                            '%(hp)10.4g(%(hpc).3f)] (-%(ld)10.4g, +%(hd)10.4g)'
-
-            print(sPrintString %
-                  {'el': element, 'll': flowerlimit, 'ul': fupperlimit, 'lp': fLowPerc,
-                   'lpc': fLowPercConv, 'ld': (fMedian - fLowPerc), 'm': fMedian,
-                   'mc': fMedianConv, 'hd': (fHighPerc - fMedian), 'hp': fHighPerc,
-                   'hpc': fHighPercConv, 'sg': sGraphOutput})
-
-        self.diStatResults['Convergence'] = fMaxConvergence
-        # print('Maximum deviation from average over last %(iHL)d iterations: %(maxc).4f' %
-        #       {'iHL': iHistoryLength, 'maxc': fMaxConvergence})
-        print(f'Confidence level: {fConfidence:.4f}')
+        # Pandas Dataframe
+        return pandas.DataFrame(data)
 
     def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
         def fnFindMaxFWHM(lList):
@@ -916,7 +882,7 @@ class CMolStat:
         j = 0
         self.diStatResults['nSLDProfiles'] = []
         self.diStatResults['Molgroups'] = []
-        self.diStatResults['Results'] = []
+        self.diStatResults['Results'] = {}
 
         for iteration in range(self.diStatResults['NumberOfStatValues']):
             try:
@@ -961,6 +927,15 @@ class CMolStat:
                 self.diMolgroups, self.diResults = self.Interactor.fnLoadMolgroups(problem)
                 self.diStatResults['Molgroups'].append(self.diMolgroups)
 
+                # Deal with
+                for origin in self.diResults:
+                    if origin not in self.diStatResults['Results']:
+                        self.diStatResults['Results'][origin] = {}
+                    for name in self.diResults[origin]:
+                        if name not in self.diStatResults['Results'][origin]:
+                            self.diStatResults['Results'][origin][name] = []
+                        self.diStatResults['Results'][origin][name].append(self.diResults[origin][name])
+
             finally:
                 j += 1
 
@@ -968,8 +943,8 @@ class CMolStat:
         if self.save_stat_data:
             self.fnSaveObject(self.diStatResults, f'{self.spath}/{self.mcmcpath}/StatDataPython.dat')
 
-    def fnPrintPar(self):  # prints parameters and their errors
-        # from the covariance matrix on the screen
+    def fnPrintPar(self):
+        # prints parameters and their errors from the covariance matrix onto the screen
 
         litest = list(self.diParameters.keys())
         litest = sorted(litest, key=lambda keyitem: self.diParameters[keyitem]['number'])
