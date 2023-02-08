@@ -5,121 +5,20 @@ from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
 from scipy.signal import peak_widths
+import sys
 
 import MDAnalysis
 from MDAnalysis.lib.util import convert_aa_code
 
 from periodictable.fasta import Molecule, AMINO_ACID_CODES as aa
 from periodictable.core import default_table
-from periodictable.fasta import xray_sld, D2O_SLD, H2O_SLD
+from periodictable.fasta import xray_sld
+from periodictable.fasta import D2O_SLD, H2O_SLD
 
 from molgroups import components as cmp
 
 D2O_SLD *= 1e-6
 H2O_SLD *= 1e-6
-
-aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU': 'E', 'GLN': 'Q', 'GLY': 'G',
-               'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P', 'SER': 'S',
-               'THR': 'T', 'TYR': 'Y', 'VAL': 'V', 'TRP': 'W'})
-
-def fill_bucket(bucket_volume, volume, fill_level=None):
-    """
-    Bucket filling algorithm for n buckets with bucket_volume and total liquid volume to fill.
-    Buckets can be prefilled. First underfilled buckets are filled up to the level of the
-    prefilled ones. Supports non-overlapping buckets concerning bucket volume and fill level.
-    """
-    n_bckts = bucket_volume.shape[0]
-    if fill_level is None:
-        fill_level = numpy.zeros_like(bucket_volume)
-    current_fill_level = fill_level
-    minlevel = numpy.amin(current_fill_level)
-    filltolevel = minlevel
-
-    while volume > 0:
-        fillnow = numpy.zeros_like(bucket_volume)
-        for i in range(n_bckts):
-            if current_fill_level[i] == minlevel:
-                if bucket_volume[i] > minlevel:
-                    fillnow[i] = 1.0
-                    if filltolevel == minlevel or bucket_volume[i] < filltolevel:
-                        filltolevel = bucket_volume[i]
-            if current_fill_level[i] > minlevel:
-                if filltolevel == minlevel or current_fill_level[i] < filltolevel:
-                    filltolevel = current_fill_level[i]
-
-        # buckets are full, volume remaining
-        if minlevel == filltolevel:
-            break
-        if numpy.sum(fillnow) != 0:
-            filling_volume = min(filltolevel - minlevel, volume / numpy.sum(fillnow))
-            current_fill_level += filling_volume * fillnow
-            volume -= filling_volume
-        minlevel = filltolevel
-
-    return volume, current_fill_level
-
-def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
-              deuterated_residues=[],
-              xray_wavelength=1.5418):
-    """
-        Creates an 8-column data file for use with ContinuousEuler from a pdb file\
-        with optional selection. "center_of_mass" is the position in space at which to position the
-        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
-    """
-
-    elements = default_table()
-
-    molec = MDAnalysis.Universe(pdbfilename)
-    sel = molec.select_atoms(selection)
-    Nres = sel.n_residues
-
-    if not Nres:
-        print('Warning: no atoms selected')
-
-    sel.translate(-sel.center_of_mass() + center_of_mass)
-
-    resnums = []
-    rescoords = []
-    resscatter = []
-    resvol = numpy.zeros(Nres)
-    resesl = numpy.zeros(Nres)
-    resnslH = numpy.zeros(Nres)
-    resnslD = numpy.zeros(Nres)
-    deut_header = ''
-
-    for i in range(Nres):
-        resnum = molec.residues[i].resid
-        resnums.append(resnum)
-        rescoords.append(molec.residues[i].atoms.center_of_mass())
-        key = convert_aa_code(molec.residues[i].resname)
-        if resnum in deuterated_residues:
-            resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D),
-                              cell_volume=aa[key].cell_volume)
-        else:
-            resmol = aa[key]
-        resvol[i] = resmol.cell_volume
-        # TODO: Make new column for xray imaginary part (this is real part only)
-        resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
-        resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
-        resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
-
-    resnums = numpy.array(resnums)
-    rescoords = numpy.array(rescoords)
-
-    average_sldH = numpy.sum(resnslH[:, None]) / numpy.sum(resvol[:, None])
-    average_sldD = numpy.sum(resnslD[:, None]) / numpy.sum(resvol[:, None])
-    average_header = f'Average nSLD in H2O: {average_sldH}\nAverage nSLD in D2O: {average_sldD}\n'
-
-    # replace base value in nsl calculation with proper deuterated scattering length
-    # resnsl = resscatter[:, 2]
-    if deuterated_residues is not None:
-        deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
-
-    numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
-                                             resnslH[:, None], resnslD[:, None])), delimiter='\t',
-                  header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
-
-    return datfilename  # allows this to be fed into ContinuousEuler directly
 
 
 class nSLDObj:
@@ -138,19 +37,41 @@ class nSLDObj:
         # allows to flip groups, eg. inner vs. outer leaflet, outer leaflet is default
         self.flip = False
 
+        # stored profile for derived parameter calculation without recalculation of the profile
+        self.area = None
+        self.sl = None
+        self.sld = None
+        self.zaxis = None
+
         if name is not None:
             self.name = name
 
     def fnGetAbsorb(self, z):
         return self.absorb
 
-    def fnGetArea(self, z):
-        # generic area function using fnGetProfile, can be replaced with a more efficient routine in derived objects
-        return self.fnGetProfiles(z)[0][z]
-
-    def fnGetProfiles(self, z):
-        # returns (area, nsl, nsld)
-        raise NotImplementedError()
+    def fnGetArea(self, z1=None, z2=None, recalculate=True):
+        if z1 is None:
+            # no zaxis range given, take entire stored self.zaxis
+            if recalculate or self.area is None:
+                print('Scalar-defined interval for area calculation requires using a stored profile')
+                sys.exit(1)
+            else:
+                return self.area
+        elif z2 is None:
+            # z1 is a numpy array over the zaxis range to be evaluated
+            if recalculate or self.area is None:
+                # new evaluation instead of using any stored area profiles
+                return self.fnGetProfiles(z1)[0]
+            else:
+                # get area from previously computed profile
+                return self.area[numpy.where((z1[0] <= self.zaxis) & (self.zaxis <= z1[-1]))]
+        else:
+            # z1 and z2 are scalars and representing the interval over which the area is evaluated
+            if recalculate or self.area is None:
+                print('Scalar-defined interval for area calculation requires using a stored profile')
+                sys.exit(1)
+            else:
+                return self.area[numpy.where((z1 <= self.zaxis) & (self.zaxis <= z2))]
 
     def fnGetConvolutedArea(self, dz):
         # returns an n-point gaussian interpolation of the area within 4 sigma
@@ -178,6 +99,31 @@ class nSLDObj:
     def fnGetnSLD(self, z):
         # generic area function using fnGetProfile, can be replaced with a more efficient routine in derived objects
         return self.fnGetProfiles(z)[2][z]
+
+    def fnGetProfiles(self, z):
+        # returns (area, nsl, nsld)
+        raise NotImplementedError()
+
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        area = self.fnGetArea(z1=z1, z2=z2, recalculate=recalculate)
+        if z1 is None:
+            # no zaxis range given, take entire stored self.zaxis
+            if recalculate or self.area is None:
+                print('Scalar-defined interval for area calculation requires using a stored profile')
+                sys.exit(1)
+            else:
+                zaxis_gradient = numpy.gradient(self.zaxis)
+        elif z2 is None:
+            # z1 is a numpy array over the zaxis range to be evaluated
+            zaxis_gradient = numpy.gradient(z1)
+        else:
+            # z1 and z2 are scalars and representing the interval over which the area is evaluated
+            if recalculate or self.area is None:
+                print('Scalar-defined interval for area calculation requires using a stored profile')
+                sys.exit(1)
+            else:
+                zaxis_gradient = numpy.gradient(self.zaxis[numpy.where((z1 <= self.zaxis) & (self.zaxis <= z2))])
+        return numpy.sum(area * zaxis_gradient)
 
     def fnGetZ(self):
         return self.z
@@ -344,7 +290,13 @@ class CompositenSLDObj(nSLDObj):
         pos = (area > 0)
         nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
 
-        return area * self.nf, nsl * self.nf, nsld
+        # store profile for post-processing such as derived parameters
+        self.zaxis = z
+        self.area = area * self.nf
+        self.sl = nsl * self.nf
+        self.sld = nsld
+
+        return self.area, self.sl, self.sld
 
     def fnGetnSL(self):
         nSL = 0.
@@ -395,10 +347,6 @@ class Box2Err(nSLDObj):
         ret = shift(ret, shiftvalue, mode='constant')
         return ret
 
-    def fnGetArea(self, z):
-        area, _, _ = self.fnGetProfiles(z)
-        return area
-
     def fnGetProfiles(self, z):
         # calculate area
         # Gaussian function definition, integral is volume, return value is area at positions z
@@ -419,6 +367,11 @@ class Box2Err(nSLDObj):
             area = self._flip_shift(area, z, self.flipcenter)
             nsl = self._flip_shift(nsl, z, self.flipcenter)
             nsld = self._flip_shift(nsld, z, self.flipcenter)
+
+        self.zaxis = z
+        self.area = area
+        self.sl = nsl
+        self.sld = nsld
 
         return area, nsl, nsld
 
@@ -1350,7 +1303,7 @@ class tBLM(BLM):
         bucket_vol = numpy.array([(self.normarea-A_bme+min_A_tether_bme) * self.bME.length, self.normarea * l_tether_free,
                                   (self.normarea-A_hg+min_A_tether_hg) * self.av_hg1_l])
         bucket_fill = numpy.array([min_A_tether_bme * self.bME.length, 0, min_A_tether_hg * self.av_hg1_l])
-        V_tether_remainder, bucket_fill = fill_bucket(bucket_vol, V_tether_remainder, bucket_fill)
+        V_tether_remainder, bucket_fill = self._fill_bucket(bucket_vol, V_tether_remainder, bucket_fill)
         V_tether_bme, V_tether_free, V_tether_hg = bucket_fill
 
         self.tether_bme.fnSet(volume=V_tether_bme, length=self.bME.length,
@@ -1390,6 +1343,43 @@ class tBLM(BLM):
 
         self.tether_methylene.fnSetZ(self.z_ihc)
         self.tether_methyl.fnSetZ(self.z_im)
+
+    @staticmethod
+    def _fill_bucket(bucket_volume, volume, fill_level=None):
+        """
+        Bucket filling algorithm for n buckets with bucket_volume and total liquid volume to fill.
+        Buckets can be prefilled. First underfilled buckets are filled up to the level of the
+        prefilled ones. Supports non-overlapping buckets concerning bucket volume and fill level.
+        """
+        n_bckts = bucket_volume.shape[0]
+        if fill_level is None:
+            fill_level = numpy.zeros_like(bucket_volume)
+        current_fill_level = fill_level
+        minlevel = numpy.amin(current_fill_level)
+        filltolevel = minlevel
+
+        while volume > 0:
+            fillnow = numpy.zeros_like(bucket_volume)
+            for i in range(n_bckts):
+                if current_fill_level[i] == minlevel:
+                    if bucket_volume[i] > minlevel:
+                        fillnow[i] = 1.0
+                        if filltolevel == minlevel or bucket_volume[i] < filltolevel:
+                            filltolevel = bucket_volume[i]
+                if current_fill_level[i] > minlevel:
+                    if filltolevel == minlevel or current_fill_level[i] < filltolevel:
+                        filltolevel = current_fill_level[i]
+
+            # buckets are full, volume remaining
+            if minlevel == filltolevel:
+                break
+            if numpy.sum(fillnow) != 0:
+                filling_volume = min(filltolevel - minlevel, volume / numpy.sum(fillnow))
+                current_fill_level += filling_volume * fillnow
+                volume -= filling_volume
+            minlevel = filltolevel
+
+        return volume, current_fill_level
 
     def fnAdjustParameters(self):
         self._adjust_outer_lipids()
@@ -1481,15 +1471,10 @@ class Hermite(nSLDObj):
         self.vf = numpy.zeros(self.numberofcontrolpoints)
         self.damp = numpy.zeros(self.numberofcontrolpoints)
 
-        # stored area for derived parameter calculation
-        self.area = None
-        self.z = None
-
         # TODO: get the interface with a previous layer correct by defining an erf function at the first control
         #  point or between the first two control points.
 
     def _apply_damping(self):
-        """ only called from _set_area_spline, which is called from fnSetRelative """
         dampfactor = numpy.ones_like(self.vf)
         if self.damping:
             # find index of first point beyond damping trigger
@@ -1504,14 +1489,11 @@ class Hermite(nSLDObj):
         self.damp = self.vf * dampfactor
 
     def _set_area_spline(self):
-
         self._apply_damping()
 
         if self.monotonic:  # monotone interpolation
             self.area_spline = PchipInterpolator(self.dp, self.damp, extrapolate=False)
-
         else:  # catmull-rom
-
             self.area_spline = self._catmull_rom(self.dp, self.damp, extrapolate=False)
 
         self.area_spline_integral = self.area_spline.antiderivative()
@@ -1534,11 +1516,13 @@ class Hermite(nSLDObj):
         vf = self.area_spline(z)
         vf[numpy.isnan(vf)] = 0.0
         vf[vf < 0] = 0.0
-        self.area = vf * self.normarea * self.nf
-        sld = self.fnGetnSLDProfile(z)
-        self.z = z
 
-        return self.area, self.area * numpy.gradient(z) * sld, sld
+        self.zaxis = z
+        self.area = vf * self.normarea * self.nf
+        self.sld = self.fnGetnSLDProfile(z)
+        self.sl = self.area * numpy.gradient(z) * self.sld
+
+        return self.area, self.sl, self.sld
 
     def fnGetnSLDProfile(self, z):
         return self.nSLD * numpy.ones_like(z)
@@ -1552,15 +1536,17 @@ class Hermite(nSLDObj):
     def fnGetUpperLimit(self):
         return self.dp[-1]
 
-    def fnGetVolume(self, z1, z2):
-        """ use stored antiderivatives to calculate volume """
-        # make sure z1 and z2 are in the defined interval. If both are above or below, result will be zero
-        z1 = max(self.fnGetLowerLimit(), z1)
-        z1 = min(self.fnGetUpperLimit(), z1)
-        z2 = max(self.fnGetLowerLimit(), z2)
-        z2 = min(self.fnGetUpperLimit(), z2)
-
-        return (self.area_spline_integral(z2) - self.area_spline_integral(z1)) * self.nf * self.normarea
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        if recalculate:
+            # use stored antiderivatives to calculate volume
+            # make sure z1 and z2 are in the defined interval. If both are above or below, result will be zero
+            z1 = max(self.fnGetLowerLimit(), z1)
+            z1 = min(self.fnGetUpperLimit(), z1)
+            z2 = max(self.fnGetLowerLimit(), z2)
+            z2 = min(self.fnGetUpperLimit(), z2)
+            return (self.area_spline_integral(z2) - self.area_spline_integral(z1)) * self.nf * self.normarea
+        else:
+            super().fnGetVolume(z1, z2=None, recalculate=recalculate)
 
     def fnSetNormarea(self, dnormarea):
         self.normarea = dnormarea
@@ -1602,10 +1588,10 @@ class Hermite(nSLDObj):
         # this requires evaluating the profiles before calculation of the results, which is usually done
         pos = numpy.argmax(self.area)
         results = peak_widths(self.area, [pos], rel_height=0.5)
-        rdict[cName]['peak position'] = self.z[pos]
-        rdict[cName]['FWHM'] = results[0] * (self.z[1] - self.z[0])
-        rdict[cName]['COM'] = numpy.sum(self.area * self.z) / numpy.sum(self.area) if numpy.sum(self.area) != 0 else 0
-        rdict[cName]['INT'] = numpy.sum(self.area * numpy.gradient(self.z))
+        rdict[cName]['peak position'] = self.zaxis[pos]
+        rdict[cName]['FWHM'] = results[0] * (self.zaxis[1] - self.zaxis[0])
+        rdict[cName]['COM'] = numpy.sum(self.area * self.zaxis) / numpy.sum(self.area) if numpy.sum(self.area) != 0 else 0
+        rdict[cName]['INT'] = numpy.sum(self.area * numpy.gradient(self.zaxis))
         return rdict
 
 
@@ -1651,7 +1637,7 @@ class SLDHermite(Hermite):
 
 class ContinuousEuler(nSLDObj):
     """
-        Uses scipy.spatial library to do Euler rotations in real time
+    Uses scipy.spatial library to do Euler rotations in real time
     """
     def __init__(self, fn8col, rotcenter=None, xray=False, **kwargs):
         """ requires file name fn8col containing 8-column data, any header information commented with #:
@@ -1695,6 +1681,10 @@ class ContinuousEuler(nSLDObj):
         # TODO: Would it make sense to have a concept of "normarea"? Then there could be a "volume fraction" concept
         #  so that max(area) = volume_fraction * normarea
 
+    aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU': 'E', 'GLN': 'Q', 'GLY': 'G',
+                   'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P', 'SER': 'S',
+                   'THR': 'T', 'TYR': 'Y', 'VAL': 'V', 'TRP': 'W'})
+
     def _apply_transform(self):
         self.R = Rotation.from_euler('zy', [self.gamma, self.beta], degrees=True)
         self.rotcoords = self.R.apply(self.rescoords)
@@ -1734,22 +1724,93 @@ class ContinuousEuler(nSLDObj):
         pos = (area > 0)
         nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
 
-        return area * self.nf, nsl * self.nf, nsld
+        self.area = area * self.nf
+        self.zaxis = z
+        self.sl = nsl * self.nf
+        self.sld = nsld
 
-    def fnGetVolume(self, z1, z2):
-        """ Calculates volume based on the number of residues of the rotated molecule located between
-            z positions z1 and z2 (inclusive).
+        return self.area, self.sl, self.sld
+
+    @staticmethod
+    def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
+                  deuterated_residues=[], xray_wavelength=1.5418):
+        """
+        Creates an 8-column data file for use with ContinuousEuler from a pdb file\
+        with optional selection. "center_of_mass" is the position in space at which to position the
+        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
+        """
+
+        elements = default_table()
+
+        molec = MDAnalysis.Universe(pdbfilename)
+        sel = molec.select_atoms(selection)
+        Nres = sel.n_residues
+
+        if not Nres:
+            print('Warning: no atoms selected')
+
+        sel.translate(-sel.center_of_mass() + center_of_mass)
+
+        resnums = []
+        rescoords = []
+        resscatter = []
+        resvol = numpy.zeros(Nres)
+        resesl = numpy.zeros(Nres)
+        resnslH = numpy.zeros(Nres)
+        resnslD = numpy.zeros(Nres)
+        deut_header = ''
+
+        for i in range(Nres):
+            resnum = molec.residues[i].resid
+            resnums.append(resnum)
+            rescoords.append(molec.residues[i].atoms.center_of_mass())
+            key = convert_aa_code(molec.residues[i].resname)
+            if resnum in deuterated_residues:
+                resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D),
+                                  cell_volume=aa[key].cell_volume)
+            else:
+                resmol = aa[key]
+            resvol[i] = resmol.cell_volume
+            # TODO: Make new column for xray imaginary part (this is real part only)
+            resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
+            resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
+            resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
+
+        resnums = numpy.array(resnums)
+        rescoords = numpy.array(rescoords)
+
+        average_sldH = numpy.sum(resnslH[:, ]) / numpy.sum(resvol[:, ])
+        average_sldD = numpy.sum(resnslD[:, ]) / numpy.sum(resvol[:, ])
+        average_header = f'Average nSLD in H2O: {average_sldH}\nAverage nSLD in D2O: {average_sldD}\n'
+
+        # replace base value in nsl calculation with proper deuterated scattering length
+        # resnsl = resscatter[:, 2]
+        if deuterated_residues is not None:
+            deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
+
+        numpy.savetxt(datfilename, numpy.hstack((resnums[:, ], rescoords, resvol[:, ], resesl[:, ],
+                                                 resnslH[:, ], resnslD[:, ])), delimiter='\t',
+                      header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
+
+        return datfilename  # allows this to be fed into ContinuousEuler directly
+
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        """
+        Calculates volume based on the number of residues of the rotated molecule located between
+        z positions z1 and z2 (inclusive).
             
-            Note: the result is (slightly) different from integrating the area, because the roughness has already
-            been applied to the area. However, this remains more accurate than the roughened value because
-            the integration limits  will typically correspond to the limits of a lipid Box2Err function
-            which are themselves defined before the roughness is applied."""
-        # use a single bin defined by bin edges z1 and z2.
-        # First [0] selects the histogram array, second [0] gets the single value from the array
-
-        volume = numpy.histogram(self.rotcoords[:, 2], bins=[z1, z2], weights=self.resscatter[:, 0])[0][0]
-
-        return volume * self.nf
+        Note: the result is (slightly) different from integrating the area, because the roughness has already
+        been applied to the area. However, this remains more accurate than the roughened value because
+        the integration limits  will typically correspond to the limits of a lipid Box2Err function
+        which are themselves defined before the roughness is applied.
+        """
+        if z1 is None or z2 is None or recalculate is False:
+            return super().fnGetVolume(z1, z2, recalculate)
+        else:
+            # use a single bin defined by bin edges z1 and z2.
+            # First [0] selects the histogram array, second [0] gets the single value from the array
+            volume = numpy.histogram(self.rotcoords[:, 2], bins=[z1, z2], weights=self.resscatter[:, 0])[0][0]
+            return volume * self.nf
 
     def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
         self.gamma = gamma
@@ -1809,6 +1870,7 @@ class DiscreteEuler(nSLDObj):
         self.betas = betas
         self.gammas = gammas
         self.areadata = areadata
+        # TODO: self.zdata and self.zaxis from the parent might be redundant. Needs consolidation.
         self.zdata = zdata
         self.nslHdata = nslHdata
         self.nslDdata = nslDdata
@@ -1849,18 +1911,19 @@ class DiscreteEuler(nSLDObj):
         else:
             nsl = nslH
 
-        nsld = numpy.zeros_like(z)
-        pos = (area > 0)
-        nsld[pos] = nsl[pos] / (area[pos] * numpy.gradient(z)[pos])
+        self.zaxis = z
+        self.area = area * self.nf
+        self.sl = nsl * self.nf
+        self.sld = numpy.divide(nsl, area * numpy.gradient(z), out=numpy.zeros_like(area), where=area!=0)
 
-        return area * self.nf, nsl * self.nf, nsld
+        return self.area, self.sl, self.sld
 
     def _set_interpolation_points(self, z):
         self._interppoint = numpy.zeros((len(z), 3))
         self._interppoint[:, :-1] = [self.beta, self.gamma]
         self._interppoint[:, -1] = z
 
-    def fnGetVolume(self, z1, z2):
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
         """
             Calculates volume based on the number of residues of the rotated molecule located between
             z positions z1 and z2 (inclusive).
@@ -1870,21 +1933,23 @@ class DiscreteEuler(nSLDObj):
             the integration limits  will typically correspond to the limits of a lipid Box2Err function
             which are themselves defined before the roughness is applied.
         """
-
-        # For volume calculation, use intrinsic z vector, and no smoothing.
-        zvol = self.zdata + self.z
-        self._set_interpolation_points(zvol)
-
-        area = interpn((self.betas, self.gammas, zvol), self.areadata, self._interppoint, bounds_error=False,
-                       fill_value=0.0)
-
-        crit = (zvol > min(z1, z2)) & (zvol < max(z1, z2))
-        if numpy.any(crit):
-            volume = numpy.trapz(area[crit], zvol[crit])
+        if z1 is None or z2 is None or recalculate is False:
+            return super().fnGetVolume(z1, z2, recalculate)
         else:
-            volume = 0.0
+            # For volume calculation, use intrinsic z vector, and no smoothing.
+            zvol = self.zdata + self.z
+            self._set_interpolation_points(zvol)
 
-        return volume * self.nf
+            area = interpn((self.betas, self.gammas, zvol), self.areadata, self._interppoint, bounds_error=False,
+                           fill_value=0.0)
+
+            crit = (zvol > min(z1, z2)) & (zvol < max(z1, z2))
+            if numpy.any(crit):
+                volume = numpy.trapz(area[crit], zvol[crit])
+            else:
+                volume = 0.0
+
+            return volume * self.nf
 
     def fnSet(self, beta, gamma, zpos, sigma, nf, bulknsld=None):
         self.beta = beta
@@ -1994,5 +2059,45 @@ class BLMProteinComplex(CompositenSLDObj):
         nsld = numpy.divide(nsl, area * numpy.gradient(z), out=numpy.zeros_like(area), where=area > 0)
 
         return area * self.nf, nsl * self.nf, nsld
+
+    def fnWriteResults2Dict(self, rdict, cName):
+
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+
+        p1 = self.blms[0].substrate.z + 0.5 * self.blms[0].substrate.length
+        p2 = self.blms[0].headgroups1[0].z - 0.5 * self.blms[0].headgroups1[0].length
+        p3 = self.blms[0].methylenes1[0].z - 0.5 * self.blms[0].methyls1[0].length
+        p4 = self.blms[0].methyls1[0].z + 0.5 * self.blms[0].methyls1[0].length
+        p5 = self.blms[0].methylenes2[0].z + 0.5 * self.blms[0].methylenes2[0].length
+        p6 = self.blms[0].headgroups2[0].z + 0.5 * self.blms[0].headgroups2[0].length
+
+        vprot = self.proteins.fnGetVolume(recalculate=False)
+
+        if vprot != 0:
+            rdict[cName]['protein in submembrane'] = self.proteins.fnGetVolume(p1, p2, recalculate=False) / vprot
+            rdict[cName]['protein in inner headgroup'] = self.proteins.fnGetVolume(p2, p3, recalculate=False) / vprot
+            rdict[cName]['protein in inner hydrocarbon'] = self.proteins.fnGetVolume(p3, p4, recalculate=False) / vprot
+            rdict[cName]['protein in outer hydrocarbon'] = self.proteins.fnGetVolume(p4, p5, recalculate=False) / vprot
+            rdict[cName]['protein in outer headgroup'] = self.proteins.fnGetVolume(p5, p6, recalculate=False) / vprot
+            rdict[cName]['protein in headgroups'] = rdict[cName]['protein in inner headgroup']
+            rdict[cName]['protein in headgroups'] += rdict[cName]['protein in outer headgroup']
+            rdict[cName]['protein in hydrocarbons'] = rdict[cName]['protein in inner hydrocarbon']
+            rdict[cName]['protein in hydrocarbons'] += rdict[cName]['protein in outer hydrocarbon']
+            rdict[cName]['protein in bulk'] = 1 - rdict[cName]['protein in submembrane']
+            rdict[cName]['protein in bulk'] -= rdict[cName]['protein in headgroups']
+            rdict[cName]['protein in bulk'] -= rdict[cName]['protein in hydrocarbons']
+        else:
+            rdict[cName]['protein in submembrane'] = 0.
+            rdict[cName]['protein in inner headgroup'] = 0.
+            rdict[cName]['protein in inner hydrocarbon'] = 0.
+            rdict[cName]['protein in outer hydrocarbon'] = 0.
+            rdict[cName]['protein in outer headgroup'] = 0.
+            rdict[cName]['protein in headgroups'] = 0.
+            rdict[cName]['protein in hydrocarbons'] = 0.
+            rdict[cName]['protein in bulk'] = 0.
+
+        return rdict
 
 
