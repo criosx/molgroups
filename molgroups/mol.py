@@ -4,6 +4,7 @@ from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
+from scipy.signal import peak_widths
 
 import MDAnalysis
 from MDAnalysis.lib.util import convert_aa_code
@@ -20,21 +21,6 @@ H2O_SLD *= 1e-6
 aa3to1 = dict({'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLU': 'E', 'GLN': 'Q', 'GLY': 'G',
                'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P', 'SER': 'S',
                'THR': 'T', 'TYR': 'Y', 'VAL': 'V', 'TRP': 'W'})
-
-
-def catmull_rom(xctrl, yctrl, **kwargs):
-    """returns a catmull_rom spline using ctrl points xctrl, yctrl"""
-    assert (len(xctrl) == len(yctrl))  # same shape
-
-    x_xtnd = numpy.insert(xctrl, 0, xctrl[0] - (xctrl[1] - xctrl[0]))
-    x_xtnd = numpy.append(x_xtnd, xctrl[-1] - xctrl[-2] + xctrl[-1])
-
-    y_xtnd = numpy.insert(yctrl, 0, yctrl[0])
-    y_xtnd = numpy.append(y_xtnd, yctrl[-1])
-    dydx = 0.5 * (y_xtnd[2:] - y_xtnd[:-2]) / (x_xtnd[2:] - x_xtnd[:-2])
-
-    return CubicHermiteSpline(xctrl, yctrl, dydx, **kwargs)
-
 
 def fill_bucket(bucket_volume, volume, fill_level=None):
     """
@@ -528,7 +514,14 @@ class Box2Err(nSLDObj):
         rdict[cName]['nSL2'] = self.nSL2
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
+        return rdict
 
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+        rdict[cName]['COM'] = self.z
+        rdict[cName]['INT'] = self.vol
         return rdict
 
 
@@ -1360,11 +1353,12 @@ class tBLM(BLM):
         V_tether_remainder, bucket_fill = fill_bucket(bucket_vol, V_tether_remainder, bucket_fill)
         V_tether_bme, V_tether_free, V_tether_hg = bucket_fill
 
-        self.tether_bme.fnSet(volume=V_tether_bme, length=self.bME.length, position=0.5 * self.bME.length + self.substrate.z +
-                                                                                    self.substrate.length * 0.5, nSL=self.tether.nSLs / self.tether.cell_volume * V_tether_bme)
-        self.tether_free.fnSet(volume=V_tether_free, length=l_tether_free, position=self.tether_bme.z + 0.5 *
-                                                                                    self.tether_bme.length + 0.5 * l_tether_free, nSL=self.tether.nSLs /
-                                                                                                                                      self.tether.cell_volume * V_tether_free)
+        self.tether_bme.fnSet(volume=V_tether_bme, length=self.bME.length,
+                              position=0.5 * self.bME.length + self.substrate.z + self.substrate.length * 0.5,
+                              nSL=self.tether.nSLs / self.tether.cell_volume * V_tether_bme)
+        self.tether_free.fnSet(volume=V_tether_free, length=l_tether_free,
+                               position=self.tether_bme.z + 0.5 * self.tether_bme.length + 0.5 * l_tether_free,
+                               nSL=self.tether.nSLs / self.tether.cell_volume * V_tether_free)
         frac_tether = 1 - self.tetherg.cell_volume / V_tether_hg
         self.tether_hg.fnSet(volume=V_tether_hg, length=self.av_hg1_l, position=self.tether_free.z + 0.5 *
                              l_tether_free + 0.5 * self.av_hg1_l, nSL=self.tether.nSLs /
@@ -1446,6 +1440,13 @@ class tBLM(BLM):
         self.l_tether = l_tether
         super().fnSet(**kwargs)
 
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+        rdict[cName]['thickness_tether'] = self.l_tether
+        return rdict
+
 
 # ------------------------------------------------------------------------------------------------------
 # Protein models
@@ -1480,6 +1481,10 @@ class Hermite(nSLDObj):
         self.vf = numpy.zeros(self.numberofcontrolpoints)
         self.damp = numpy.zeros(self.numberofcontrolpoints)
 
+        # stored area for derived parameter calculation
+        self.area = None
+        self.z = None
+
         # TODO: get the interface with a previous layer correct by defining an erf function at the first control
         #  point or between the first two control points.
 
@@ -1507,19 +1512,33 @@ class Hermite(nSLDObj):
 
         else:  # catmull-rom
 
-            self.area_spline = catmull_rom(self.dp, self.damp, extrapolate=False)
+            self.area_spline = self._catmull_rom(self.dp, self.damp, extrapolate=False)
 
         self.area_spline_integral = self.area_spline.antiderivative()
+
+    @staticmethod
+    def _catmull_rom(xctrl, yctrl, **kwargs):
+        """returns a catmull_rom spline using ctrl points xctrl, yctrl"""
+        assert (len(xctrl) == len(yctrl))  # same shape
+
+        x_xtnd = numpy.insert(xctrl, 0, xctrl[0] - (xctrl[1] - xctrl[0]))
+        x_xtnd = numpy.append(x_xtnd, xctrl[-1] - xctrl[-2] + xctrl[-1])
+
+        y_xtnd = numpy.insert(yctrl, 0, yctrl[0])
+        y_xtnd = numpy.append(y_xtnd, yctrl[-1])
+        dydx = 0.5 * (y_xtnd[2:] - y_xtnd[:-2]) / (x_xtnd[2:] - x_xtnd[:-2])
+
+        return CubicHermiteSpline(xctrl, yctrl, dydx, **kwargs)
 
     def fnGetProfiles(self, z):
         vf = self.area_spline(z)
         vf[numpy.isnan(vf)] = 0.0
         vf[vf < 0] = 0.0
-        area = vf * self.normarea * self.nf
-
+        self.area = vf * self.normarea * self.nf
         sld = self.fnGetnSLDProfile(z)
+        self.z = z
 
-        return area, area * numpy.gradient(z) * sld, sld
+        return self.area, self.area * numpy.gradient(z) * sld, sld
 
     def fnGetnSLDProfile(self, z):
         return self.nSLD * numpy.ones_like(z)
@@ -1575,6 +1594,20 @@ class Hermite(nSLDObj):
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
 
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+        # to avoid costly recalculations, the results are derived from self.area stored after evaluating the profiles
+        # this requires evaluating the profiles before calculation of the results, which is usually done
+        pos = numpy.argmax(self.area)
+        results = peak_widths(self.area, [pos], rel_height=0.5)
+        rdict[cName]['peak position'] = self.z[pos]
+        rdict[cName]['FWHM'] = results[0] * (self.z[1] - self.z[0])
+        rdict[cName]['COM'] = numpy.sum(self.area * self.z) / numpy.sum(self.area) if numpy.sum(self.area) != 0 else 0
+        rdict[cName]['INT'] = numpy.sum(self.area * numpy.gradient(self.z))
+        return rdict
+
 
 class SLDHermite(Hermite):
     def __init__(self, dnormarea, **kwargs):
@@ -1588,11 +1621,11 @@ class SLDHermite(Hermite):
         if self.monotonic:  # monotone interpolation
             self.sld_spline = PchipInterpolator(self.dp, self.sld, extrapolate=False)
         else:  # catmull-rom
-            self.sld_spline = catmull_rom(self.dp, self.sld, extrapolate=False)
+            self.sld_spline = self._catmull_rom(self.dp, self.sld, extrapolate=False)
 
     def fnGetnSLDProfile(self, z):
         sld = self.sld_spline(z)
-        # deal with out of range values
+        # deal with out-of-range values
         sld[z < self.dp[0]] = self.sld[0]
         sld[z > self.dp[-1]] = self.sld[-1]
         assert (not numpy.any(numpy.isnan(sld)))  # shouldn't be any NaNs left
