@@ -1023,6 +1023,22 @@ class BLM(CompositenSLDObj):
         rdict[cName]['volume_fraction'] = self.vf_bilayer
         rdict[cName]['thickness_inner_leaflet'] = self.l_ihc
         rdict[cName]['thickness_outer_leaflet'] = self.l_ohc
+
+        p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
+        p3 = self.methylenes1[0].z - 0.5 * self.methylenes1[0].length
+        p5 = self.methylenes2[0].z + 0.5 * self.methylenes2[0].length
+        p6 = self.headgroups2[0].z + 0.5 * self.headgroups2[0].length
+
+        rdict[cName]['water in inner headgroups'] = self.fnGetVolume(p2, p3, recalculate=False)
+        rdict[cName]['water in inner headgroups'] /= (self.normarea * (p3 - p2))
+        rdict[cName]['water in inner headgroups'] = 1 - rdict[cName]['water in inner headgroups']
+        rdict[cName]['water in hydrocarbons'] = self.fnGetVolume(p3, p5, recalculate=False)
+        rdict[cName]['water in hydrocarbons'] /= (self.normarea * (p5 - p3))
+        rdict[cName]['water in hydrocarbons'] = 1 - rdict[cName]['water in hydrocarbons']
+        rdict[cName]['water in outer headgroups'] = self.fnGetVolume(p5, p6, recalculate=False)
+        rdict[cName]['water in outer headgroups'] /= (self.normarea * (p6 - p5))
+        rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
+
         return rdict
 
 
@@ -1095,6 +1111,19 @@ class ssBLM(BLM):
         self.l_siox = l_siox
         self.l_submembrane = l_submembrane
         super().fnSet(**kwargs)
+
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+
+        p1 = self.substrate.z + 0.5 * self.substrate.length
+        p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
+        rdict[cName]['water in submembrane'] = self.fnGetVolume(p1, p2, recalculate=False)
+        rdict[cName]['water in submembrane'] /= (self.normarea * (p2 - p1))
+        rdict[cName]['water in submembrane'] = 1 - rdict[cName]['water in submembrane']
+
+        return rdict
 
 
 class tBLM(BLM):
@@ -1435,6 +1464,13 @@ class tBLM(BLM):
         if cName not in rdict:
             rdict[cName] = {}
         rdict[cName]['thickness_tether'] = self.l_tether
+
+        p1 = self.substrate.z + 0.5 * self.substrate.length
+        p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
+        rdict[cName]['water in submembrane'] = self.fnGetVolume(p1, p2, recalculate=False)
+        rdict[cName]['water in submembrane'] /= (self.normarea * (p2 - p1))
+        rdict[cName]['water in submembrane'] = 1 - rdict[cName]['water in submembrane']
+
         return rdict
 
 
@@ -2058,7 +2094,12 @@ class BLMProteinComplex(CompositenSLDObj):
         area, nsl = self.proteins.fnOverlayProfile(z, blm_area, blm_nsl, dMaxArea)
         nsld = numpy.divide(nsl, area * numpy.gradient(z), out=numpy.zeros_like(area), where=area > 0)
 
-        return area * self.nf, nsl * self.nf, nsld
+        self.zaxis = z
+        self.area = area * self.nf
+        self.sl = nsl * self.nf
+        self.sld = nsld
+
+        return self.area, self.sl, self.sld
 
     def fnWriteResults2Dict(self, rdict, cName):
 
@@ -2068,7 +2109,7 @@ class BLMProteinComplex(CompositenSLDObj):
 
         p1 = self.blms[0].substrate.z + 0.5 * self.blms[0].substrate.length
         p2 = self.blms[0].headgroups1[0].z - 0.5 * self.blms[0].headgroups1[0].length
-        p3 = self.blms[0].methylenes1[0].z - 0.5 * self.blms[0].methyls1[0].length
+        p3 = self.blms[0].methylenes1[0].z - 0.5 * self.blms[0].methylenes1[0].length
         p4 = self.blms[0].methyls1[0].z + 0.5 * self.blms[0].methyls1[0].length
         p5 = self.blms[0].methylenes2[0].z + 0.5 * self.blms[0].methylenes2[0].length
         p6 = self.blms[0].headgroups2[0].z + 0.5 * self.blms[0].headgroups2[0].length
@@ -2097,6 +2138,19 @@ class BLMProteinComplex(CompositenSLDObj):
             rdict[cName]['protein in headgroups'] = 0.
             rdict[cName]['protein in hydrocarbons'] = 0.
             rdict[cName]['protein in bulk'] = 0.
+
+        rdict[cName]['water in submembrane'] = self.fnGetVolume(p1, p2, recalculate=False)
+        rdict[cName]['water in submembrane'] /= (self.normarea * (p2 - p1))
+        rdict[cName]['water in submembrane'] = 1 - rdict[cName]['water in submembrane']
+        rdict[cName]['water in inner headgroups'] = self.fnGetVolume(p2, p3, recalculate=False)
+        rdict[cName]['water in inner headgroups'] /= (self.normarea * (p3 - p2))
+        rdict[cName]['water in inner headgroups'] = 1 - rdict[cName]['water in inner headgroups']
+        rdict[cName]['water in hydrocarbons'] = self.fnGetVolume(p3, p5, recalculate=False)
+        rdict[cName]['water in hydrocarbons'] /= (self.normarea * (p5 - p3))
+        rdict[cName]['water in hydrocarbons'] = 1 - rdict[cName]['water in hydrocarbons']
+        rdict[cName]['water in outer headgroups'] = self.fnGetVolume(p5, p6, recalculate=False)
+        rdict[cName]['water in outer headgroups'] /= (self.normarea * (p6 - p5))
+        rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
 
         return rdict
 
