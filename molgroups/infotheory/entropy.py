@@ -328,7 +328,6 @@ class Entropy:
         self.priorentropy, self.priorentropy_marginal = self.calc_prior()
 
         if optimizer == 'grid':
-
             self.results_mvn = np.full(self.steplist, self.priorentropy)
             self.results_gmm = np.full(self.steplist, self.priorentropy)
             self.results_mvn_marginal = np.full(self.steplist, self.priorentropy_marginal)

@@ -900,7 +900,7 @@ class BLM(CompositenSLDObj):
             o headgroups2: a list of outer leaflet headgroup objects
             NB: each object in headgroups1 and headgroups2 is created as a standalone attribute in "self"
                 so that searching for all nSLDObj in self will return each headgroup individually as
-                headgroup1_1, headgroup1_2, ... headgroup1_n for n lipids. Similarly for headgroup2.
+                headgroup1_1, headgroup1_2, ... headgroup1_n for n lipids. Similarly, for headgroup2.
             o vol_acyl_lipids: a numpy array of acyl chain volumes
             o vol_methyl_lipids: a numpy array of methyl volumes
             o nsl_acyl_lipids: a numpy array of acyl chain nSL

@@ -19,10 +19,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_surfasil, vf_surf
     # Scale all SLDs from Refl1D units (1e-6 Ang^-2) to molgroups units (Ang^-2)
     bulknsld *= 1e-6
     rho_substrate *= 1e-6
-
-    substrate.fnSet(nSL=rho_substrate*substrate.vol, sigma=global_rough, position=0)
-
     volume = l_surfasil * 100 * vf_surfasil
+    substrate.fnSet(nSL=rho_substrate*substrate.vol, sigma=global_rough, position=0)
     surfasil.fnSet(length=l_surfasil, position=20+0.5*l_surfasil, nf=1, volume=volume,
                    nSL=0.24e-6 * volume)
     surfasil.fnSetSigma(sigma1=global_rough, sigma2=sigma)
@@ -35,14 +33,12 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate, l_surfasil, vf_surf
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # === Export objects for post analysis ===
-    problem.name = "Surfasil on SiOx"
-    problem.groups = [substrate, surfasil]
-    problem.dimension = dimension
-    problem.stepsize = stepsize
     dict1 = substrate.fnWriteGroup2Dict({}, 'substrate', np.arange(dimension) * stepsize)
-    dict2 = substrate.fnWriteGroup2Dict({}, 'surfasil', np.arange(dimension) * stepsize)
+    dict2 = surfasil.fnWriteGroup2Dict({}, 'surfasil', np.arange(dimension) * stepsize)
     problem.moldat = {**dict1, **dict2}
-
+    dict3 = substrate.fnWriteResults2Dict({}, 'substrate')
+    dict4 = substrate.fnWriteResults2Dict({}, 'surfasil')
+    problem.results = {**dict3, **dict4}
 
     # Return nSLD profile in Refl1D units
     return nsld*1e6
@@ -149,4 +145,3 @@ model = Experiment(sample=sample, probe=probe, dz=stepsize, step_interfaces = st
 modelh = Experiment(sample=sampleh, probe=probeh, dz=stepsize, step_interfaces = step)
 
 problem = FitProblem([model, modelh])
-
