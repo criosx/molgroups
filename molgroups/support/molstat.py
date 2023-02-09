@@ -1,7 +1,5 @@
 from __future__ import print_function
-from math import floor, sqrt
-from collections import defaultdict
-from numpy import average
+from math import sqrt
 from os import path
 from scipy import stats, special
 import numpy
@@ -40,8 +38,9 @@ class CMolStat:
             'nSLDProfiles' contains all profiles 'nSLDProfiles'[MCiteration][model][z,rho]
             'Molgroups' contains a list of dictionaries storing all molgroups
                 'Molgroups'[MCiteration] {'molgroupname' {'zaxis' [z]
-                                                          'areaxis' [area]
-                                                          'nslaxis' [nsl]
+                                                          'are' [area]
+                                                          'sl' [sl]
+                                                          'sld' [sld]
                                                           'headerdata' {'property' value}
                                                           'property1' value
                                                           'property2' value}}
@@ -102,7 +101,7 @@ class CMolStat:
             data['confidence'].append(confidence)
             return data
 
-        self.fnLoadParameters()
+        # self.fnLoadParameters()
         self.fnLoadStatData(sparse)
 
         data = {'origin': [],
@@ -181,282 +180,6 @@ class CMolStat:
 
         # Pandas Dataframe
         return pandas.DataFrame(data)
-
-    def fnCalculateMolgroupProperty(self, fConfidence, verbose=True):
-        def fnFindMaxFWHM(lList):
-            maxvalue = max(lList)
-
-            if isinstance(lList, list):
-                imax = lList.index(maxvalue)
-                length = len(lList)
-            else:
-                imax = numpy.argmax(lList)
-                length = lList.shape[0]
-
-            ifwhmplus = ifwhmminus = imax
-            while lList[ifwhmplus] > (maxvalue / 2) and ifwhmplus < (length - 1):
-                ifwhmplus += 1
-            while lList[ifwhmminus] > (maxvalue / 2) and ifwhmminus > 0:
-                ifwhmminus -= 1
-            return imax, maxvalue, ifwhmminus, ifwhmplus
-
-        self.fnLoadStatData()
-        # Try to import any fractional protein profiles stored in envelopefrac1/2.dat
-        # after such an analysis has been done separately
-        try:
-            pdf_frac1 = pandas.read_csv(f"{self.spath}/{self.mcmcpath}/envelopefrac1.dat", sep='\s+')
-            pdf_frac2 = pandas.read_csv(f"{self.spath}/{self.mcmcpath}/envelopefrac2.dat", sep='\s+')
-
-            for mcmc_iter in range(len(self.diStatResults['Molgroups'])):
-                striter = f'iter{mcmc_iter}'
-                self.diStatResults['Molgroups'][mcmc_iter]['frac1'] = {}
-                self.diStatResults['Molgroups'][mcmc_iter]['frac2'] = {}
-                self.diStatResults['Molgroups'][mcmc_iter]['frac1']['zaxis'] = pdf_frac1['zaxis'].tolist()
-                self.diStatResults['Molgroups'][mcmc_iter]['frac1']['areaaxis'] = pdf_frac1[striter].tolist()
-                self.diStatResults['Molgroups'][mcmc_iter]['frac2']['zaxis'] = pdf_frac2['zaxis'].tolist()
-                self.diStatResults['Molgroups'][mcmc_iter]['frac2']['areaaxis'] = pdf_frac2[striter].tolist()
-        except IOError:
-            print('Did not find any fractional envelopes ...')
-
-        diResults = defaultdict(list)
-        l_molgroups = list(self.diStatResults['Molgroups'][0].keys())
-
-        for mcmc_iter in range(len(self.diStatResults['Molgroups'])):  # cycle over all MC iterations
-            mgdict = self.diStatResults['Molgroups'][mcmc_iter]
-            for s_molgroup in list(mgdict.keys()):  # cycle over all molgroups
-
-                if sum(mgdict[s_molgroup]['areaaxis']):
-                    f_com, f_int = average(mgdict[s_molgroup]['zaxis'], weights=mgdict[s_molgroup]['areaaxis'],
-                                           returned=True)  # Calculate Center of Mass and Integral
-                    f_int = sum(mgdict[s_molgroup]['areaaxis']) * (
-                            mgdict[s_molgroup]['zaxis'][1] - mgdict[s_molgroup]['zaxis'][0])
-                else:
-                    f_com = 1E5
-                    f_int = 0  # total integral in volume per surface area (unit: Å)
-                    # taking into account grid spacing of z-axis
-                f_int = f_int / mgdict['bilayer.normarea']['areaaxis'][0]
-
-                #                for j in range(len(mgdict[sMolgroup]['areaaxis'])):
-                #                    if mgdict[sMolgroup]['areaaxis'][j]:
-                #                        fCOM=fCOM-mgdict[sMolgroup]['zaxis'][j]
-                #                        # normalize COM to start of molecular group
-                #                        break
-
-                f_avg = average(mgdict[s_molgroup]['areaaxis'])
-
-                diResults[s_molgroup + '_COM'].append(f_com)
-                diResults[s_molgroup + '_INT'].append(f_int)
-                diResults[s_molgroup + '_AVG'].append(f_avg)
-
-            # calculate ratios between frac1 and frac2
-            if {'frac1', 'frac2'}.issubset(l_molgroups):
-                diResults['ratio_f1f2'].append(diResults['frac1_INT'][-1] / diResults['frac2_INT'][-1])
-                diResults['ratio_f2f1'].append(diResults['frac2_INT'][-1] / diResults['frac1_INT'][-1])
-
-            # percentage water in sub-membrane space and other regions for tBLM and other bilayer
-            # get vf_bilayer from molecular group methylene2_x
-            vf_bilayer = 0
-            i = 1
-            while f'bilayer.methylene2_{i}' in mgdict:
-                vf_bilayer += float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['nf'])
-                i += 1
-            # prepare arrays for summing up molgroups
-            total_components = numpy.zeros_like(mgdict['bilayer.normarea']['areaaxis'])
-
-            if 'bilayer.headgroup1_1' in l_molgroups:
-                f_vol_headgroup1 = numpy.zeros_like(total_components)
-                j = 1
-                while f'bilayer.headgroup1_{j}' in l_molgroups:
-                    total_components += numpy.array(mgdict[f'bilayer.headgroup1_{j}']['areaaxis'])
-                    f_vol_headgroup1 += float(mgdict[f'bilayer.headgroup1_{j}']['headerdata']['vol']) * \
-                                        float(mgdict[f'bilayer.headgroup1_{j}']['headerdata']['nf'])
-                    j += 1
-
-                if {'bilayer.tether', 'bilayer.tetherg', 'bilayer.normarea', 'bilayer.bME'}.issubset(l_molgroups):
-                    f_vol_submembrane = mgdict['bilayer.normarea']['areaaxis'][0] * \
-                                        (float(mgdict['bilayer.tether']['headerdata']['l']) +
-                                         float(mgdict['bilayer.tetherg']['headerdata']['l'])) * vf_bilayer
-
-                    # sub membrane components
-                    f_vol_components = float(mgdict['bilayer.bME']['headerdata']['vol']) * \
-                                       float(mgdict['bilayer.bME']['headerdata']['nf']) + \
-                                       float(mgdict['bilayer.tether']['headerdata']['vol']) * \
-                                       float(mgdict['bilayer.tether']['headerdata']['nf']) + \
-                                       float(mgdict['bilayer.tetherg']['headerdata']['vol']) * \
-                                       float(mgdict['bilayer.tetherg']['headerdata']['nf']) + f_vol_headgroup1
-
-                    f_total_tether_length = float(mgdict['bilayer.tether']['headerdata']['l']) + \
-                                            float(mgdict['bilayer.tetherg']['headerdata']['l'])
-                    diResults['fTotalTetherLength'].append(f_total_tether_length)
-
-                    f_tether_density = float(mgdict['bilayer.tether']['headerdata']['nf']) / \
-                                       mgdict['bilayer.normarea']['areaaxis'][0]
-                    diResults['fTetherDensity'].append(f_tether_density)
-
-                    total_components += numpy.array(mgdict['bilayer.bME']['areaaxis']) + \
-                                        numpy.array(mgdict['bilayer.tether']['areaaxis']) + \
-                                        numpy.array(mgdict['bilayer.tetherg']['areaaxis'])
-
-            if {'bilayer.methylene1_1', 'bilayer.methyl1_1'}.issubset(l_molgroups):
-                f_total_lipid1_length = float(mgdict['bilayer.methylene1_1']['headerdata']['l']) + float(
-                    mgdict['bilayer.methyl1_1']['headerdata']['l'])
-                diResults['fTotalLipid1Length'].append(f_total_lipid1_length)
-                i = 1
-                while f'bilayer.methylene1_{i}' in mgdict:
-                    total_components += numpy.array(mgdict[f'bilayer.methylene1_{i}']['areaaxis']) + \
-                                        numpy.array(mgdict[f'bilayer.methyl1_{i}']['areaaxis'])
-                    i += 1
-
-            if {'bilayer.methylene2_1', 'bilayer.methyl2_1'}.issubset(l_molgroups):
-                f_total_lipid2_length = float(mgdict['bilayer.methylene2_1']['headerdata']['l']) + float(
-                    mgdict['bilayer.methyl2_1']['headerdata']['l'])
-                diResults['fTotalLipid2Length'].append(f_total_lipid2_length)
-
-                f_area_per_lipid2 = 0
-                i = 1
-                while f'bilayer.methylene2_{i}' in mgdict:
-                    f_area_per_lipid2 += float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['vol']) * \
-                                         float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['nf']) / \
-                                         float(mgdict[f'bilayer.methylene2_{i}']['headerdata']['l'])
-                    i += 1
-
-                diResults['fAreaPerLipid2'].append(f_area_per_lipid2)
-
-                i = 1
-                while f'bilayer.methylene2_{i}' in mgdict:
-                    total_components += numpy.array(mgdict[f'bilayer.methylene2_{i}']['areaaxis']) + \
-                                        numpy.array(mgdict[f'bilayer.methyl2_{i}']['areaaxis'])
-                    i += 1
-
-            if 'bilayer.headgroup2_1' in l_molgroups:
-                f_vol_headgroup2 = numpy.zeros_like(total_components)
-                j = 1
-                while f'bilayer.headgroup2_{j}' in l_molgroups:
-                    total_components += numpy.array(mgdict[f'bilayer.headgroup2_{j}']['areaaxis'])
-                    f_vol_headgroup2 += float(mgdict[f'bilayer.headgroup2_{j}']['headerdata']['vol']) * \
-                                        float(mgdict[f'bilayer.headgroup2_{j}']['headerdata']['nf'])
-                    j += 1
-
-            if 'bilayer.defect_hc' in l_molgroups:
-                total_components = total_components + mgdict['bilayer.defect_hc']['areaaxis']
-
-            if 'bilayer.defect_hg' in l_molgroups:
-                total_components = total_components + mgdict['bilayer.defect_hg']['areaaxis']
-
-            if 'protein' in l_molgroups:
-                total_components = total_components + mgdict['protein']['areaaxis']
-                for i in range(len(total_components)):
-                    total_components[i] = min(total_components[i], vf_bilayer *
-                                              mgdict['bilayer.normarea']['areaaxis'][i])
-
-            # calculate water and protein fractions if bilayer is present
-            if 'bilayer.headgroup1_1' in l_molgroups:
-                f_start_hg1 = float(mgdict['bilayer.headgroup1_1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.headgroup1_1']['headerdata']['l'])
-                f_start_hc = float(mgdict['bilayer.methylene1_1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.methylene1_1']['headerdata']['l'])
-                f_start_methyl2 = float(mgdict['bilayer.methyl2_1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.methyl2_1']['headerdata']['l'])
-                f_start_hg2 = float(mgdict['bilayer.headgroup2_1']['headerdata']['z']) - 0.5 * float(
-                    mgdict['bilayer.headgroup2_1']['headerdata']['l'])
-                f_startbulk = float(mgdict['bilayer.headgroup2_1']['headerdata']['z']) + 0.5 * float(
-                    mgdict['bilayer.headgroup2_1']['headerdata']['l'])
-
-                f_step_size = mgdict['bilayer.normarea']['zaxis'][1] - mgdict['bilayer.normarea']['zaxis'][0]
-
-                i_start_hg1 = int(floor(f_start_hg1 / f_step_size + 0.5))
-                i_start_hc = int(floor(f_start_hc / f_step_size + 0.5))
-                i_start_methyl2 = int(floor(f_start_methyl2 / f_step_size + 0.5))
-                i_start_hg2 = int(floor(f_start_hg2 / f_step_size + 0.5))
-                i_start_bulk = int(floor(f_startbulk / f_step_size + 0.5))
-
-                ref = mgdict['bilayer.normarea']['areaaxis']
-                ratio = 1 - sum(total_components[0:i_start_hg1]) / sum(ref[0:i_start_hg1])
-                diResults['WaterFracSubMembrane'].append(ratio)
-                ratio = 1 - sum(total_components[i_start_hg1:i_start_hc]) / sum(ref[i_start_hg1:i_start_hc])
-                diResults['WaterFracHeadgroup1'].append(ratio)
-                ratio = 1 - sum(total_components[i_start_hc:i_start_methyl2]) / sum(ref[i_start_hc:i_start_methyl2])
-                diResults['WaterFracLipid1'].append(ratio)
-                ratio = 1 - sum(total_components[i_start_methyl2:i_start_hg2]) / sum(ref[i_start_methyl2:i_start_hg2])
-                diResults['WaterFracLipid2'].append(ratio)
-                ratio = 1 - sum(total_components[i_start_hc:i_start_hg2]) / sum(ref[i_start_hc:i_start_hg2])
-                diResults['WaterFracHydrocarbon'].append(ratio)
-                ratio = 1 - sum(total_components[i_start_hg2:i_start_bulk]) / sum(ref[i_start_hg2:i_start_bulk])
-                diResults['WaterFracHeadgroup2'].append(ratio)
-
-                # fraction of protein in certain parts of the membrane
-                for group in ['protein', 'frac1', 'frac2']:
-                    if group in l_molgroups:
-                        if sum(mgdict[group]['areaaxis']) == 0.0:
-                            f_frac_submembrane = 0
-                            f_frac_inner_headgroup = 0
-                            f_frac_inner_hydrocarbon = 0
-                            f_frac_outer_hydrocarbon = 0
-                            f_frac_hydrocarbon = 0
-                            f_frac_outer_headgroup = 0
-                            f_frac_headgroups = 0
-                            f_frac_bulk = 0
-                            f_frac_inner_leaflet = 0
-                            f_frac_outer_leaflet = 0
-                        else:
-                            ref = mgdict[group]['areaaxis']
-                            f_frac_submembrane = sum(ref[0:i_start_hg1]) / sum(ref)
-                            f_frac_inner_headgroup = sum(ref[i_start_hg1:i_start_hc]) / sum(ref)
-                            f_frac_inner_hydrocarbon = sum(ref[i_start_hc:i_start_methyl2]) / sum(ref)
-                            f_frac_outer_hydrocarbon = sum(ref[i_start_methyl2:i_start_hg2]) / sum(ref)
-                            f_frac_hydrocarbon = sum(ref[i_start_hc:i_start_hg2]) / sum(ref)
-                            f_frac_outer_headgroup = sum(ref[i_start_hg2:i_start_bulk]) / sum(ref)
-                            f_frac_headgroups = f_frac_inner_headgroup + f_frac_outer_headgroup
-                            f_frac_bulk = sum(ref[i_start_bulk:]) / sum(ref)
-                            f_frac_inner_leaflet = f_frac_inner_headgroup + f_frac_inner_hydrocarbon
-                            f_frac_outer_leaflet = f_frac_outer_headgroup + f_frac_outer_hydrocarbon
-
-                        diResults[f'FracSubmembrane_{group}'].append(f_frac_submembrane)
-                        diResults[f'FracHydrocarbon_{group}'].append(f_frac_hydrocarbon)
-                        diResults[f'FracInnerHydrocarbon_{group}'].append(f_frac_inner_hydrocarbon)
-                        diResults[f'FracOuterHydrocarbon_{group}'].append(f_frac_outer_hydrocarbon)
-                        diResults[f'FracInnerHeadgroup_{group}'].append(f_frac_inner_headgroup)
-                        diResults[f'FracOuterHeadgroup_{group}'].append(f_frac_outer_headgroup)
-                        diResults[f'FracHeadgroups_{group}'].append(f_frac_headgroups)
-                        diResults[f'FracBulk_{group}'].append(f_frac_bulk)
-                        diResults[f'FracInnerLeaflet_{group}'].append(f_frac_inner_leaflet)
-                        diResults[f'FracOuterLeaflet_{group}'].append(f_frac_outer_leaflet)
-
-                        # calculate peak position and FWHM for spline profile
-                        imax, __, ifwhmminus, ifwhmplus = fnFindMaxFWHM(mgdict[group]['areaaxis'])
-                        diResults[f'PeakPosition_{group}'].append(mgdict[group]['zaxis'][imax] - f_startbulk)
-                        diResults[f'PeakValue_{group}'].append(mgdict[group]['areaaxis'][imax])
-                        diResults[f'FWHMMinusPosition_{group}'].append(mgdict[group]['zaxis'][ifwhmminus] - f_startbulk)
-                        diResults[f'FWHMPlusPosition_{group}'].append(mgdict[group]['zaxis'][ifwhmplus] - f_startbulk)
-                        diResults[f'FWHM_{group}'].append(
-                            mgdict[group]['zaxis'][ifwhmplus] - mgdict[group]['zaxis'][ifwhmminus])
-
-        fConfidence = min(1, fConfidence)
-        if fConfidence < 0:
-            fConfidence = special.erf(-1 * fConfidence / sqrt(2))
-
-        fLowerPercentileMark = 100.0 * (1 - fConfidence) / 2
-        fHigherPercentileMark = (100 - fLowerPercentileMark)
-
-        results = pandas.DataFrame()
-        with open(self.mcmcpath + "/CalculationResults.dat", "w") as file:
-            for element, __ in sorted(diResults.items()):
-                fLowPerc = stats.scoreatpercentile(diResults[element], fLowerPercentileMark)  # Calculate Percentiles
-                fMedian = stats.scoreatpercentile(diResults[element], 50.)
-                fHighPerc = stats.scoreatpercentile(diResults[element], fHigherPercentileMark)
-                interval = pandas.DataFrame(data={'element': element, 'lower_conf': fLowPerc, 'median': fMedian,
-                                                  'upper_conf': fHighPerc}, index=[0])
-                results = pandas.concat([results, interval], axis=0, ignore_index=True)
-
-                sPrintString = '%(el)s  [%(lp)10.4g, %(m)10.4g, %(hp)10.4g] (-%(ld)10.4g, +%(hd)10.4g)'
-
-                soutput = sPrintString % {'el': element, 'lp': fLowPerc, 'ld': (fMedian - fLowPerc), 'm': fMedian,
-                                          'hd': (fHighPerc - fMedian), 'hp': fHighPerc}
-                file.write(soutput + '\n')
-                if verbose:
-                    print(soutput)
-
-        return results
 
     @staticmethod
     def fnCalcConfidenceLimits(data, method=1):
@@ -557,245 +280,6 @@ class CMolStat:
     def fnGetChiSq(self):  # export chi squared
         return self.chisq
 
-    def fnCreateBilayerPlotData(self, custom_groups=None):
-        # integrate over 1D array
-        def fnIntegrate(axis, array, start, stop):
-            startaxis = float(axis[0])
-            incaxis = float(axis[1] - axis[0])
-            startindex = int((start - startaxis) / incaxis + 0.5)
-            stopindex = int((stop - startaxis) / incaxis + 0.5)
-
-            if startindex > stopindex:
-                startindex, stopindex = stopindex, startindex
-
-            fsum = 0.5 * (array[startindex] + array[stopindex])
-            for i in range(startindex + 1, stopindex):
-                fsum += array[i]
-
-            return fsum
-
-        # find maximum values and indizees of half-height points assuming unique solution and steady functions
-        def fnMaximumHalfPoint(data):
-            fmax = numpy.amax(data)
-            point1 = False
-            hm1 = 0
-            hm2 = 0
-
-            for i in range(len(data)):
-                if data[i] > (fmax / 2) and not point1:
-                    point1 = True
-                    hm1 = i
-                if data[i] < (fmax / 2) and point1:
-                    hm2 = i - 1
-                    break
-
-            return fmax, hm1, hm2
-
-        def fnStat(diarea, name, diStat):
-            for i in range(len(diarea[list(diarea.keys())[0]])):
-                liOnePosition = [iteration[i] for key, iteration in diarea.items() if key != 'zaxis']
-                stat = self.fnCalcConfidenceLimits(liOnePosition, method=1)
-                diStat[name + '_msigma'].append(stat[1])
-                diStat[name].append(stat[2])
-                diStat[name + '_psigma'].append(stat[3])
-
-        # initialize Statistical Dictionary
-        print('Initializing ...')
-        if custom_groups is None:
-            custom_groups = []
-        lGroupList = ['substrate', 'siox', 'tether', 'innerhg', 'inner_cg', 'inner_phosphate', 'inner_choline',
-                      'innerhc', 'innerch2', 'innerch3', 'outerhc', 'outerch2', 'outerch3', 'outerhg',
-                      'outer_cg', 'outer_phosphate', 'outer_choline', 'protein', 'sum', 'water'] + custom_groups
-
-        diStat = {}
-        for element in lGroupList:
-            diStat[element] = []
-            diStat[f'{element}_corr'] = []
-            diStat[f'{element}_cvo'] = []
-            diStat[f'{element}_corr_cvo'] = []
-
-        keylist = list(diStat)
-        for element in keylist:
-            diStat[f'{element}_msigma'] = []
-            diStat[f'{element}_psigma'] = []
-
-        diIterations = {}
-        for element in lGroupList:
-            diIterations[element] = {}
-            diIterations[f'{element}_corr'] = {}
-            diIterations[f'{element}_cvo'] = {}
-            diIterations[f'{element}_corr_cvo'] = {}
-
-        # pull all relevant molgroups
-        # headgroups are allready corrected for protein penetration (_corr) and will be copied over to the _corr
-        # entries next
-        print('Pulling all molgroups ...')
-        print('  substrate ...')
-        diIterations['substrate'], __, __ = self.fnPullMolgroupLoader(['bilayer.substrate'])
-        print('  siox ...')
-        diIterations['siox'], __, __ = self.fnPullMolgroupLoader(['bilayer.siox'])
-        print('  tether ...')
-        diIterations['tether'], __, __ = self.fnPullMolgroupLoader(['bilayer.bME', 'bilayer.tetherg', 'bilayer.tether',
-                                                                    'bilayer.tether_bme', 'bilayer.tether_free',
-                                                                    'bilayer.tether_hg'])
-
-        print('  innerhg ...')
-        grouplist = []
-        i = 1
-        while f'bilayer.headgroup1_{i}' in self.diStatResults['Molgroups'][0]:
-            grouplist.append(f'bilayer.headgroup1_{i}')
-            i += 1
-
-        diIterations['innerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
-        diIterations['inner_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.carbonyl_glycerol'])
-        diIterations['inner_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.phosphate'])
-        diIterations['inner_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup1_1.choline'])
-
-        print('  innerhc ...')
-        gl_methylene = []
-        gl_methyl = []
-
-        i = 1
-        while f'bilayer.methylene1_{i}' in self.diStatResults['Molgroups'][0]:
-            gl_methylene.append(f'bilayer.methylene1_{i}')
-            i += 1
-        gl_methylene.append('bilayer.tether_methylene')
-
-        i = 1
-        while f'bilayer.methyl1_{i}' in self.diStatResults['Molgroups'][0]:
-            gl_methyl.append(f'bilayer.methyl1_{i}')
-            i += 1
-        gl_methyl.append('bilayer.tether_methyl')
-
-        diIterations['innerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene + gl_methyl)
-        diIterations['innerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
-        diIterations['innerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
-
-        print('  outerhc ...')
-        gl_methylene = []
-        i = 1
-        while f'bilayer.methylene2_{i}' in self.diStatResults['Molgroups'][0]:
-            gl_methylene.append(f'bilayer.methylene2_{i}')
-            i += 1
-
-        gl_methyl = []
-        i = 1
-        while f'bilayer.methyl2_{i}' in self.diStatResults['Molgroups'][0]:
-            gl_methyl.append(f'bilayer.methyl2_{i}')
-            i += 1
-
-        diIterations['outerhc'], __, __ = self.fnPullMolgroupLoader(gl_methylene + gl_methyl)
-        diIterations['outerch2'], __, __ = self.fnPullMolgroupLoader(gl_methylene)
-        diIterations['outerch3'], __, __ = self.fnPullMolgroupLoader(gl_methyl)
-
-        print('  outerhg ...')
-        grouplist = []
-        i = 1
-        while f'bilayer.headgroup2_{i}' in self.diStatResults['Molgroups'][0]:
-            grouplist.append(f'bilayer.headgroup2_{i}')
-            i += 1
-
-        diIterations['outerhg'], __, __ = self.fnPullMolgroupLoader(grouplist)
-        diIterations['outer_cg'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.carbonyl_glycerol'])
-        diIterations['outer_phosphate'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.phosphate'])
-        diIterations['outer_choline'], __, __ = self.fnPullMolgroupLoader(['bilayer.headgroup2_1.choline'])
-
-        print('  protein ...')
-        diIterations['protein'], __, __ = self.fnPullMolgroupLoader(['protein'])
-
-        for grp in custom_groups:
-            print(f'  {grp} ...')
-            diIterations[grp], __, __ = self.fnPullMolgroupLoader([grp])
-
-        # save z-axis
-        diStat['zaxis'] = numpy.copy(diIterations['substrate']['zaxis'])
-
-        # shallow copies of the uncorrected data into the corrected dictionaries
-        # and the values will be replaced by their modifications step by step
-        for element in lGroupList:
-            diIterations[f'{element}_corr'] = diIterations[element].copy()
-
-        # loop over all iterations and apply the corrections / calculations
-        print('Applying corrections ...\n')
-        for i in range(len(list(diIterations['substrate'].keys())) - 1):
-
-            key = f'iter{i}'
-            substrate = numpy.array(diIterations['substrate'][key])
-            siox = numpy.array(diIterations['siox'][key])
-            tether = numpy.array(diIterations['tether'][key])
-            innerhg_corr = numpy.array(diIterations['innerhg_corr'][key])
-            innerhc = numpy.array(diIterations['innerhc'][key])
-            outerhc = numpy.array(diIterations['outerhc'][key])
-            outerhg_corr = numpy.array(diIterations['outerhg_corr'][key])
-            protein = numpy.array(diIterations['protein'][key])
-            axis = numpy.array(diIterations['substrate']['zaxis'])
-
-            hc = innerhc + outerhc
-            # this is the sum as used for the joining procedure
-            sum = substrate + siox + tether + innerhg_corr + hc + outerhg_corr
-
-            areaperlipid, _, _ = fnMaximumHalfPoint(substrate)
-            maxbilayerarea, _, _ = fnMaximumHalfPoint(hc)
-            # vf_bilayer = maxbilayerarea/areaperlipid
-            # if no substrate, use maximum bilayer area as area per lipid
-            if substrate.min() == substrate.max() == 0:
-                areaperlipid = maxbilayerarea
-
-            # recuperate the non-corrected headgroup distributions that were not saved to file by the fit
-            # by reversing the multiplication based on the amount of replaced hc material
-            __, hc1_hm1, hc1_hm2 = fnMaximumHalfPoint(innerhc)
-            __, hc2_hm1, hc2_hm2 = fnMaximumHalfPoint(outerhc)
-            hg1ratio = fnIntegrate(axis, protein, axis[hc1_hm1], axis[hc1_hm2]) \
-                       / fnIntegrate(axis, innerhc, axis[hc1_hm1], axis[hc1_hm2])
-            hg2ratio = fnIntegrate(axis, protein, axis[hc2_hm1], axis[hc2_hm2]) \
-                       / fnIntegrate(axis, outerhc, axis[hc2_hm1], axis[hc2_hm2])
-            innerhg = innerhg_corr / (1 - hg1ratio)
-            diIterations['innerhg'][key] = numpy.copy(innerhg)
-            outerhg = outerhg_corr / (1 - hg2ratio)
-            diIterations['outerhg'][key] = numpy.copy(outerhg)
-
-            # prepare arrays for correction
-            innerhc_corr = numpy.copy(innerhc)
-            outerhc_corr = numpy.copy(outerhc)
-
-            # correct the hc profiles due to protein penetration
-            for i in range(len(protein)):
-                excess = min(sum[i] + protein[i] - maxbilayerarea, (innerhc[i] + outerhc[i]))
-                if excess > 0:
-                    innerhc_corr[i] -= excess * innerhc[i] / (innerhc[i] + outerhc[i])
-                    outerhc_corr[i] -= excess * outerhc[i] / (innerhc[i] + outerhc[i])
-
-            # update dictionary entries for later statistics
-            diIterations['innerhc_corr'][key] = numpy.copy(innerhc_corr)
-            diIterations['outerhc_corr'][key] = numpy.copy(outerhc_corr)
-            sum_corr = substrate + siox + tether + innerhg_corr + innerhc_corr + outerhc_corr + outerhg_corr
-            diIterations['sum_corr'][key] = numpy.copy(sum_corr)
-
-            # this is the truly non-corrected sum, different from the previous sum used for joining
-            sum = substrate + siox + tether + innerhg + innerhc + outerhc + outerhg
-            diIterations['sum'][key] = numpy.copy(sum)
-            water_corr = areaperlipid - sum_corr - protein
-            diIterations['water_corr'][key] = numpy.copy(water_corr)
-            water = areaperlipid - sum - protein
-            diIterations['water'][key] = numpy.copy(water)
-
-            # calculate volume occupancy distributions by division by the area per lipid
-            for element in lGroupList:
-                diIterations[f'{element}_cvo'][key] = diIterations[element][key] / areaperlipid
-                diIterations[f'{element}_corr_cvo'][key] = diIterations[f'{element}_corr'][key] / areaperlipid
-
-        # calculate the statisics
-        print('Calculating statistics ...\n')
-        for element in lGroupList:
-            if element != 'zaxis':
-                fnStat(diIterations[element], element, diStat)
-                fnStat(diIterations[f'{element}_corr'], f'{element}_corr', diStat)
-                fnStat(diIterations[f'{element}_cvo'], f'{element}_cvo', diStat)
-                fnStat(diIterations[f'{element}_corr_cvo'], f'{element}_corr_cvo', diStat)
-
-        print('Saving data to bilayerplotdata.dat ...\n')
-        self.Interactor.fnSaveSingleColumns(f'{self.mcmcpath}/bilayerplotdata.dat', diStat)
-
     def fnGetParameterValue(self, sname):  # export absolute parameter value
         return self.diParameters[sname]['value']  # for given name
 
@@ -881,7 +365,7 @@ class CMolStat:
 
         j = 0
         self.diStatResults['nSLDProfiles'] = []
-        self.diStatResults['Molgroups'] = []
+        self.diStatResults['Molgroups'] = {}
         self.diStatResults['Results'] = {}
 
         for iteration in range(self.diStatResults['NumberOfStatValues']):
@@ -923,11 +407,26 @@ class CMolStat:
                     z, rho, irho = self.Interactor.fnRestoreSmoothProfile(problem)
                     self.diStatResults['nSLDProfiles'][-1].append((z, rho, irho))
 
-                # Recreate Molgroups and Derived Results Dictionaries
+                # Recreate Molgroups and Derived Results
                 self.diMolgroups, self.diResults = self.Interactor.fnLoadMolgroups(problem)
-                self.diStatResults['Molgroups'].append(self.diMolgroups)
 
-                # Deal with
+                # Store Molgroups
+                # self.diStatResults['Molgroups'].append(self.diMolgroups)
+                for name in self.diMolgroups:
+                    if name not in self.diStatResults['Molgroups']:
+                        self.diStatResults['Molgroups'][name] = {}
+                    for entry in self.diMolgroups[name]:
+                        if entry == 'zaxis':
+                            # store z-axis only once
+                            if entry not in self.diStatResults['Molgroups'][name]:
+                                self.diStatResults['Molgroups'][name][entry] = self.diMolgroups[name][entry]
+                        else:
+                            if entry not in self.diStatResults['Molgroups'][name]:
+                                self.diStatResults['Molgroups'][name][entry] = []
+                            self.diStatResults['Molgroups'][name][entry].append(self.diMolgroups[name][entry])
+
+                # Store Derived Results
+                # origin is the name of the object that provided a result with a certain name
                 for origin in self.diResults:
                     if origin not in self.diStatResults['Results']:
                         self.diStatResults['Results'][origin] = {}
@@ -968,6 +467,30 @@ class CMolStat:
                                                            self.diParameters[parameter]['error'],
                                                            fLowLim, self.diParameters[parameter]['upperlimit']))
         print('Chi squared: %g' % self.chisq)
+
+    def fnProfilesStat(self, sparse=0):
+        self.fnLoadStatData(sparse)
+
+        for group in self.diStatResults['Molgroups']:
+            median_area = numpy.percentile(self.diStatResults['Molgroups'][group]['area'], 50., axis=0)
+            psigma_area = numpy.percentile(self.diStatResults['Molgroups'][group]['area'], 82., axis=0)
+            msigma_area = numpy.percentile(self.diStatResults['Molgroups'][group]['area'], 18., axis=0)
+            median_sl = numpy.percentile(self.diStatResults['Molgroups'][group]['sl'], 50., axis=0)
+            psigma_sl = numpy.percentile(self.diStatResults['Molgroups'][group]['sl'], 82., axis=0)
+            msigma_sl = numpy.percentile(self.diStatResults['Molgroups'][group]['sl'], 18., axis=0)
+            median_sld = numpy.percentile(self.diStatResults['Molgroups'][group]['sld'], 50., axis=0)
+            psigma_sld = numpy.percentile(self.diStatResults['Molgroups'][group]['sld'], 82., axis=0)
+            msigma_sld = numpy.percentile(self.diStatResults['Molgroups'][group]['sld'], 18., axis=0)
+
+            self.diStatResults['Molgroups'][group]['median area'] = median_area
+            self.diStatResults['Molgroups'][group]['psigma area'] = psigma_area
+            self.diStatResults['Molgroups'][group]['msigma area'] = msigma_area
+            self.diStatResults['Molgroups'][group]['median sl'] = median_sl
+            self.diStatResults['Molgroups'][group]['psigma sl'] = psigma_sl
+            self.diStatResults['Molgroups'][group]['msigma sl'] = msigma_sl
+            self.diStatResults['Molgroups'][group]['median sld'] = median_sld
+            self.diStatResults['Molgroups'][group]['psigma sld'] = psigma_sld
+            self.diStatResults['Molgroups'][group]['msigma sld'] = msigma_sld
 
     def fnPullMolgroup(self, liMolgroupNames, sparse=0, verbose=True):
         """

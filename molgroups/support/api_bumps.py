@@ -70,8 +70,9 @@ class CBumpsAPI(api_base.CBaseAPI):
 
             zax = moldict[group]['zaxis']
             areaax = moldict[group]['area']
-            nslax = moldict[group]['nsl']
-            diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
+            nslax = moldict[group]['sl']
+            sldax = moldict[group]['sld']
+            diMolgroups[tdata[1]].update({'zaxis': zax, 'area': areaax, 'sl': nslax, 'sld': sldax})
 
         return diMolgroups, diResults
 
