@@ -369,7 +369,7 @@ double BoxErr::fnGetnSLD(double dz) {return nSL/vol;};
 double BoxErr::fnGetLowerLimit() {return z-0.5*l-3*sigma;};
 double BoxErr::fnGetUpperLimit() {return z+0.5*l+3*sigma;};
 
-void   BoxErr::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   BoxErr::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "BoxErr %s z %lf sigma %lf l %lf vol %lf nSL %e nf %lf \n",cName, z, sigma, l, vol, nSL, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -469,7 +469,7 @@ void Box2Err::fnSetZ(double dz)
 	z=dz;
 };
 
-void   Box2Err::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   Box2Err::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Box2Err %s z %lf sigma1 %lf sigma2 %lf l %lf vol %lf nSL %lf nSL2 %e nf %lf \n",cName, z, sigma1, sigma2, l, vol, nSL, nSL2, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -553,7 +553,7 @@ void BoxErrLinearSLD::fnSetZ(double dz)
 	z=dz;
 };
 
-void   BoxErrLinearSLD::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   BoxErrLinearSLD::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "BoxErrLinearSLD %s z %lf sigma1 %lf sigma2 %lf l %lf vol %lf nSLD1 %1f nSLD2 %e nf %lf \n",cName, z, sigma1, sigma2, l, vol, nSLD1, nSLD2, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -578,7 +578,7 @@ double Gaussian::fnGetnSLD(double dz) {return nSL/vol;};
 double Gaussian::fnGetLowerLimit() {return z-3*sigma;};
 double Gaussian::fnGetUpperLimit() {return z+3*sigma;};
 
-void   Gaussian::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   Gaussian::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Gaussian %s z %lf sigma %lf vol %lf nSL %e nf %lf \n",cName, z, sigma, vol, nSL, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -607,7 +607,7 @@ double Parabolic::fnGetnSLD(double dz) {return nSLD;};
 double Parabolic::fnGetLowerLimit() {return 0;};
 double Parabolic::fnGetUpperLimit() {return 0;};
 
-void   Parabolic::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   Parabolic::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Parabolic %s C %lf H %lf n %lf  nSLD %e nf %lf \n",cName, C, H, n, nSLD, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -653,7 +653,7 @@ double StretchGaussian::fnGetnSLD(double dz) {return nSL/vol;};
 double StretchGaussian::fnGetLowerLimit() {return z-0.5*l-3*sigma;};
 double StretchGaussian::fnGetUpperLimit() {return z+0.5*l+3*sigma;};
 
-void   StretchGaussian::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   StretchGaussian::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Gaussian %s z %lf sigma %lf l %lf vol %lf nSL %e nf %lf \n",cName, z, sigma, l, vol, nSL, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -749,15 +749,15 @@ void PC::fnSetZ(double dz){
     fnAdjustParameters();
 };
 
-void PC::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void PC::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     fprintf(fp, "PC %s z %lf l %lf vol %lf nf %lf \n",cName, z, l,cg->vol+phosphate->vol+choline->vol, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    //cg->fnWritePar2File(fp, "cg", dimension, stepsize);
-    //phosphate->fnWritePar2File(fp, "phosphate", dimension, stepsize);
-    //choline->fnWritePar2File(fp, "choline", dimension, stepsize);
+    //cg->fnWriteGroup2File(fp, "cg", dimension, stepsize);
+    //phosphate->fnWriteGroup2File(fp, "phosphate", dimension, stepsize);
+    //choline->fnWriteGroup2File(fp, "choline", dimension, stepsize);
     
     //delete []str;
     
@@ -785,15 +785,15 @@ void PCm::fnAdjustParameters(){
 double PCm::fnGetLowerLimit() {return cg->fnGetLowerLimit();};
 double PCm::fnGetUpperLimit() {return choline->fnGetUpperLimit();};
 
-void   PCm::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void   PCm::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     fprintf(fp, "PCm %s z %lf l %lf vol %lf nf %lf \n",cName, z, l,cg->vol+phosphate->vol+choline->vol, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    //cg->fnWritePar2File(fp, "cg_m", dimension, stepsize);
-    //phosphate->fnWritePar2File(fp, "phosphate_m", dimension, stepsize);
-    //choline->fnWritePar2File(fp, "choline_m", dimension, stepsize);
+    //cg->fnWriteGroup2File(fp, "cg_m", dimension, stepsize);
+    //phosphate->fnWriteGroup2File(fp, "phosphate_m", dimension, stepsize);
+    //choline->fnWriteGroup2File(fp, "choline_m", dimension, stepsize);
     
     //delete []str;
     
@@ -884,15 +884,15 @@ void PS::fnSetnSL(double nSL_cg, double nSL_phosphate, double nSL_serine){
 }
 
 
-void PS::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void PS::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    cg->fnWritePar2File(fp, "cg", dimension, stepsize);
-    phosphate->fnWritePar2File(fp, "phosphate", dimension, stepsize);
-    serine->fnWritePar2File(fp, "serine", dimension, stepsize);
+    cg->fnWriteGroup2File(fp, "cg", dimension, stepsize);
+    phosphate->fnWriteGroup2File(fp, "phosphate", dimension, stepsize);
+    serine->fnWriteGroup2File(fp, "serine", dimension, stepsize);
     
     //delete []str;
     
@@ -1454,20 +1454,20 @@ double BLM_quaternary::fnWriteProfile(double aArea[], double anSLD[], int dimens
 };
 
 
-void BLM_quaternary::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void BLM_quaternary::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
-    headgroup1->fnWritePar2File(fp, "blm_headgroup1", dimension, stepsize);
-    headgroup1_2->fnWritePar2File(fp, "blm_headgroup1_2", dimension, stepsize);
-    headgroup1_3->fnWritePar2File(fp, "blm_headgroup1_3", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "blm_lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "blm_methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "blm_methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "blm_lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "blm_headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "blm_headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "blm_headgroup2_3", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "blm_defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "blm_defect_hg", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "blm_headgroup1", dimension, stepsize);
+    headgroup1_2->fnWriteGroup2File(fp, "blm_headgroup1_2", dimension, stepsize);
+    headgroup1_3->fnWriteGroup2File(fp, "blm_headgroup1_3", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "blm_lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "blm_methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "blm_methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "blm_lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "blm_headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "blm_headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "blm_headgroup2_3", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "blm_defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "blm_defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "blm_normarea", normarea, 0, dimension, stepsize);
 }
 
@@ -1639,16 +1639,16 @@ void Monolayer::fnSetnSL(double nSL_methyl, double nSL_lipid, double nSL_headgro
 }
 
 
-void Monolayer::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void Monolayer::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    methyl->fnWritePar2File(fp, "methyl", dimension, stepsize);
-    lipid->fnWritePar2File(fp, "lipid", dimension, stepsize);
-    headgroup->fnWritePar2File(fp, "headgroup", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    methyl->fnWriteGroup2File(fp, "methyl", dimension, stepsize);
+    lipid->fnWriteGroup2File(fp, "lipid", dimension, stepsize);
+    headgroup->fnWriteGroup2File(fp, "headgroup", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
         
 }
@@ -1945,22 +1945,22 @@ double ssBLM::fnWriteProfile(double aArea[], double anSLD[], int dimension, doub
 };
 
 
-void ssBLM::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void ssBLM::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    siox->fnWritePar2File(fp, "siox", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "defect_hg", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    siox->fnWriteGroup2File(fp, "siox", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
     //delete []str;
@@ -2392,26 +2392,26 @@ double ssBLM_quaternary::fnWriteProfile(double aArea[], double anSLD[], int dime
 };
 
 
-void ssBLM_quaternary::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void ssBLM_quaternary::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    siox->fnWritePar2File(fp, "siox", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    headgroup1_2->fnWritePar2File(fp, "headgroup1_2", dimension, stepsize);
-    headgroup1_3->fnWritePar2File(fp, "headgroup1_3", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "headgroup2_3", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "defect_hg", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    siox->fnWriteGroup2File(fp, "siox", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    headgroup1_2->fnWriteGroup2File(fp, "headgroup1_2", dimension, stepsize);
+    headgroup1_3->fnWriteGroup2File(fp, "headgroup1_3", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "headgroup2_3", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
     
@@ -2529,25 +2529,25 @@ void ssBLM_quaternary_2sub::fnSetSigma(double sigma)
 }
 
 
-void ssBLM_quaternary_2sub::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void ssBLM_quaternary_2sub::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    siox->fnWritePar2File(fp, "siox", dimension, stepsize);
-    cr->fnWritePar2File(fp, "cr", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    headgroup1_2->fnWritePar2File(fp, "headgroup1_2", dimension, stepsize);
-    headgroup1_3->fnWritePar2File(fp, "headgroup1_3", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "headgroup2_3", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "defect_hg", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    siox->fnWriteGroup2File(fp, "siox", dimension, stepsize);
+    cr->fnWriteGroup2File(fp, "cr", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    headgroup1_2->fnWriteGroup2File(fp, "headgroup1_2", dimension, stepsize);
+    headgroup1_3->fnWriteGroup2File(fp, "headgroup1_3", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "headgroup2_3", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
 }
@@ -2935,23 +2935,23 @@ double hybridBLM_quaternary::fnWriteProfile(double aArea[], double anSLD[], int 
 };
 
 
-void hybridBLM_quaternary::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void hybridBLM_quaternary::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "headgroup2_3", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "defect_hg", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "headgroup2_3", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
     
@@ -3460,28 +3460,28 @@ double tBLM_quaternary_chol::fnWriteProfile(double aArea[], double anSLD[], int 
 };
 
 
-void tBLM_quaternary_chol::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void tBLM_quaternary_chol::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    bME->fnWritePar2File(fp, "bME", dimension, stepsize);
-    tether->fnWritePar2File(fp, "tether", dimension, stepsize);
-    tetherg->fnWritePar2File(fp, "tetherg", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    headgroup1_2->fnWritePar2File(fp, "headgroup1_2", dimension, stepsize);
-    headgroup1_3->fnWritePar2File(fp, "headgroup1_3", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "headgroup2_3", dimension, stepsize);
-    defect_hydrocarbon->fnWritePar2File(fp, "defect_hc", dimension, stepsize);
-    defect_headgroup->fnWritePar2File(fp, "defect_hg", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    bME->fnWriteGroup2File(fp, "bME", dimension, stepsize);
+    tether->fnWriteGroup2File(fp, "tether", dimension, stepsize);
+    tetherg->fnWriteGroup2File(fp, "tetherg", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    headgroup1_2->fnWriteGroup2File(fp, "headgroup1_2", dimension, stepsize);
+    headgroup1_3->fnWriteGroup2File(fp, "headgroup1_3", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "headgroup2_3", dimension, stepsize);
+    defect_hydrocarbon->fnWriteGroup2File(fp, "defect_hc", dimension, stepsize);
+    defect_headgroup->fnWriteGroup2File(fp, "defect_hg", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
     
@@ -4346,38 +4346,38 @@ void tBLM_quaternary_chol_domain::fnSetSigma(double sigma)
 }
 
 
-void tBLM_quaternary_chol_domain::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void tBLM_quaternary_chol_domain::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     //fprintf(fp, "PC %s z %lf l %lf nf %lf \n",cName, z, l, nf);
     //nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    substrate->fnWritePar2File(fp, "substrate", dimension, stepsize);
-    bME->fnWritePar2File(fp, "bME", dimension, stepsize);
-    tether->fnWritePar2File(fp, "tether", dimension, stepsize);
-    tetherg->fnWritePar2File(fp, "tetherg", dimension, stepsize);
-    headgroup1->fnWritePar2File(fp, "headgroup1", dimension, stepsize);
-    headgroup1_2->fnWritePar2File(fp, "headgroup1_2", dimension, stepsize);
-    headgroup1_3->fnWritePar2File(fp, "headgroup1_3", dimension, stepsize);
-    lipid1->fnWritePar2File(fp, "lipid1", dimension, stepsize);
-    methyl1->fnWritePar2File(fp, "methyl1", dimension, stepsize);
-    methyl2->fnWritePar2File(fp, "methyl2", dimension, stepsize);
-    lipid2->fnWritePar2File(fp, "lipid2", dimension, stepsize);
-    headgroup2->fnWritePar2File(fp, "headgroup2", dimension, stepsize);
-    headgroup2_2->fnWritePar2File(fp, "headgroup2_2", dimension, stepsize);
-    headgroup2_3->fnWritePar2File(fp, "headgroup2_3", dimension, stepsize);
-    tether_domain->fnWritePar2File(fp, "tether_domain", dimension, stepsize);
-    tetherg_domain->fnWritePar2File(fp, "tetherg_domain", dimension, stepsize);
-    headgroup1_domain->fnWritePar2File(fp, "headgroup1_domain", dimension, stepsize);
-    headgroup1_2_domain->fnWritePar2File(fp, "headgroup1_2_domain", dimension, stepsize);
-    headgroup1_3_domain->fnWritePar2File(fp, "headgroup1_3_domain", dimension, stepsize);
-    lipid1_domain->fnWritePar2File(fp, "lipid1_domain", dimension, stepsize);
-    methyl1_domain->fnWritePar2File(fp, "methyl1_domain", dimension, stepsize);
-    methyl2_domain->fnWritePar2File(fp, "methyl2_domain", dimension, stepsize);
-    lipid2_domain->fnWritePar2File(fp, "lipid2_domain", dimension, stepsize);
-    headgroup2_domain->fnWritePar2File(fp, "headgroup2_domain", dimension, stepsize);
-    headgroup2_2_domain->fnWritePar2File(fp, "headgroup2_2_domain", dimension, stepsize);
-    headgroup2_3_domain->fnWritePar2File(fp, "headgroup2_3_domain", dimension, stepsize);
+    substrate->fnWriteGroup2File(fp, "substrate", dimension, stepsize);
+    bME->fnWriteGroup2File(fp, "bME", dimension, stepsize);
+    tether->fnWriteGroup2File(fp, "tether", dimension, stepsize);
+    tetherg->fnWriteGroup2File(fp, "tetherg", dimension, stepsize);
+    headgroup1->fnWriteGroup2File(fp, "headgroup1", dimension, stepsize);
+    headgroup1_2->fnWriteGroup2File(fp, "headgroup1_2", dimension, stepsize);
+    headgroup1_3->fnWriteGroup2File(fp, "headgroup1_3", dimension, stepsize);
+    lipid1->fnWriteGroup2File(fp, "lipid1", dimension, stepsize);
+    methyl1->fnWriteGroup2File(fp, "methyl1", dimension, stepsize);
+    methyl2->fnWriteGroup2File(fp, "methyl2", dimension, stepsize);
+    lipid2->fnWriteGroup2File(fp, "lipid2", dimension, stepsize);
+    headgroup2->fnWriteGroup2File(fp, "headgroup2", dimension, stepsize);
+    headgroup2_2->fnWriteGroup2File(fp, "headgroup2_2", dimension, stepsize);
+    headgroup2_3->fnWriteGroup2File(fp, "headgroup2_3", dimension, stepsize);
+    tether_domain->fnWriteGroup2File(fp, "tether_domain", dimension, stepsize);
+    tetherg_domain->fnWriteGroup2File(fp, "tetherg_domain", dimension, stepsize);
+    headgroup1_domain->fnWriteGroup2File(fp, "headgroup1_domain", dimension, stepsize);
+    headgroup1_2_domain->fnWriteGroup2File(fp, "headgroup1_2_domain", dimension, stepsize);
+    headgroup1_3_domain->fnWriteGroup2File(fp, "headgroup1_3_domain", dimension, stepsize);
+    lipid1_domain->fnWriteGroup2File(fp, "lipid1_domain", dimension, stepsize);
+    methyl1_domain->fnWriteGroup2File(fp, "methyl1_domain", dimension, stepsize);
+    methyl2_domain->fnWriteGroup2File(fp, "methyl2_domain", dimension, stepsize);
+    lipid2_domain->fnWriteGroup2File(fp, "lipid2_domain", dimension, stepsize);
+    headgroup2_domain->fnWriteGroup2File(fp, "headgroup2_domain", dimension, stepsize);
+    headgroup2_2_domain->fnWriteGroup2File(fp, "headgroup2_2_domain", dimension, stepsize);
+    headgroup2_3_domain->fnWriteGroup2File(fp, "headgroup2_3_domain", dimension, stepsize);
     fnWriteConstant(fp, "normarea", normarea, 0, dimension, stepsize);
     
     
@@ -4630,7 +4630,7 @@ void Discrete::fnSetSigma(double _sigma)
 }
 
 
-void Discrete::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void Discrete::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Discrete %s StartPosition %e \n",cName, dStartPosition);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);    
@@ -5021,7 +5021,7 @@ void DiscreteEuler::fnSetNormarea(double dnormarea)
 };
 
 
-void DiscreteEuler::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void DiscreteEuler::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "DiscreteEuler %s StartPosition %e Beta %g Gamma %g nf %g \n",cName, dStartPosition,dBeta, dGamma, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);    
@@ -5551,7 +5551,7 @@ void DiscreteEulerSigma::fnSetNormarea(double dnormarea)
 };
 
 
-void DiscreteEulerSigma::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void DiscreteEulerSigma::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "DiscreteEuler %s StartPosition %e Beta %g Gamma %g Sigma %g nf %g \n",cName, dStartPosition,dBeta, dGamma, dSigma, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -5634,7 +5634,7 @@ void Discrete3Euler::fnSetNormarea(double dnormarea)
     protein3->fnSetNormarea(dnormarea);
 };
 
-void Discrete3Euler::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void Discrete3Euler::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Discrete3Euler %s StartPosition1 %e Beta1 %g Gamma1 %g nf1 %g StartPosition2 %e Beta2 %g Gamma2 %g nf2 %g StartPosition3 %e Beta3 %g Gamma3 %g nf3 %g \n",cName, protein1->dStartPosition , protein1->dBeta, protein1->dGamma, protein1->nf, protein2->dStartPosition , protein2->dBeta, protein2->dGamma, protein2->nf, protein3->dStartPosition , protein3->dBeta, protein3->dGamma, protein3->nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
@@ -5806,15 +5806,15 @@ void FreeBox::fnSetnSLD(double dnSLD)
 };
 
 
-void FreeBox::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void FreeBox::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     //char *str = new char[80];
     
     fprintf(fp, "FreeBox %s numberofboxes %i \n",cName, numberofboxes);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);
-    //cg->fnWritePar2File(fp, "cg", dimension, stepsize);
-    //phosphate->fnWritePar2File(fp, "phosphate", dimension, stepsize);
-    //choline->fnWritePar2File(fp, "choline", dimension, stepsize);
+    //cg->fnWriteGroup2File(fp, "cg", dimension, stepsize);
+    //phosphate->fnWriteGroup2File(fp, "phosphate", dimension, stepsize);
+    //choline->fnWriteGroup2File(fp, "choline", dimension, stepsize);
     
     //delete []str;
     
@@ -6150,7 +6150,7 @@ void Hermite::fnSetnSLD(double dnSLD)
 };
 
 
-void Hermite::fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize)
+void Hermite::fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize)
 {
     fprintf(fp, "Hermite %s numberofcontrolpoints %i normarea %e nf %e\n",cName, numberofcontrolpoints,normarea, nf);
     nSLDObj::fnWriteData2File(fp, cName, dimension, stepsize);    

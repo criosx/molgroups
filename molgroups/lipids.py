@@ -1,5 +1,5 @@
-from . import components as cmp
-from . import mol
+from molgroups import components as cmp
+from molgroups import mol
 
 # Composite Headgroups
 PC = [mol.CompositeHeadgroup, {'components': [cmp.carbonyl_glycerol, cmp.phosphate, cmp.choline],

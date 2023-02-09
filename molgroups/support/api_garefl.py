@@ -1,5 +1,5 @@
 from __future__ import print_function
-from math import fabs
+from math import fabs, pow, floor, ceil, sqrt, log10
 from os import path
 from re import VERBOSE, IGNORECASE, compile
 from subprocess import call, Popen
@@ -10,6 +10,7 @@ import glob
 import os
 
 from molgroups.support import api_refl1d
+
 
 
 class CGaReflAPI(api_refl1d.CRefl1DAPI):
@@ -287,6 +288,7 @@ class CGaReflAPI(api_refl1d.CRefl1DAPI):
         call(["sync"])  # synchronize file system
         sleep(1)  # wait for system to clean up
         call(['make', '-C', self.spath])
+
 
     def fnReplaceParameterLimitsInSetup(self, sname, flowerlimit, fupperlimit):
         # scans setup.c file for parameter with name sname and replaces the

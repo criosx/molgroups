@@ -9,7 +9,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     virtual void fnOverlayProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual void fnWriteData2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     bool bWrapping;
@@ -26,7 +26,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double z, sigma, vol, nSL, nf, l;               //variable used internally
 };
@@ -43,7 +43,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void fnSetAllSigma(double sigma);
     virtual void fnSetZ(double dz);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double z, sigma1, sigma2, vol, nSL, nf, l;               //variable used internally
 };
@@ -60,7 +60,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double z, sigma, vol, nSL, nf;               //variable used internally
 };
@@ -76,7 +76,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double C, H, n, nSLD, nf;               //variable used internally
 };
@@ -90,7 +90,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double z, sigma, vol, nSL, nf, l;               //variable used internally
 };
@@ -109,7 +109,7 @@ public:
     virtual double fnGetLowerLimit();
     virtual double fnGetUpperLimit();
     virtual void fnSetNormarea(double dnormarea);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     
     double dStartPosition, dProtExchange, dnSLDBulkSolvent;
@@ -148,7 +148,7 @@ public:
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetnSLD(double dnSLD);
     virtual void fnSetAllSigma(double sigma);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     Box2Err *box1, *box2, *box3, *box4, *box5, *box6, *box7, *box8, *box9, *box10;
     
@@ -173,7 +173,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetnSLD(double dnSLD);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     
     int numberofcontrolpoints;
@@ -201,7 +201,7 @@ public:
     virtual double fnGetZ() {return z;};
     virtual void fnSetAllSigma(double sigma);
     virtual void fnSetZ(double dz);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     Box2Err *cg;
     Box2Err *phosphate;
@@ -217,7 +217,7 @@ public:
     virtual void fnAdjustParameters();
     virtual double fnGetLowerLimit();
     virtual double fnGetUpperLimit();
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
 };
 //------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------
@@ -383,7 +383,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -418,7 +418,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -455,7 +455,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err	  *headgroup1_2;	  
@@ -483,7 +483,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err	  *headgroup1_2;	  
@@ -513,7 +513,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err	  *headgroup1_2;	  
@@ -542,7 +542,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err	  *headgroup1_2;	  
@@ -580,7 +580,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err	  *headgroup1_2;	  

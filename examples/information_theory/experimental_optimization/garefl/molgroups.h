@@ -23,7 +23,7 @@ public:
     virtual double fnWriteProfile(double aArea[], double anSLD[], double aAbsorb[], int dimension, double stepsize, double dMaxArea);
     virtual void   fnOverlayProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     virtual void   fnOverlayProfile(double aArea[], double anSLD[], double aAbsorb[], int dimension, double stepsize, double dMaxArea);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize) = 0;
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize) = 0;
     virtual void   fnWriteData2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     int iNumberOfConvPoints;
@@ -47,7 +47,7 @@ public:
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
     virtual void   fnSetSigma(double dsigma) {sigma=dsigma;};
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double sigma;
 };
@@ -68,7 +68,7 @@ public:
     virtual void   fnSetSigma(double sigma);
     virtual void   fnSetSigma(double sigma1, double sigma2);
     virtual void   fnSetZ(double dz);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double sigma1, sigma2, nsldbulk_store;
 };
@@ -85,7 +85,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double sigma;
 };
@@ -101,7 +101,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double C, H, n, nSLD;
 };
@@ -115,7 +115,7 @@ public:
     virtual double fnGetUpperLimit();
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     double sigma;
 };
@@ -136,7 +136,7 @@ public:
     virtual void fnSet(double _startposition, double _protonexchange, double _nsldbulksolvent, double _nf, double _normarea);
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetSigma(double _sigma);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     
     double dStartPosition, dProtExchange, dnSLDBulkSolvent;
@@ -170,7 +170,7 @@ public:
     virtual double fnGetVolume(double dz1, double dz2);
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetSigma(double sigma) {dsigma=sigma;}
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     
     double dStartPosition, dProtExchange, dnSLDBulkSolvent;
@@ -209,7 +209,7 @@ public:
     virtual void fnSet(double bulknsld, double protonexchangeratio, double dBeta1, double dGamma1, double dStartPosition1, double nf_protein1, double dBeta2, double dGamma2, double dStartPosition2, double nf_protein2, double dBeta3, double dGamma3, double dStartPosition3, double nf_protein3);
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     DiscreteEuler *protein1, *protein2, *protein3;
 };
@@ -236,7 +236,7 @@ public:
     virtual void fnSetNormarea(double dnormarea);
     virtual void fnSetnSLD(double dnSLD);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     Box2Err *box1, *box2, *box3, *box4, *box5, *box6, *box7, *box8, *box9, *box10;
     
@@ -266,7 +266,7 @@ public:
     virtual void fnSetnSLD(double dnSLD);
     virtual void fnSetRelative(double dSpacing, double dStart, double dDp[], double dVf[], double dnf);
     virtual void fnSetSigma(double sigma){};
-    virtual void fnWritePar2File(FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File(FILE *fp, const char *cName, int dimension, double stepsize);
     
     
     int numberofcontrolpoints, monotonic, damping;
@@ -326,7 +326,7 @@ public:
     virtual double fnGetZ() {return z;};
     virtual void fnSetSigma(double sigma);
     virtual void fnSetZ(double dz);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     Box2Err *cg;
     Box2Err *phosphate;
@@ -341,7 +341,7 @@ public:
     virtual void fnAdjustParameters();
     virtual double fnGetLowerLimit();
     virtual double fnGetUpperLimit();
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
 };
 //------------------------------------------------------------------------------------------------------
 
@@ -362,7 +362,7 @@ public:
     virtual void fnSetSigma(double sigma);
     virtual void fnSetZ(double dz);
     virtual void fnSetnSL(double nSL_cg, double nSL_phosphate, double nSL_serine);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     
     Box2Err *cg;
     Box2Err *phosphate;
@@ -535,7 +535,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet(double sigma, double bulknsld, double startz, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid3=0, double nf_chol=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     PCm       *headgroup1;                                                 //mirrored PC head group
@@ -581,7 +581,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSetSigma(double sigma);
     virtual void   fnSetnSL(double nSL_methyl, double nSL_lipid, double nSL_headgroup1, double nSL_headgroup2, double nSL_headgroup3);
-    virtual void   fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void   fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     virtual double fnWriteProfile(double aArea[], double anSLD[], double aAbsorb[], int dimension, double stepsize, double dMaxArea);
     
@@ -616,7 +616,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet(double sigma, double global_rough, double rho_substrate, double rho_siox, double l_siox, double l_submembrane, double l_lipid1, double l_lipid2, double vf_bilayer, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -653,7 +653,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet(double sigma, double global_rough, double rho_substrate, double bulknsld, double rho_siox, double l_siox, double l_submembrane, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid3=0, double nf_chol=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -696,7 +696,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet_2sub(double sigma, double global_rough, double rho_substrate, double bulknsld, double rho_siox, double l_siox, double rho_cr, double l_cr, double l_submembrane, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid3=0, double nf_chol=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
 
     Box2Err   *cr;
     
@@ -720,7 +720,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet(double sigma, double global_rough, double rho_substrate, double bulknsld, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid3=0, double nf_chol=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -768,7 +768,7 @@ public:
     virtual double fnGetnSLD(double z);
     virtual void   fnSet(double sigma, double global_rough, double rho_substrate, double dbulknsld, double nf_tether, double mult_tether, double l_tether, double l_lipid1, double l_lipid2, double vf_bilayer, double nf_lipid_2=0, double nf_lipid_3=0, double nf_chol=0, double hc_substitution_1=0, double hc_substitution_2=0, double radius_defect=100);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
     Box2Err   *substrate;
@@ -825,7 +825,7 @@ public:
     virtual double fnGetArea(double z);
     virtual double fnGetnSLD(double z);
     virtual void fnSetSigma(double sigma);
-    virtual void fnWritePar2File (FILE *fp, const char *cName, int dimension, double stepsize);
+    virtual void fnWriteGroup2File (FILE *fp, const char *cName, int dimension, double stepsize);
     virtual double fnWriteProfile(double aArea[], double anSLD[], int dimension, double stepsize, double dMaxArea);
     
 

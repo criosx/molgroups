@@ -153,8 +153,8 @@ void save(fitinfo *fit)
 {
         FILE *fp;
         fp=fopen("mol.dat","w");        
-        bilayer_on1.fnWritePar2File(fp,"bilayer",DIMENSION,STEPSIZE);
-        prot_on1.fnWritePar2File(fp,"protein",DIMENSION,STEPSIZE);
+        bilayer_on1.fnWriteGroup2File(fp,"bilayer",DIMENSION,STEPSIZE);
+        prot_on1.fnWriteGroup2File(fp,"protein",DIMENSION,STEPSIZE);
         fclose(fp);
 }
 

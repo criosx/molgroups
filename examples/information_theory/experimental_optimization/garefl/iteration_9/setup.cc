@@ -78,7 +78,7 @@ void save(fitinfo *fit)
     fnSetContrastBilayer(sigma, global_rough, fit[0].m.rho[0], rho_siox, l_siox, l_submembrane, l_lipid1, l_lipid2, vf_bilayer, fit, 0, 0);
     FILE *fp;
     fp=fopen("mol.dat","w");        
-    bilayer.fnWritePar2File(fp,"bilayer",DIMENSION,STEPSIZE);
+    bilayer.fnWriteGroup2File(fp,"bilayer",DIMENSION,STEPSIZE);
     fclose(fp);
 }
 

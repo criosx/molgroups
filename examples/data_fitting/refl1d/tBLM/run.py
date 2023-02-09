@@ -1,10 +1,9 @@
-# === Import section ===
-import sys
+## === Import section ===
 import numpy as np
 from molgroups import mol
 from molgroups import components as cmp
-from molgroups import lipids
-from refl1d.names import load4, Parameter, SLD, Slab, Experiment, FitProblem
+import lipids
+from refl1d.names import load4, Parameter, SLD, Slab, Stack, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
 ## === Film structure definition section ===
@@ -29,10 +28,8 @@ def bilayer(z, sigma, bulknsld, global_rough, rho_substrate,nf_tether, mult_teth
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be from this function
-    problem.bilayers = [blm]
-    problem.dimension = dimension
-    problem.stepsize = stepsize
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
+    problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
+    problem.results = blm.fnWriteResults2Dict({}, 'bilayer')
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
@@ -80,7 +77,7 @@ layer_h2o = Slab(material=h2o, thickness=0.0000, interface=5.0000)
 layer_siox = Slab(material=siox, thickness=d_oxide, interface=global_rough)
 layer_silicon = Slab(material=silicon, thickness=0.0000, interface=global_rough)
 layer_cr = Slab(material=cr, thickness=d_Cr, interface=rough_cr_au)
-layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm.substrate.l), interface=0.0000)
+layer_gold = Slab(material=gold, thickness=d_gold - (blm.substrate.z + 0.5 * blm.substrate.length), interface=0.0000)
 
 ## Use the bilayer definition function to generate the bilayer SLD profile, passing in the relevant parameters.
 ## Note that substrate and bulk SLDs are linked to their respective materials.
@@ -141,4 +138,3 @@ step = False
 model = Experiment(sample=sample, probe=probe, dz=stepsize, step_interfaces = step)
 modelh = Experiment(sample=sampleh, probe=probeh, dz=stepsize, step_interfaces = step)
 problem = FitProblem([model, modelh])
-

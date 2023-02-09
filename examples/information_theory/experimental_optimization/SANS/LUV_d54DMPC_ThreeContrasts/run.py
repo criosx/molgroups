@@ -35,11 +35,8 @@ def bilayer(z, bulknsld, l_lipid1, l_lipid2, sigma=3.0, vf_bilayer=1.0, frac_deu
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * bulknsld
 
     # export objects for post analysis, needs to be from this function
-    problem.bilayers = [blm]
-    problem.dimension = dimension
-    problem.stepsize = stepsize
-    problem.moldat = blm.fnWritePar2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
-
+    problem.moldat = blm.fnWriteGroup2Dict({}, 'bilayer', np.arange(dimension) * stepsize)
+    problem.results = blm.fnWriteResults2Dict({}, 'bilayer')
     # Return nSLD profile in Refl1D units
     return nsld*1e6
 

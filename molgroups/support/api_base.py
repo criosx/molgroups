@@ -59,25 +59,6 @@ class CBaseAPI:
                         break
         return liData
 
-    def fnLoadMolgroups(self, problem=None):
-        diMolgroups = {}
-        moldict = problem.moldat
-
-        for group in moldict:
-            tdata = (moldict[group]['header']).split()  # read header that contains molgroup data
-            diMolgroups[tdata[1]] = {}
-            diMolgroups[tdata[1]].update({'headerdata': {}})
-            diMolgroups[tdata[1]]['headerdata'].update({'Type': tdata[0]})
-            diMolgroups[tdata[1]]['headerdata'].update({'ID': tdata[1]})
-            for j in range(2, len(tdata), 2):
-                diMolgroups[tdata[1]]['headerdata'].update({tdata[j]: tdata[j + 1]})
-
-            zax = moldict[group]['zaxis']
-            areaax = moldict[group]['area']
-            nslax = moldict[group]['nsl']
-            diMolgroups[tdata[1]].update({'zaxis': zax, 'areaaxis': areaax, 'nslaxis': nslax})
-
-        return diMolgroups
 
     def fnLoadsErr(self):
         sFileName = self.mcmcpath + '/isErr.dat'
