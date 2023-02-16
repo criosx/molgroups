@@ -1222,7 +1222,6 @@ class Entropy:
 
                 os.chdir(self.spath)
 
-
         # Do not run entropy calculation when on cluster, or no valid result, or entropy from covariance via LM.
         if self.fitter != 'LM':
             bPriorResultExists = path.isfile(chainname) or path.isfile(chainname + '.gz')

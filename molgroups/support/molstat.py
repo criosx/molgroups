@@ -599,7 +599,7 @@ class CMolStat:
             pickle.dump(save_object, file)
 
     def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
-                       t_total=None, mode='water', lambda_min=0.1, verbose=True):
+                       t_total=None, mode='water', lambda_min=0.1, verbose=True, simpar=None, save_file=True):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
@@ -609,30 +609,35 @@ class CMolStat:
         # Load Parameters
         self.diParameters, _ = self.Interactor.fnLoadParameters()
 
-        try:
-            liParameters = list(self.diParameters.keys())
-            liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
+        liParameters = list(self.diParameters.keys())
+        liParameters = sorted(liParameters, key=lambda keyitem: self.diParameters[keyitem]['number'])
 
-            # simpar contains the parameter values to be simulated
+        if simpar is None:
+            # the file simpar.dat contains the parameter values to be simulated
             # this could be done fileless
             simpar = pandas.read_csv(self.spath + '/simpar.dat', sep='\s+', header=None, names=['par', 'value'],
                                      skip_blank_lines=True, comment='#')
-            if verbose:
-                print(simpar)
-                print(liConfigurations)
+        else:
+            # simpar is provided as a dataframe with the appropriate shape
+            simpar.columns = ['par', 'value']
 
-            diModelPars = {}
-            for parameter in liParameters:
-                diModelPars[parameter] = simpar[simpar.par == parameter].iloc[0][1]
-            # load all data files into a list of Pandas dataframes
-            # each element is itself a list of [comments, simdata]
-            liData = self.Interactor.fnLoadData(basefilename)
-            liData = self.Interactor.fnSimulateDataPlusErrorBars(liData, diModelPars, simpar=simpar,
-                                                                 basefilename=basefilename,
-                                                                 liConfigurations=liConfigurations, qmin=qmin,
-                                                                 qmax=qmax, qrangefromfile=qrangefromfile,
-                                                                 lambda_min=lambda_min, mode=mode, t_total=t_total)
+        if verbose:
+            print(simpar)
+            print(liConfigurations)
+
+        diModelPars = {}
+        for parameter in liParameters:
+            diModelPars[parameter] = simpar[simpar.par == parameter].iloc[0][1]
+        # load all data files into a list of Pandas dataframes
+        # each element is itself a list of [comments, simdata]
+        liData = self.Interactor.fnLoadData(basefilename)
+        liData = self.Interactor.fnSimulateDataPlusErrorBars(liData, diModelPars, simpar=simpar,
+                                                             basefilename=basefilename,
+                                                             liConfigurations=liConfigurations, qmin=qmin,
+                                                             qmax=qmax, qrangefromfile=qrangefromfile,
+                                                             lambda_min=lambda_min, mode=mode, t_total=t_total)
+        if save_file:
             self.Interactor.fnSaveData(basefilename, liData)
+        else:
+            return liData
 
-        finally:
-            pass
