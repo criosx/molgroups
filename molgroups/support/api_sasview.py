@@ -422,11 +422,16 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     I_sample = neutron_intensity * (Sigma_s / Sigma_bmT) * (T_T - T_b)
                     # buffer intensity
                     I_buffer = neutron_intensity * (1 / (Sigma_bmT * Sigma_T_4pi))
-                    I_buffer *= (Sigma_b_4pi**2 * T_1mT + Sigma_b_4pi * Sigma_smT * T_1mT - Sigma_s_4pi * Sigma_s_4pi \
-                                * T_1mb)
+                    I_buffer *= (Sigma_b_4pi**2 * T_1mT + Sigma_b_4pi * Sigma_smT * T_1mT - Sigma_s_4pi * Sigma_s_4pi
+                                 * T_1mb)
                     I_buffer /= (4 * numpy.pi)
                     # self-shielding correction (Barker, Mildner, J. Appl. Cr., 2015)
-                    I_buffer *= (1 + 0.625 * Sigma_T_4pi * D)
+                    tau = Sigma_T_4pi * D
+                    if tau < 1:
+                        I_buffer *= (1 + 0.55 * tau)
+                    else:
+                        I_buffer *= 1.55
+
                     # cuvette intensity
                     I_cuvette = neutron_intensity * Sigma_c_4pi / Sigma_T_4pi * T_1mT / (4 * numpy.pi)
                     # Dark count intensity
