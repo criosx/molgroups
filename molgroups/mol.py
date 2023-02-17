@@ -455,7 +455,7 @@ class Box2Err(nSLDObj):
         else:
             position = self.z
         rdict[cName] = {}
-        rdict[cName]['header'] = f"Box2Err {cName} z {position} sigma1 {self.sigma1} " \
+        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
                                  f"sigma2 {self.sigma2} l {self.length} vol {self.vol} " \
                                  f"nSL {self.nSL} nSL2 {self.nSL2} nf {self.nf} flip {self.flip}"
         rdict[cName]['z'] = self.z
@@ -2013,6 +2013,91 @@ class DiscreteEuler(nSLDObj):
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
+
+class ProteinBox(Box2Err):
+    """Special Box2Err designed for use with protein densities that are expressed as volume fractions.
+        Unlike Box2Err, has a "normarea" attribute; setting this attribute changes only the total volume
+        but not the volume fraction nor the length. (For fixed volume objects, use Box2Err.)
+    """
+
+    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume_fraction=0, dnSLD_H=0, dnSLD_D=0, protexchratio=1.0, dnumberfraction=1, normarea=1.0, name=None):
+        super().__init__(dz, dsigma1, dsigma2, dlength, 0, 0, dnumberfraction, name)
+        self.vf = dvolume_fraction
+        self.nSLD_H = dnSLD_H
+        self.nSLD_D = dnSLD_D
+        self.protexchratio = protexchratio
+        self.bProtonExchange = True
+        self.normarea = normarea
+
+    @property
+    def vol(self):
+        """vol becomes a read-only property"""
+        return self.length * self.normarea * self.vf
+    
+    def fnGetnSL(self):
+        """Overrides base class for simplicity."""
+
+        if self.bProtonExchange & (self.bulknsld is not None):
+            fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
+            sld = fracD * self.nSLD_D + (1 - fracD) * self.nSLD_H
+        else:
+            sld = self.nSLD_H
+
+        return self.vol * sld
+
+    def fnSetnSL(self, _nSL, _nSL2=None):
+        raise NotImplementedError
+
+    def fnSetNormarea(self, dnormarea):
+        self.normarea = dnormarea
+
+    def fnSet(self, volume_fraction=None, length=None, position=None, nSLD=None, sigma=None, nf=None):
+        if volume_fraction is not None:
+            self.vf = volume_fraction
+        if length is not None:
+            self.length = length
+        if position is not None:
+            self.fnSetZ(position)
+        if nSLD is not None:
+            if isinstance(nSLD, (list, tuple, numpy.ndarray)):
+                self.nSLD_H = nSLD[0]
+                if len(nSLD) == 2:
+                    self.nSLD_D = nSLD[1]
+            else:
+                self.nSLD_H = nSLD
+                self.nSLD_D = nSLD
+        if sigma is not None:
+            sigma2 = None
+            if isinstance(sigma, (list, tuple, numpy.ndarray)):
+                sigma1 = sigma[0]
+                if len(sigma) == 2:
+                    sigma2 = sigma[1]
+            else:
+                sigma1 = sigma
+            self.fnSetSigma(sigma1, sigma2)
+        if nf is not None:
+            self.nf = nf
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
+        rdict[cName] = {}
+        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
+                                 f"sigma2 {self.sigma2} l {self.length} vf {self.vf} " \
+                                 f"nSLD_H {self.nSLD_H} nSLD_D {self.nSLD_D} nf {self.nf} flip {self.flip}"
+        rdict[cName]['z'] = self.z
+        rdict[cName]['sigma1'] = self.sigma1
+        rdict[cName]['sigma2'] = self.sigma2
+        rdict[cName]['l'] = self.length
+        rdict[cName]['vf'] = self.vf
+        rdict[cName]['nSLD_H'] = self.nSLD_H
+        rdict[cName]['nSLD_D'] = self.nSLD_D
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
+        return rdict
+
 
 
 # ------------------------------------------------------------------------------------------------------
