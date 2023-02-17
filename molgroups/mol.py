@@ -2154,7 +2154,8 @@ class BLMProteinComplex(CompositenSLDObj):
         self.normarea = dMaxArea
 
         for prot in self.proteins:
-            prot.fnSetNormarea(dMaxArea)
+            if hasattr(prot, 'normarea'):
+                prot.fnSetNormarea(dMaxArea)
 
         for blm in self.blms:
             # inner leaflet
