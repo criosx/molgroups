@@ -15,12 +15,30 @@ from periodictable.core import default_table
 from periodictable.fasta import xray_sld
 from periodictable.fasta import D2O_SLD, H2O_SLD
 
+from bumps.util import schema
+from bumps.parameter import Parameter
+from refl1d.model import Layer
+from refl1d.util import merge_ends
+from typing import List
+
 from molgroups import components as cmp
 
 D2O_SLD *= 1e-6
 H2O_SLD *= 1e-6
 
+def _find_parameters(obj):
+    if isinstance(obj, list):
+        return [p for subobj in obj for p in _find_parameters(subobj)]
+    
+    if isinstance(obj, Parameter):
+        return [obj]
+    
+    if hasattr(obj, 'parameters'):
+        return obj.parameters()
 
+    return []
+
+@schema
 class nSLDObj:
     def __init__(self, name=None):
         self.bWrapping = True
@@ -45,6 +63,22 @@ class nSLDObj:
 
         if name is not None:
             self.name = name
+
+    def parameters(self):
+        """Recursive function for finding all bumps parameters"""
+
+        return [p for attr in dir(self) for p in _find_parameters(attr)]
+
+    def update(self, **kwargs):
+        """Updater function for internal keywords. Call as .update() 
+            to trigger internal calculations in subclasses."""
+
+        for kw, val in kwargs.items():
+            if hasattr(self, kw):
+                setattr(self, kw, val)
+            else:
+                print(f'Warning: object {self.name} does not have attribute {kw}, ignoring')
+
 
     def fnGetAbsorb(self, z):
         return self.absorb
@@ -102,6 +136,7 @@ class nSLDObj:
 
     def fnGetProfiles(self, z):
         # returns (area, nsl, nsld)
+        
         raise NotImplementedError()
 
     def fnGetVolume(self, z1=None, z2=None, recalculate=True):
@@ -278,6 +313,9 @@ class CompositenSLDObj(nSLDObj):
             g.fnSetBulknSLD(bulknsld)
 
     def fnGetProfiles(self, z):
+        
+        self.update()
+
         area = numpy.zeros_like(z)
         nsl = numpy.zeros_like(z)
         nsld = numpy.zeros_like(z)
@@ -2149,4 +2187,61 @@ class BLMProteinComplex(CompositenSLDObj):
 
         return rdict
 
+class MolLayer(Layer):
+    """Subclass of refl1d Layer base object for use with molgroups layers"""
+    def __init__(self, bulknsld, base_groups=[], overlay_groups=[], thickness=None,
+                 interface=None, name=None) -> None:
+        super().__init__(thickness=thickness, interface=interface, name=name)
+        self.base_groups = base_groups
+        self.overlay_groups=overlay_groups
+        self.bulknsld = bulknsld
 
+        if not len(base_groups):
+            raise ValueError(f'At least one base group required in {name}')
+        elif len(base_groups) == 1:
+            self._base = base_groups[0]
+        else:
+            self._base = CompositenSLDObj(base_groups, name=f'{name}.base')
+        
+        if not len(overlay_groups):
+            self._overlay = None
+        elif len(overlay_groups) == 1:
+            self._overlay = overlay_groups[0]
+        else:
+            self._overlay = CompositenSLDObj(overlay_groups, name=f'{name}.overlay')
+
+    def parameters(self):
+        # Find all refl1d/bumps parameters
+        return self._base.parameters() + self._overlay.parameters()
+
+    def profile(self, z):
+        """Calculates total scattering length density profile from bulk nSLD"""
+
+        # calculate total area from base groups
+        base_area, base_nsl, _ = self._base.fnGetProfiles(z)
+        normarea = base_area.max()
+
+        # calculate total area from proteins and overlay proteins on bilayers
+        if self._overlay is not None:
+            area, nsl = self._overlay.fnOverlayProfile(z, base_area, base_nsl, normarea)
+        
+        # Fill in the remaining volume with buffer of appropriate nSLD
+        nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * self.bulknsld
+
+        # Return nSLD profile in Refl1D units
+        return nsld*1e6
+
+    def render(self, probe, slabs):
+        # refl1d renderer
+        Pw, Pz = slabs.microslabs(self.thickness.value)
+        if len(Pw) == 0:
+            return
+
+        # Calculate 
+        phi = numpy.asarray(self.profile(Pz))
+        if phi.shape != Pz.shape:
+            raise TypeError("profile function '%s' did not return array phi(z)"
+                            %self.__name__)
+        Pw, phi = merge_ends(Pw, phi, tol=self.tol)
+        #P = M*phi + S*(1-phi)
+        slabs.extend(rho=[numpy.real(phi)], irho=[numpy.imag(phi)], w=Pw)
