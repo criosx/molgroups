@@ -17,9 +17,6 @@ from periodictable.fasta import D2O_SLD, H2O_SLD
 
 from bumps.util import schema
 from bumps.parameter import Parameter
-from refl1d.model import Layer
-from refl1d.util import merge_ends
-from typing import List
 
 from molgroups import components as cmp
 
@@ -33,7 +30,7 @@ def _find_parameters(obj):
     if isinstance(obj, Parameter):
         return [obj]
     
-    if hasattr(obj, 'parameters'):
+    if isinstance(obj, nSLDObj):
         return obj.parameters()
 
     return []
@@ -67,7 +64,7 @@ class nSLDObj:
     def parameters(self):
         """Recursive function for finding all bumps parameters"""
 
-        return [p for attr in dir(self) for p in _find_parameters(attr)]
+        return [p for attr in dir(self) for p in _find_parameters(getattr(self, attr))]
 
     def update(self, **kwargs):
         """Updater function for internal keywords. Call as .update() 
@@ -312,10 +309,14 @@ class CompositenSLDObj(nSLDObj):
         for g in self.subgroups:
             g.fnSetBulknSLD(bulknsld)
 
+    def update(self, **kwargs):
+        super().update(**kwargs)
+
+        for g in self.subgroups:
+            g.update()
+
     def fnGetProfiles(self, z):
         
-        self.update()
-
         area = numpy.zeros_like(z)
         nsl = numpy.zeros_like(z)
         nsld = numpy.zeros_like(z)
@@ -701,7 +702,9 @@ class CompositeHeadgroup(CompositenSLDObj):
 
 class BLM(CompositenSLDObj):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
-                 lipid_nf=None, xray_wavelength=None, name='blm', **kwargs):
+                 lipid_nf=None, xray_wavelength=None, name='blm', sigma=2.0, bulknsld=-0.56e-6,
+                 startz=20., l_lipid1=11., l_lipid2=11.0, vf_bilayer=1.0, hc_substitution_1=0.,
+                 hc_substitution_2=0., radius_defect=1e8):
         """ Free bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
@@ -715,7 +718,7 @@ class BLM(CompositenSLDObj):
                                       'outer_lipids', respectively.
             To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
 
-        super().__init__(name=name, **kwargs)
+        super().__init__(name=name)
 
         # symmetric bilayers can provide only one list of lipids and number fractions
         if lipids is not None:
@@ -758,24 +761,29 @@ class BLM(CompositenSLDObj):
         self.defect_hydrocarbon = Box2Err(name='defect_hc')
         self.defect_headgroup = Box2Err(name='defect_hg')
         self.nf = 1.
-        self.vf_bilayer = 1.0
+        self.vf_bilayer = vf_bilayer
         self.absorb = 0.
-        self.l_lipid1 = 11.
-        self.l_lipid2 = 11.
+        self.l_lipid1 = l_lipid1
+        self.l_lipid2 = l_lipid2
         self.normarea = 60.
-        self.startz = 50.
-        self.sigma = 2.
+        self.startz = startz
+        self.sigma = sigma
         # allow for different methyl sigmas if accessed directly (not providing interface)
         self.methyl_sigma = numpy.full_like(self.inner_lipid_nf, 2.)
-        self.radius_defect = 100.
-        self.hc_substitution_1 = 0
-        self.hc_substitution_2 = 0
+        self.radius_defect = radius_defect
+        self.hc_substitution_1 = hc_substitution_1
+        self.hc_substitution_2 = hc_substitution_2
 
         self._calc_av_hg()
         self.initial_hg1_l = self.av_hg1_l
 
         self.fnFindSubgroups()
-        self.fnSetBulknSLD(-0.56e-6)
+        self.fnSetBulknSLD(bulknsld)
+        self.fnAdjustParameters()
+
+    def update(self, **kwargs):
+        super().update(**kwargs)
+
         self.fnAdjustParameters()
 
     def _adjust_outer_lipids(self):
@@ -784,7 +792,7 @@ class BLM(CompositenSLDObj):
         self.l_lipid2 = max(self.l_lipid2, 0.01)
 
         # make sure number fractions are zero or greater and normalize to one
-        self.outer_lipid_nf = self.outer_lipid_nf.clip(min=0.)
+        self.outer_lipid_nf = numpy.array(self.outer_lipid_nf).clip(min=0.)
         self.outer_lipid_nf /= numpy.sum(self.outer_lipid_nf)
 
         self.vf_bilayer = max(self.vf_bilayer, 1E-5)
@@ -829,7 +837,7 @@ class BLM(CompositenSLDObj):
         self.vol_methyl_inner, self.nsl_methyl_inner = self._unpack_component_pars(self.methyls1)
         self.l_lipid1 = max(self.l_lipid1, 0.01)
         # make sure number fractions are zero or greater and normalize to one
-        self.inner_lipid_nf = self.inner_lipid_nf.clip(min=0.)
+        self.inner_lipid_nf = numpy.array(self.inner_lipid_nf).clip(min=0.)
         self.inner_lipid_nf /= numpy.sum(self.inner_lipid_nf)
 
         # inner hydrocarbons
@@ -914,6 +922,8 @@ class BLM(CompositenSLDObj):
 
     def _calc_av_hg(self):
         # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.inner_lipid_nf = numpy.array(self.inner_lipid_nf)
+        self.outer_lipid_nf = numpy.array(self.outer_lipid_nf)
         self.av_hg1_l = numpy.sum(numpy.array([hg.length for hg, use in zip(self.headgroups1, ~self.null_hg1) if use]) *
                                   self.inner_lipid_nf[~self.null_hg1]) / numpy.sum(self.inner_lipid_nf[~self.null_hg1])
         self.av_hg2_l = numpy.sum(numpy.array([hg.length for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) *
@@ -1083,7 +1093,10 @@ class BLM(CompositenSLDObj):
 
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
-                 lipid_nf=None, xray_wavelength=None, name='ssblm', **kwargs):
+                 lipid_nf=None, xray_wavelength=None, name='ssblm', global_rough=2.0,
+                 rho_substrate=2.07e-6, rho_siox=3.55e-6, l_siox=20, l_submembrane=10,
+                 sigma=2.0, bulknsld=-0.56e-6, l_lipid1=11., l_lipid2=11.0, vf_bilayer=1.0,
+                 hc_substitution_1=0., hc_substitution_2=0., radius_defect=100.):
         """ Solid supported bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
@@ -1102,20 +1115,22 @@ class ssBLM(BLM):
         self.substrate.length = 40
         self.substrate.z = 0
         self.substrate.nf = 1
-        self.rho_substrate = 2.07e-6
-        self.l_siox = 1
-        self.rho_siox = 3.55e-6
+        self.rho_substrate = rho_substrate
+        self.l_siox = l_siox
+        self.rho_siox = rho_siox
 
         self.siox = Box2Err(name='siox')
-        self.siox.length = 20
+        self.siox.length = l_siox
         self.siox.z = self.substrate.z + self.substrate.length / 2.0 + self.siox.length / 2.0
         self.siox.nf = 1
 
-        self.l_submembrane = 10.
-        self.global_rough = 2.0
+        self.l_submembrane = l_submembrane
+        self.global_rough = global_rough
 
         super().__init__(inner_lipids, inner_lipid_nf, outer_lipids=outer_lipids, outer_lipid_nf=outer_lipid_nf,
-                         lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, name=name, **kwargs)
+                         lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, name=name,
+                         sigma=sigma, bulknsld=bulknsld, l_lipid1=l_lipid1, l_lipid2=l_lipid2, vf_bilayer=vf_bilayer, hc_substitution_1=hc_substitution_1,
+                         hc_substitution_2=hc_substitution_2, radius_defect=radius_defect)
 
     def _adjust_substrate(self):
         self.substrate.vol = self.normarea * self.substrate.length
@@ -1168,7 +1183,10 @@ class ssBLM(BLM):
 
 class tBLM(BLM):
     def __init__(self, tether, filler, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None,
-                 lipids=None, lipid_nf=None, xray_wavelength=None, name='tblm', **kwargs):
+                 lipids=None, lipid_nf=None, xray_wavelength=None, name='tblm', global_rough=2.0, rho_substrate=4.55e-6,
+                 nf_tether=0.5, mult_tether=3., l_tether=20.,sigma=2.0, bulknsld=-0.56e-6,
+                 l_lipid1=11., l_lipid2=11.0, vf_bilayer=1.0, hc_substitution_1=0.,
+                 hc_substitution_2=0., radius_defect=100.):
         """
         Tethered lipid bilayer. Requires:
 
@@ -1186,12 +1204,12 @@ class tBLM(BLM):
         self.substrate.length = 40
         self.substrate.z = 0
         self.substrate.nf = 1
-        self.rho_substrate = 2.07e-6
-        self.global_rough = 2.0
+        self.rho_substrate = rho_substrate
+        self.global_rough = global_rough
 
-        self.nf_tether = 0.3
-        self.l_tether = 8.0
-        self.mult_tether = 7.0 / 3.0
+        self.nf_tether = nf_tether
+        self.l_tether = l_tether
+        self.mult_tether = mult_tether
         self.tether_methyl_sigma = 2.0
         self.bME = ComponentBox(name='bME', components=filler, xray_wavelength=xray_wavelength)
         self.initial_bME_l = self.bME.length
@@ -1211,7 +1229,10 @@ class tBLM(BLM):
 
         super().__init__(inner_lipids=inner_lipids, inner_lipid_nf=inner_lipid_nf, outer_lipids=outer_lipids,
                          outer_lipid_nf=outer_lipid_nf, lipids=lipids, lipid_nf=lipid_nf,
-                         xray_wavelength=xray_wavelength, name=name, **kwargs)
+                         xray_wavelength=xray_wavelength, name=name, sigma=sigma, bulknsld=bulknsld,
+                          l_lipid1=l_lipid1, l_lipid2=l_lipid2, vf_bilayer=vf_bilayer,
+                          hc_substitution_1=hc_substitution_1, hc_substitution_2=hc_substitution_2,
+                          radius_defect=radius_defect)
 
     def _adjust_inner_lipids(self):
         self.vol_methylene_inner, self.nsl_methylene_inner = self._unpack_component_pars(self.methylenes1)
@@ -1223,7 +1244,7 @@ class tBLM(BLM):
 
         self.l_lipid1 = max(self.l_lipid1, 0.01)
         # make sure number fractions are zero or greater and normalize to one
-        self.inner_lipid_nf = self.inner_lipid_nf.clip(min=0.)
+        self.inner_lipid_nf = numpy.array(self.inner_lipid_nf).clip(min=0.)
         self.inner_lipid_nf /= numpy.sum(self.inner_lipid_nf)
 
         # inner hydrocarbons
@@ -2187,61 +2208,3 @@ class BLMProteinComplex(CompositenSLDObj):
 
         return rdict
 
-class MolLayer(Layer):
-    """Subclass of refl1d Layer base object for use with molgroups layers"""
-    def __init__(self, bulknsld, base_groups=[], overlay_groups=[], thickness=None,
-                 interface=None, name=None) -> None:
-        super().__init__(thickness=thickness, interface=interface, name=name)
-        self.base_groups = base_groups
-        self.overlay_groups=overlay_groups
-        self.bulknsld = bulknsld
-
-        if not len(base_groups):
-            raise ValueError(f'At least one base group required in {name}')
-        elif len(base_groups) == 1:
-            self._base = base_groups[0]
-        else:
-            self._base = CompositenSLDObj(base_groups, name=f'{name}.base')
-        
-        if not len(overlay_groups):
-            self._overlay = None
-        elif len(overlay_groups) == 1:
-            self._overlay = overlay_groups[0]
-        else:
-            self._overlay = CompositenSLDObj(overlay_groups, name=f'{name}.overlay')
-
-    def parameters(self):
-        # Find all refl1d/bumps parameters
-        return self._base.parameters() + self._overlay.parameters()
-
-    def profile(self, z):
-        """Calculates total scattering length density profile from bulk nSLD"""
-
-        # calculate total area from base groups
-        base_area, base_nsl, _ = self._base.fnGetProfiles(z)
-        normarea = base_area.max()
-
-        # calculate total area from proteins and overlay proteins on bilayers
-        if self._overlay is not None:
-            area, nsl = self._overlay.fnOverlayProfile(z, base_area, base_nsl, normarea)
-        
-        # Fill in the remaining volume with buffer of appropriate nSLD
-        nsld = nsl / (normarea * numpy.gradient(z)) + (1.0 - area / normarea) * self.bulknsld
-
-        # Return nSLD profile in Refl1D units
-        return nsld*1e6
-
-    def render(self, probe, slabs):
-        # refl1d renderer
-        Pw, Pz = slabs.microslabs(self.thickness.value)
-        if len(Pw) == 0:
-            return
-
-        # Calculate 
-        phi = numpy.asarray(self.profile(Pz))
-        if phi.shape != Pz.shape:
-            raise TypeError("profile function '%s' did not return array phi(z)"
-                            %self.__name__)
-        Pw, phi = merge_ends(Pw, phi, tol=self.tol)
-        #P = M*phi + S*(1-phi)
-        slabs.extend(rho=[numpy.real(phi)], irho=[numpy.imag(phi)], w=Pw)
