@@ -80,7 +80,8 @@ def make_samples(substrate, contrasts):
 
         link_parameters = [(blm, 'global_rough', global_rough),
                            (blm, 'rho_substrate', tiox.rho * 1e-6),
-                           (blm, 'l_submembrane', sigma),
+                           (blm, 'l_submembrane', l_submembrane),
+                           (blm, 'sigma', sigma),
                            (blm, 'bulknsld', contrast.rho*1e-6),
                            (blm, 'l_lipid1', l_lipid1),
                            (blm, 'l_lipid2', l_lipid2),
