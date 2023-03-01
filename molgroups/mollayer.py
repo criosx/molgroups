@@ -2,9 +2,9 @@ import numpy
 
 from refl1d.model import Layer
 from bumps.parameter import Parameter, flatten
-from bumps.util import merge_ends
+from refl1d.util import merge_ends
 
-from mol import CompositenSLDObj
+from molgroups.mol import CompositenSLDObj
 
 
 class MolLayer(Layer):

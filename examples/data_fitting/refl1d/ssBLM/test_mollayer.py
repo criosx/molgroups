@@ -3,6 +3,7 @@
 import sys
 import numpy as np
 from molgroups import mol
+from molgroups.mollayer import MolLayer
 from molgroups import components as cmp
 from molgroups import lipids
 from refl1d.names import load4, SLD, Slab, Experiment, FitProblem, Parameter
@@ -88,7 +89,7 @@ def make_samples(substrate, contrasts):
                            (blm, 'outer_lipid_nf', [dopc_nf, 1 - dopc_nf]),
                            (blm.methylene1_1, 'vol', do_volume)]
 
-        mollayer = mol.MolLayer(contrast.rho*1e-6, link_parameters, base_groups=[blm], thickness=dimension*stepsize, interface=0, name=f'{contrast.name} mollayer')
+        mollayer = MolLayer(contrast.rho*1e-6, link_parameters, base_groups=[blm], thickness=dimension*stepsize, interface=0, name=f'{contrast.name} mollayer')
 
         layer_contrast = Slab(material=contrast, thickness=0.0000, interface=5.0000)
 

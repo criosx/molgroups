@@ -15,7 +15,6 @@ from periodictable.core import default_table
 from periodictable.fasta import xray_sld
 from periodictable.fasta import D2O_SLD, H2O_SLD
 
-from bumps.util import schema
 from bumps.parameter import Parameter
 
 from molgroups import components as cmp
@@ -35,7 +34,6 @@ def _find_parameters(obj):
 
     return []
 
-@schema
 class nSLDObj:
     def __init__(self, name=None):
         self.bWrapping = True
