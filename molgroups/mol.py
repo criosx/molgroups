@@ -1829,8 +1829,8 @@ class ContinuousEuler(nSLDObj):
         if deuterated_residues is not None:
             deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
 
-        numpy.savetxt(datfilename, numpy.hstack((resnums[:, ], rescoords, resvol[:, ], resesl[:, ],
-                                                 resnslH[:, ], resnslD[:, ])), delimiter='\t',
+        numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
+                                                 resnslH[:, None], resnslD[:, None])), delimiter='\t',
                       header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
         return datfilename  # allows this to be fed into ContinuousEuler directly
