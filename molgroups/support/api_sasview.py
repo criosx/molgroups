@@ -62,7 +62,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         """
         def _save(stem, suffix, frame, comment):
             frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None)
-            general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
+            if comment:
+                general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
 
         stem = pathlib.Path(basefilename).stem
         suffix = pathlib.Path(basefilename).suffix
