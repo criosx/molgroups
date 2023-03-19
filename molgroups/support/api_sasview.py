@@ -6,6 +6,7 @@ import pandas
 import os
 import pathlib
 import shapely.geometry
+import sys
 
 import numpy.random
 
@@ -405,6 +406,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     Sigma_c = configuration["differential_cross_section_cuvette"]
                     Sigma_c_4pi = Sigma_c * 4 * numpy.pi
                     Sigma_b = configuration["differential_cross_section_buffer"]
+                    if Sigma_b < 0:
+                        sys.exit('Differential cross section of the buffer is negative. Check configuration or '
+                                 'background rule')
                     Sigma_b_4pi = Sigma_b * 4 * numpy.pi
                     Sigma_s = Iq
                     Sigma_T_4pi = Sigma_s_4pi + Sigma_b_4pi + Sigma_c_4pi
@@ -486,11 +490,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 if average:
                     dataset[1]['dI'] = dIq
                     dataset[1]['dQ'] = dQ
+
                 else:
                     dataset[1] = pandas.DataFrame([Q_append, Iq_append, dIq_append, dQ_append])
                     dataset[1] = dataset[1].T
                     dataset[1].columns = ['Q', 'I', 'dI', 'dQ']
                     dataset[1] = dataset[1].sort_values(by=['Q'])
+
+                if dataset[1].isnull().values.any():
+                    sys.exit('Data simulation failed with null values. Contact your favorite developer.')
 
         return liData
 
