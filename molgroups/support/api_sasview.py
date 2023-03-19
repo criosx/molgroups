@@ -130,13 +130,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         for dataset in range(len(liData)):
             liData[dataset][1]['I'] = liData[dataset][1]['I'] + numpy.random.normal(size=len(liData[dataset][1]['dI']))\
                                      * liData[dataset][1]['dI']
+            # avoid negative values
+            liData[dataset][1]['I'] = liData[dataset][1]['I'].abs()
 
         # Removes datapoints for which dI/I is zero, which indicates that no data was taken there
-        # Let's also drop data points with more than 200% uncertainty
+        # Let's also mirror negative intensities into the positive domain
         for dataset_n in range(len(liData)):
             df = liData[dataset_n][1]
             df = df[df['dI'] > 0]
-            liData[dataset_n][1] = df[df['dI'] < df['I']]
+            liData[dataset_n][1] = df
 
         return liData
 
