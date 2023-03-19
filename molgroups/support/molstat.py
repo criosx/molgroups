@@ -599,7 +599,8 @@ class CMolStat:
             pickle.dump(save_object, file)
 
     def fnSimulateData(self, basefilename='sim.dat', liConfigurations=None, qmin=None, qmax=None, qrangefromfile=False,
-                       t_total=None, mode='water', lambda_min=0.1, verbose=True, simpar=None, save_file=True):
+                       t_total=None, mode='water', lambda_min=0.1, verbose=True, simpar=None, save_file=True,
+                       average=False):
         """
         Simulates scattering based on a parameter file called simpar.dat
         requires a ready-to-go fit whose fit parameters are modified and fixed
@@ -635,9 +636,11 @@ class CMolStat:
                                                              basefilename=basefilename,
                                                              liConfigurations=liConfigurations, qmin=qmin,
                                                              qmax=qmax, qrangefromfile=qrangefromfile,
-                                                             lambda_min=lambda_min, mode=mode, t_total=t_total)
-        if save_file:
-            self.Interactor.fnSaveData(basefilename, liData)
-        else:
-            return liData
+                                                             lambda_min=lambda_min, mode=mode, t_total=t_total,
+                                                             average=average)
+
+        # always save the file since it has been modified in place before
+        # TODO: one could make this more consistent and remove save_file from function signature
+        self.Interactor.fnSaveData(basefilename, liData)
+        return liData
 

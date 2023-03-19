@@ -75,7 +75,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
     def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qrange=None,
                                     liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True, mode=None,
-                                    lambda_min=0.1, t_total=None):
+                                    lambda_min=0.1, t_total=None, average=False):
         # if qmin and qmax is not given, take from first data set
         # resolve amiguity / compatibility of the qrange parameter
         if qrangefromfile:
@@ -112,7 +112,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # simulate data, works on sim.dat files
         liData = self.fnSimulateData(diModelPars, liData)
         # simulate error bars, works on sim.dat files
-        liData = self.fnSimulateErrorBars(simpar, liData=liData, liConfigurations=liConfigurations, t_total=t_total)
+        liData = self.fnSimulateErrorBars(simpar, liData=liData, liConfigurations=liConfigurations, t_total=t_total,
+                                          average=average)
         # length of liData might have changed when different dQ/Q were calculated for the same q-values and
         # data was not averaged
         self.fnSaveData(basefilename=basefilename, liData=liData)
