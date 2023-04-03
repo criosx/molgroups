@@ -1,0 +1,23 @@
+d _ _ radius_equatorial 11 5 17
+d _ _ radius_polar  20 17 35
+i _ _ volfraction  0.01 0.0001 0.02
+n * * lambda 6.21
+n * * differential_cross_section_buffer 0.059
+n * 0 sample_detector_distance 100
+n * 1 sample_detector_distance 400
+n * 2 sample_detector_distance 1300
+n * 0 source_sample_distance 387.6
+n * 1 source_sample_distance 850.05
+n * 2 source_sample_distance 1467
+n * 0 neutron_flux 9e5
+n * 1 neutron_flux 2e5
+n * 2 neutron_flux 1e5
+n * * source_aperture_radius 2.54
+n * * sample_aperture_radius 0.635
+n * * dlambda_lambda 0.136
+n * * beamstop_diameter 10.16
+n * 0 time 1600
+n * 1 time 3600
+n * 2 time 4400
+n * 0 beam_center_x 26.416
+n * * cuvette_thickness 0.2 0 0 0.02 4.1 0.1

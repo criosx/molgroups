@@ -6,6 +6,7 @@ import pandas
 import os
 import pathlib
 import shapely.geometry
+import sys
 
 import numpy.random
 
@@ -62,7 +63,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         """
         def _save(stem, suffix, frame, comment):
             frame.to_csv(os.path.join(self.spath, stem + suffix), sep=' ', index=None)
-            general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
+            if comment:
+                general.add_comments_to_start_of_file(os.path.join(self.spath, stem + suffix), comment)
 
         stem = pathlib.Path(basefilename).stem
         suffix = pathlib.Path(basefilename).suffix
@@ -74,7 +76,7 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
 
     def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat', qrange=None,
                                     liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True, mode=None,
-                                    lambda_min=0.1, t_total=None):
+                                    lambda_min=0.1, t_total=None, average=False):
         # if qmin and qmax is not given, take from first data set
         # resolve amiguity / compatibility of the qrange parameter
         if qrangefromfile:
@@ -111,7 +113,8 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         # simulate data, works on sim.dat files
         liData = self.fnSimulateData(diModelPars, liData)
         # simulate error bars, works on sim.dat files
-        liData = self.fnSimulateErrorBars(simpar, liData=liData, liConfigurations=liConfigurations, t_total=t_total)
+        liData = self.fnSimulateErrorBars(simpar, liData=liData, liConfigurations=liConfigurations, t_total=t_total,
+                                          average=average)
         # length of liData might have changed when different dQ/Q were calculated for the same q-values and
         # data was not averaged
         self.fnSaveData(basefilename=basefilename, liData=liData)
@@ -127,13 +130,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
         for dataset in range(len(liData)):
             liData[dataset][1]['I'] = liData[dataset][1]['I'] + numpy.random.normal(size=len(liData[dataset][1]['dI']))\
                                      * liData[dataset][1]['dI']
+            # avoid negative values
+            liData[dataset][1]['I'] = liData[dataset][1]['I'].abs()
 
         # Removes datapoints for which dI/I is zero, which indicates that no data was taken there
-        # Let's also drop data points with more than 200% uncertainty
+        # Let's also mirror negative intensities into the positive domain
         for dataset_n in range(len(liData)):
             df = liData[dataset_n][1]
             df = df[df['dI'] > 0]
-            liData[dataset_n][1] = df[df['dI'] < df['I']]
+            liData[dataset_n][1] = df
 
         return liData
 
@@ -403,6 +408,9 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                     Sigma_c = configuration["differential_cross_section_cuvette"]
                     Sigma_c_4pi = Sigma_c * 4 * numpy.pi
                     Sigma_b = configuration["differential_cross_section_buffer"]
+                    if Sigma_b < 0:
+                        sys.exit('Differential cross section of the buffer is negative. Check configuration or '
+                                 'background rule')
                     Sigma_b_4pi = Sigma_b * 4 * numpy.pi
                     Sigma_s = Iq
                     Sigma_T_4pi = Sigma_s_4pi + Sigma_b_4pi + Sigma_c_4pi
@@ -484,11 +492,15 @@ class CSASViewAPI(api_bumps.CBumpsAPI):
                 if average:
                     dataset[1]['dI'] = dIq
                     dataset[1]['dQ'] = dQ
+
                 else:
                     dataset[1] = pandas.DataFrame([Q_append, Iq_append, dIq_append, dQ_append])
                     dataset[1] = dataset[1].T
                     dataset[1].columns = ['Q', 'I', 'dI', 'dQ']
                     dataset[1] = dataset[1].sort_values(by=['Q'])
+
+                if dataset[1].isnull().values.any():
+                    sys.exit('Data simulation failed with null values. Contact your favorite developer.')
 
         return liData
 

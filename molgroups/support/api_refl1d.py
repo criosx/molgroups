@@ -82,7 +82,7 @@ class CRefl1DAPI(api_bumps.CBumpsAPI):
 
     def fnSimulateDataPlusErrorBars(self, liData, diModelPars, simpar=None, basefilename='sim.dat',
                                     liConfigurations=None, qmin=None, qmax=None, qrangefromfile=True,  mode='water',
-                                    lambda_min=None, t_total=None):
+                                    lambda_min=None, t_total=None, average=False):
         if qrangefromfile:
             # q-range needs to be potentially adjusted, take any missing parameter from first data set
             if qmin is None:

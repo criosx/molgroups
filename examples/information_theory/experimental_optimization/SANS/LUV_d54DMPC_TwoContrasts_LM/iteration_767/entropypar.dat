@@ -1,0 +1,31 @@
+i b0 * background0 0.063936 0.0 1.5
+i b1 * background1 0.673297 0.0 1.5
+i _ _ frac_deut 0.9 0.89 0.91 0 1. 0.05
+d _ _ l_lipid 10.923830 8.0 12.0
+d _ _ sigma 2.5 1.0 5.0
+i _ _ scale0 10.0 5.0 15.0
+i _ _ vf0 0.02 0.01 0.10
+i 0 * sld_solvent0 -0.5 -0.6 -0.4 -0.5 6.5 0.1
+i 1 * sld_solvent1 6.5 6.4 6.6 -0.5 6.5 0.1
+n * * lambda 6.00
+n * * differential_cross_section_buffer 0.0
+n * 0 sample_detector_distance 120
+n * 1 sample_detector_distance 650
+n * 2 sample_detector_distance 1800
+n * 0 source_sample_distance 387.6
+n * 1 source_sample_distance 850.05
+n * 2 source_sample_distance 1467
+n * 0 neutron_flux 2e5
+n * 1 neutron_flux 2e5
+n * 2 neutron_flux 8e4
+n * * source_aperture_radius 2.54
+n * * sample_aperture_radius 0.635
+n * * dlambda_lambda 0.136
+n * 0 beamstop_diameter 10.16
+n * 1 beamstop_diameter 10.16
+n * 2 beamstop_diameter 7.62
+n * 0 time 600
+n * 1 time 600
+n * 2 time 1800
+n * 0 beam_center_x 25.
+n * * cuvette_thickness 0.1
