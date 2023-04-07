@@ -1,6 +1,5 @@
 bumps
 dill
-gpcam
 ipython
 jupyterlab
 matplotlib
@@ -14,5 +13,3 @@ sasmodels
 scikit-learn
 scipy
 setuptools
-shapely
-pyside6
