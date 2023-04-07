@@ -5,7 +5,7 @@ setup(
     version='0.2.0',
     packages=['molgroups'],
     url='https://github.com/criosx/molgroups',
-    license='GNU GENERAL PUBLIC LICENSE, Version 3',
+    license='MIT License',
     author='Frank Heinrich, David Hoogerheide, Alyssa Thomas',
     author_email='mail@frank-heinrich.net',
     description='Molecular Modeling for Scattering Data Analysis',
