@@ -1480,8 +1480,161 @@ class tBLM(BLM):
 # ------------------------------------------------------------------------------------------------------
 # Protein models
 # ------------------------------------------------------------------------------------------------------
+
+class ProteinBox(Box2Err):
+    """Special Box2Err designed for use with protein densities that are expressed as volume fractions.
+        Unlike Box2Err, has a "normarea" attribute; setting this attribute changes only the total volume
+        but not the volume fraction nor the length. (For fixed volume objects, use Box2Err.)
+    """
+
+    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume_fraction=0, dnSLD_H=0, dnSLD_D=0, protexchratio=1.0, dnumberfraction=1, normarea=1.0, name=None):
+        super().__init__(dz, dsigma1, dsigma2, dlength, 0, 0, dnumberfraction, name)
+        self.vf = dvolume_fraction
+        self.nSLD_H = dnSLD_H
+        self.nSLD_D = dnSLD_D
+        self.protexchratio = protexchratio
+        self.bProtonExchange = True
+        self.normarea = normarea
+
+    @property
+    def vol(self):
+        """vol becomes a read-only property"""
+        return self.length * self.normarea * self.vf
+    
+    def fnGetnSL(self):
+        """Overrides base class for simplicity."""
+
+        if self.bProtonExchange & (self.bulknsld is not None):
+            fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
+            sld = fracD * self.nSLD_D + (1 - fracD) * self.nSLD_H
+        else:
+            sld = self.nSLD_H
+
+        return self.vol * sld
+
+    def fnSetnSL(self, _nSL, _nSL2=None):
+        raise NotImplementedError
+
+    def fnSetNormarea(self, dnormarea):
+        self.normarea = dnormarea
+
+    def fnSet(self, volume_fraction=None, length=None, position=None, nSLD=None, sigma=None, nf=None):
+        if volume_fraction is not None:
+            self.vf = volume_fraction
+        if length is not None:
+            self.length = length
+        if position is not None:
+            self.fnSetZ(position)
+        if nSLD is not None:
+            if isinstance(nSLD, (list, tuple, numpy.ndarray)):
+                self.nSLD_H = nSLD[0]
+                if len(nSLD) == 2:
+                    self.nSLD_D = nSLD[1]
+            else:
+                self.nSLD_H = nSLD
+                self.nSLD_D = nSLD
+        if sigma is not None:
+            sigma2 = None
+            if isinstance(sigma, (list, tuple, numpy.ndarray)):
+                sigma1 = sigma[0]
+                if len(sigma) == 2:
+                    sigma2 = sigma[1]
+            else:
+                sigma1 = sigma
+            self.fnSetSigma(sigma1, sigma2)
+        if nf is not None:
+            self.nf = nf
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        if self.flip:
+            position = 2 * self.flipcenter + - self.z
+        else:
+            position = self.z
+        rdict[cName] = {}
+        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
+                                 f"sigma2 {self.sigma2} l {self.length} vf {self.vf} " \
+                                 f"nSLD_H {self.nSLD_H} nSLD_D {self.nSLD_D} nf {self.nf} flip {self.flip}"
+        rdict[cName]['z'] = self.z
+        rdict[cName]['sigma1'] = self.sigma1
+        rdict[cName]['sigma2'] = self.sigma2
+        rdict[cName]['l'] = self.length
+        rdict[cName]['vf'] = self.vf
+        rdict[cName]['nSLD_H'] = self.nSLD_H
+        rdict[cName]['nSLD_D'] = self.nSLD_D
+        rdict[cName]['nf'] = self.nf
+        rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
+        return rdict
+
+class TetheredBoxDouble(Box2Err):
+    """Special Box2Err that is tethered to, but can move freely around, two z positions.
+        Allows specification of the two tether points, the length, and the fractional position.
+        The fractional position ranges from 0 to 1; 0 places the rightmost edge of the box at the
+        right tether point; 1 places the leftmost edge of the box at the left tether point.
+
+        Intended for use with, e.g. protein loops that are not found in X-ray structures
+    """
+
+    def __init__(self, z_tether1=20, z_tether2=20, frac_position=0.5, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+        super().__init__(0, dsigma1, dsigma2, dlength, dvolume, dnSL, dnumberfraction, name)
+        self.z_tether1 = z_tether1
+        self.z_tether2 = z_tether2
+        self.frac_position = frac_position
+
+        self._update_z()
+
+    def _update_z(self):
+        # check order of tether points
+        z_tether1 = min(self.z_tether1, self.z_tether2)
+        z_tether2 = max(self.z_tether1, self.z_tether2)
+
+        # calculate tether position
+        z_tether = z_tether1 + z_tether2 * (self.frac_position - 0.5)
+
+        # set center z of box
+        self.fnSetZ(z_tether + self.length * (0.5 - self.frac_position))
+
+    def fnSet(self, volume=None, length=None, tether_position1=None, tether_position2=None, frac_position=None, nSL=None, sigma=None, nf=None):
+        super().fnSet(volume, length, None, nSL, sigma, nf)
+
+        if tether_position1 is not None:
+            self.z_tether1 = tether_position1
+        if tether_position1 is not None:
+            self.z_tether2 = tether_position2
+        if frac_position is not None:
+            self.frac_position = frac_position
+
+        self._update_z()
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
+        rdict[cName]['z_tether1'] = self.z_tether1
+        rdict[cName]['z_tether2'] = self.z_tether2
+        rdict[cName]['frac_position'] = self.frac_position
+
+        return rdict
+
+class TetheredBox(TetheredBoxDouble):
+    """Special case of TetheredBoxDouble where z_tether1 = z_tether2.
+
+        Intended use is for missing N- or C-terminal domains of proteins
+    """
+
+    def __init__(self, z_tether=20, frac_position=0.5, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+        super().__init__(z_tether, z_tether, frac_position, dsigma1, dsigma2, dlength, dvolume, dnSL, dnumberfraction, name)
+
+    def fnSet(self, volume=None, length=None, tether_position=None, frac_position=None, nSL=None, sigma=None, nf=None):
+        super().fnSet(volume, length, tether_position, tether_position, nSL, sigma, nf)
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
+        rdict[cName]['z_tether'] = self.z_tether
+
+        return rdict
+
 """
-Notes on usage:
+Hermite splines
+
+Notes on Hermite usage:
 1. Instantiate the spline object, e.g. h = SLDHermite()
     NB: the only initialization variable that isn't overwritten by fnSetRelative is dnormarea, so the others have been 
     removed and dnSLD has been moved to fnSetRelative instead of the initialization. This is to keep the fnSetRelative 
@@ -2014,90 +2167,103 @@ class DiscreteEuler(nSLDObj):
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
 
-class ProteinBox(Box2Err):
-    """Special Box2Err designed for use with protein densities that are expressed as volume fractions.
-        Unlike Box2Err, has a "normarea" attribute; setting this attribute changes only the total volume
-        but not the volume fraction nor the length. (For fixed volume objects, use Box2Err.)
-    """
+class ContinuousEulerMissingResidues(CompositenSLDObj):
+    """Composite protein model with arbitrary number of missing residue loops attached
+        to specific residues in a ContinuousEuler model
+        Requires a Continuous Euler model.
 
-    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume_fraction=0, dnSLD_H=0, dnSLD_D=0, protexchratio=1.0, dnumberfraction=1, normarea=1.0, name=None):
-        super().__init__(dz, dsigma1, dsigma2, dlength, 0, 0, dnumberfraction, name)
-        self.vf = dvolume_fraction
-        self.nSLD_H = dnSLD_H
-        self.nSLD_D = dnSLD_D
-        self.protexchratio = protexchratio
-        self.bProtonExchange = True
-        self.normarea = normarea
+        Missing residues are specified using the add_missing_residues method; the
+        resulting object is returned as a TetheredBoxDouble object
+        
+        """
 
-    @property
-    def vol(self):
-        """vol becomes a read-only property"""
-        return self.length * self.normarea * self.vf
-    
-    def fnGetnSL(self):
-        """Overrides base class for simplicity."""
+    def __init__(self, euler: ContinuousEuler, **kwargs):
+        super().__init__([euler], **kwargs)
+        self.euler = euler
+        self.missing_residues = []
 
-        if self.bProtonExchange & (self.bulknsld is not None):
-            fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
-            sld = fracD * self.nSLD_D + (1 - fracD) * self.nSLD_H
-        else:
-            sld = self.nSLD_H
+    def fnFindSubgroups(self):
+        # override default behavior so don't have to store objects separately
+        pass
 
-        return self.vol * sld
+    def add_missing_residues(self, sequence, attachment_residues, deut_res=None, name=None):
+        """
+        Add missing residues.
 
-    def fnSetnSL(self, _nSL, _nSL2=None):
-        raise NotImplementedError
+        Usage: missing_residues_box = add_missing_residues(...)
 
-    def fnSetNormarea(self, dnormarea):
-        self.normarea = dnormarea
+        Requires:
+        sequence -- string of single-residue codes
+        attachment residues -- int or (int, int): residue numbers where loops or disordered regions
+            are attached
+        deut_res -- None if no deuterated residues; else indices of residues in "sequence"
+            that are deuterated
 
-    def fnSet(self, volume_fraction=None, length=None, position=None, nSLD=None, sigma=None, nf=None):
-        if volume_fraction is not None:
-            self.vf = volume_fraction
-        if length is not None:
-            self.length = length
-        if position is not None:
-            self.fnSetZ(position)
-        if nSLD is not None:
-            if isinstance(nSLD, (list, tuple, numpy.ndarray)):
-                self.nSLD_H = nSLD[0]
-                if len(nSLD) == 2:
-                    self.nSLD_D = nSLD[1]
+        Returns:
+        new_obj -- new TetheredBoxDouble object. Use fnSet to set length and frac_position
+        """
+
+        default_name = f'missing{len(self.missing_residues)}'
+
+        name = name if name is not None else default_name
+
+        elements = default_table()
+
+        # Analyze sequence
+        volume = 0.0
+        nslH = 0.0
+        nslD = 0.0
+        for i, iaa in enumerate(sequence):
+            if i in deut_res:
+                resmol = Molecule(name='Dres', formula=aa[iaa].formula.replace(elements.H, elements.D),
+                                  cell_volume=aa[iaa].cell_volume)
             else:
-                self.nSLD_H = nSLD
-                self.nSLD_D = nSLD
-        if sigma is not None:
-            sigma2 = None
-            if isinstance(sigma, (list, tuple, numpy.ndarray)):
-                sigma1 = sigma[0]
-                if len(sigma) == 2:
-                    sigma2 = sigma[1]
-            else:
-                sigma1 = sigma
-            self.fnSetSigma(sigma1, sigma2)
-        if nf is not None:
-            self.nf = nf
+                resmol = aa[iaa]
 
-    def fnWriteGroup2Dict(self, rdict, cName, z):
-        if self.flip:
-            position = 2 * self.flipcenter + - self.z
-        else:
-            position = self.z
-        rdict[cName] = {}
-        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
-                                 f"sigma2 {self.sigma2} l {self.length} vf {self.vf} " \
-                                 f"nSLD_H {self.nSLD_H} nSLD_D {self.nSLD_D} nf {self.nf} flip {self.flip}"
-        rdict[cName]['z'] = self.z
-        rdict[cName]['sigma1'] = self.sigma1
-        rdict[cName]['sigma2'] = self.sigma2
-        rdict[cName]['l'] = self.length
-        rdict[cName]['vf'] = self.vf
-        rdict[cName]['nSLD_H'] = self.nSLD_H
-        rdict[cName]['nSLD_D'] = self.nSLD_D
-        rdict[cName]['nf'] = self.nf
-        rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
-        return rdict
+            volume += resmol.cell_volume
+            nslH += resmol.cell_volume * resmol.sld * 1e-6
+            nslD += resmol.cell_volume * resmol.Dsld * 1e-6
 
+        if isinstance(attachment_residues, float):
+            attachment_residues = int(attachment_residues)
+
+        if isinstance(attachment_residues, int):
+            attachment_residues = (attachment_residues, attachment_residues)
+
+        new_obj = TetheredBoxDouble()
+
+        self.missing_residues.append({'sequence': sequence,
+                                      'volume': volume,
+                                      'nSLH': nslH,
+                                      'nSLD': nslD,
+                                      'attach': attachment_residues,
+                                      'object': new_obj})
+        
+        self.subgroups.append(new_obj)
+
+        return new_obj
+
+    def _update_missing_residues(self):
+        """Updates all missing residues with current Euler coordinates and
+            number fraction"""
+        resnums = self.euler.resnums
+
+        for mr in self.missing_residues:
+            box: TetheredBoxDouble = mr['object']
+            tp1 = self.euler.rescoords[resnums.index(mr['attach'][0]),2]
+            tp2 = self.euler.rescoords[resnums.index(mr['attach'][1]),2]
+            
+            # set Euler-specific positions. Other quantities (length, frac_position)
+            # must be set separately
+            box.fnSet(volume=mr['volume'],
+                      tether_position1=tp1,
+                      tether_position2=tp2,
+                      nf=self.euler.nf)
+            box.fnSetnSL(mr['nslH'], mr['nslD'])
+
+    def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
+        self.euler.fnSet(gamma, beta, zpos, sigma, nf, bulknsld)
+        self._update_missing_residues()
 
 
 # ------------------------------------------------------------------------------------------------------
