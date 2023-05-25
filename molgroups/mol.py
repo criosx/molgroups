@@ -2277,8 +2277,8 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
 
         for mr in self.missing_residues:
             box: TetheredBoxDouble = mr['object']
-            tp1 = self.euler.rescoords[resnums.index(mr['attach'][0]),2]
-            tp2 = self.euler.rescoords[resnums.index(mr['attach'][1]),2]
+            tp1 = self.euler.rotcoords[resnums.index(mr['attach'][0]),2]
+            tp2 = self.euler.rotcoords[resnums.index(mr['attach'][1]),2]
             
             # set Euler-specific positions. Other quantities (length, frac_position)
             # must be set separately
