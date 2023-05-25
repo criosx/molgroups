@@ -2287,6 +2287,7 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
                       tether_position2=tp2,
                       nf=self.euler.nf)
             box.fnSetnSL(mr['nslH'], mr['nslD'])
+            box.fnSetSigma(self.euler.sigma)
 
     def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
         self.euler.fnSet(gamma, beta, zpos, sigma, nf, bulknsld)
