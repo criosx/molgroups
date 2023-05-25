@@ -277,6 +277,13 @@ class CompositenSLDObj(nSLDObj):
         for g in self.subgroups:
             g.fnSetBulknSLD(bulknsld)
 
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        volume = 0.0
+        for g in self.subgroups:
+            volume += g.fnGetVolume(z1, z2, recalculate)
+
+        return volume * self.nf
+
     def fnGetProfiles(self, z):
         area = numpy.zeros_like(z)
         nsl = numpy.zeros_like(z)
@@ -359,10 +366,9 @@ class Box2Err(nSLDObj):
                 ad *= (self.vol / self.length) * 0.5
                 ad += self.vol * 0.5
 
-            iz1 = min(z1, z2)
-            iz2 = max(z1, z2)
+                return ad
 
-            return antiderivative(iz2) - antiderivative(iz1)
+            return abs(antiderivative(z2) - antiderivative(z1))
         
         else:
             
