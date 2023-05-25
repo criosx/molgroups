@@ -347,6 +347,27 @@ class Box2Err(nSLDObj):
         ret = shift(ret, shiftvalue, mode='constant')
         return ret
 
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        if (z1 is not None) & (z2 is not None) & recalculate:
+
+            def antiderivative(z):
+                # antiderivative of error function as currently implemented
+                # https://nvlpubs.nist.gov/nistpubs/jres/73b/jresv73bn1p1_a1b.pdf
+                # checked against scipy.integrate.cumtrapz
+                ad = (z - self.z + 0.5 * self.length) * erf((z - self.z + 0.5 * self.length) / (numpy.sqrt(2) * self.sigma1)) + 1.0 / (numpy.sqrt(numpy.pi) / (numpy.sqrt(2) * self.sigma1)) * numpy.exp(-((z - self.z + 0.5 * self.length) / (numpy.sqrt(2) * self.sigma1)) ** 2)
+                ad -= (z - self.z - 0.5 * self.length) * erf((z - self.z - 0.5 * self.length) / (numpy.sqrt(2) * self.sigma2)) + 1.0 / (numpy.sqrt(numpy.pi) / (numpy.sqrt(2) * self.sigma2)) * numpy.exp(-((z - self.z - 0.5 * self.length) / (numpy.sqrt(2) * self.sigma2)) ** 2)
+                ad *= (self.vol / self.length) * 0.5
+                ad += self.vol * 0.5
+
+            iz1 = min(z1, z2)
+            iz2 = max(z1, z2)
+
+            return antiderivative(iz2) - antiderivative(iz1)
+        
+        else:
+            
+            return super().fnGetVolume(z1, z2, recalculate)
+
     def fnGetProfiles(self, z):
         # calculate area
         # Gaussian function definition, integral is volume, return value is area at positions z
@@ -2186,7 +2207,7 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
         # override default behavior so don't have to store objects separately
         pass
 
-    def add_missing_residues(self, sequence, attachment_residues, deut_res=None, name=None):
+    def add_missing_residues(self, sequence, attachment_residues, deut_res=[], name=None):
         """
         Add missing residues.
 
@@ -2234,8 +2255,8 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
 
         self.missing_residues.append({'sequence': sequence,
                                       'volume': volume,
-                                      'nSLH': nslH,
-                                      'nSLD': nslD,
+                                      'nslH': nslH,
+                                      'nslD': nslD,
                                       'attach': attachment_residues,
                                       'object': new_obj})
         
@@ -2246,7 +2267,7 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
     def _update_missing_residues(self):
         """Updates all missing residues with current Euler coordinates and
             number fraction"""
-        resnums = self.euler.resnums
+        resnums = list(self.euler.resnums)
 
         for mr in self.missing_residues:
             box: TetheredBoxDouble = mr['object']
@@ -2263,6 +2284,7 @@ class ContinuousEulerMissingResidues(CompositenSLDObj):
 
     def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
         self.euler.fnSet(gamma, beta, zpos, sigma, nf, bulknsld)
+        self.fnSetBulknSLD(bulknsld)
         self._update_missing_residues()
 
 
@@ -2331,14 +2353,14 @@ class BLMProteinComplex(CompositenSLDObj):
             lipidvol *= blm.vf_bilayer
             # TODO: Create numerical volume function on the level of nSLDObj, which might be faster than the spline
             #  integration and more flexible
-            blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2, True) / lipidvol for prot in self.proteins.subgroups)
 
             # outer leaflet
             lipidvol = sum(methylene.vol for methylene in blm.methylenes2) + sum(methyl.vol for methyl in blm.methyls2)
             lipidvol *= blm.vf_bilayer
             z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].length
             z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].length
-            blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2, True) / lipidvol for prot in self.proteins.subgroups)
 
             # final adjustement of the bilayer after determining the hc substitution values.
             blm.fnAdjustParameters()
