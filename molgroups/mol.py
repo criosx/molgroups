@@ -368,7 +368,7 @@ class Box2Err(nSLDObj):
 
                 return ad
 
-            return abs(antiderivative(z2) - antiderivative(z1))
+            return abs(antiderivative(z2) - antiderivative(z1)) * self.nf
         
         else:
             
