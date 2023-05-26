@@ -1615,10 +1615,10 @@ class TetheredBoxDouble(Box2Err):
         z_tether2 = max(self.z_tether1, self.z_tether2)
 
         # calculate tether position
-        z_tether = z_tether1 + z_tether2 * (self.frac_position - 0.5)
+        z_tether = z_tether2 - (z_tether2 - z_tether1) * self.frac_position
 
         # set center z of box
-        self.fnSetZ(z_tether + self.length * (0.5 - self.frac_position))
+        self.fnSetZ(z_tether + self.length * (self.frac_position - 0.5))
 
     def fnSet(self, volume=None, length=None, tether_position1=None, tether_position2=None, frac_position=None, nSL=None, sigma=None, nf=None):
         super().fnSet(volume, length, None, nSL, sigma, nf)
