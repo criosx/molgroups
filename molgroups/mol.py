@@ -1516,17 +1516,16 @@ class ProteinBox(Box2Err):
 
     def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume_fraction=0, dnSLD_H=0, dnSLD_D=0, protexchratio=1.0, dnumberfraction=1, normarea=1.0, name=None):
         super().__init__(dz, dsigma1, dsigma2, dlength, 0, 0, dnumberfraction, name)
-        self.vf = dvolume_fraction
         self.nSLD_H = dnSLD_H
         self.nSLD_D = dnSLD_D
         self.protexchratio = protexchratio
         self.bProtonExchange = True
         self.normarea = normarea
+        self._update_volume(dvolume_fraction)
 
-    @property
-    def vol(self):
-        """vol becomes a read-only property"""
-        return self.length * self.normarea * self.vf
+    def _update_volume(self, vf: float):
+        """check volume calculation if length, normarea, or volume fraction are changed"""
+        self.vol = self.length * self.normarea * vf
     
     def fnGetnSL(self):
         """Overrides base class for simplicity."""
@@ -1543,11 +1542,14 @@ class ProteinBox(Box2Err):
         raise NotImplementedError
 
     def fnSetNormarea(self, dnormarea):
+        old_vf = self.vol / (self.length * self.normarea)
         self.normarea = dnormarea
+        self._update_volume(old_vf)
 
     def fnSet(self, volume_fraction=None, length=None, position=None, nSLD=None, sigma=None, nf=None):
+        vf = self.vol / (self.length * self.normarea)
         if volume_fraction is not None:
-            self.vf = volume_fraction
+            vf = volume_fraction
         if length is not None:
             self.length = length
         if position is not None:
@@ -1572,24 +1574,12 @@ class ProteinBox(Box2Err):
         if nf is not None:
             self.nf = nf
 
+        self._update_volume(vf)
+
     def fnWriteGroup2Dict(self, rdict, cName, z):
-        if self.flip:
-            position = 2 * self.flipcenter + - self.z
-        else:
-            position = self.z
-        rdict[cName] = {}
-        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
-                                 f"sigma2 {self.sigma2} l {self.length} vf {self.vf} " \
-                                 f"nSLD_H {self.nSLD_H} nSLD_D {self.nSLD_D} nf {self.nf} flip {self.flip}"
-        rdict[cName]['z'] = self.z
-        rdict[cName]['sigma1'] = self.sigma1
-        rdict[cName]['sigma2'] = self.sigma2
-        rdict[cName]['l'] = self.length
-        rdict[cName]['vf'] = self.vf
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
         rdict[cName]['nSLD_H'] = self.nSLD_H
         rdict[cName]['nSLD_D'] = self.nSLD_D
-        rdict[cName]['nf'] = self.nf
-        rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
 
 class TetheredBoxDouble(Box2Err):
