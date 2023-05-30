@@ -1650,7 +1650,7 @@ class TetheredBox(TetheredBoxDouble):
         super().__init__(z_tether, z_tether, frac_position, dsigma1, dsigma2, dlength, dvolume, dnSL, dnumberfraction, name)
 
     def fnSet(self, volume=None, length=None, tether_position=None, frac_position=None, nSL=None, sigma=None, nf=None):
-        super().fnSet(volume, length, tether_position, tether_position, nSL, sigma, nf)
+        super().fnSet(volume, length, tether_position, tether_position, frac_position, nSL, sigma, nf)
 
     def fnWriteGroup2Dict(self, rdict, cName, z):
         rdict = super().fnWriteGroup2Dict(rdict, cName, z)
