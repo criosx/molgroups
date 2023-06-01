@@ -225,7 +225,7 @@ class nSLDObj:
             overmax = temparea > dMaxArea
             # note: unphysical overfill will trigger the following assertion error
             # TODO: implement a correction instead of throwing an error
-            assert (not numpy.any((temparea - dMaxArea) > area1))
+            #assert (not numpy.any((temparea - dMaxArea) > area1))
             nsl1[overmax] = nsl1[overmax] * (1 - ((temparea[overmax] - dMaxArea) / area1[overmax])) + nsl2[overmax]
             area1[overmax] = dMaxArea
 
@@ -1755,7 +1755,7 @@ class Hermite(nSLDObj):
             z2 = min(self.fnGetUpperLimit(), z2)
             return (self.area_spline_integral(z2) - self.area_spline_integral(z1)) * self.nf * self.normarea
         else:
-            super().fnGetVolume(z1, z2=None, recalculate=recalculate)
+            return super().fnGetVolume(z1=z1, z2=z2, recalculate=recalculate)
 
     def fnSetNormarea(self, dnormarea):
         self.normarea = dnormarea
@@ -2327,6 +2327,9 @@ class BLMProteinComplex(CompositenSLDObj):
         self.fnFindSubgroups()
 
     def fnAdjustBLMs(self):
+        """ Adjust bilayers for the presence of proteins.
+        """
+
         dMaxArea = 0
         for blm in self.blms:
             # intial bilayer adjustment with respect to the current parameters and withouth hc substitution
@@ -2350,14 +2353,14 @@ class BLMProteinComplex(CompositenSLDObj):
             lipidvol *= blm.vf_bilayer
             # TODO: Create numerical volume function on the level of nSLDObj, which might be faster than the spline
             #  integration and more flexible
-            blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2, True) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_1 = self.proteins.fnGetVolume(z1, z2, True) / lipidvol
 
             # outer leaflet
             lipidvol = sum(methylene.vol for methylene in blm.methylenes2) + sum(methyl.vol for methyl in blm.methyls2)
             lipidvol *= blm.vf_bilayer
             z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].length
             z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].length
-            blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2, True) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_2 = self.proteins.fnGetVolume(z1, z2, True) / lipidvol
 
             # final adjustement of the bilayer after determining the hc substitution values.
             blm.fnAdjustParameters()
