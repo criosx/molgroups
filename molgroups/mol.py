@@ -664,7 +664,8 @@ class CompositeHeadgroup(CompositenSLDObj):
 class BLM(CompositenSLDObj):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
                  lipid_nf=None, xray_wavelength=None, name='blm', **kwargs):
-        """ Free bilayer object. Requires:
+        """
+        Free bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
                           inner_lipids and outer_lipids. If not set, both inner_lipids and outer_lipids are required.
@@ -675,7 +676,8 @@ class BLM(CompositenSLDObj):
             o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions (not
                                       necessarily normalized) of equal length to 'lipids', 'inner_lipids', or
                                       'outer_lipids', respectively.
-            To use an xray probe, set xray_wavelength to the appropriate value in Angstroms."""
+        To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
+        """
 
         super().__init__(name=name, **kwargs)
 
@@ -1043,10 +1045,147 @@ class BLM(CompositenSLDObj):
         return rdict
 
 
+class Monolayer(CompositenSLDObj, BLM):
+    def __init__(self, lipids=None, lipid_nf=None, xray_wavelength=None, name='monolayer', **kwargs):
+        """
+        Free monolayer object. Requires:
+            o lipids definition: lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and
+            overrides inner_lipids and outer_lipids.
+            o number fraction vector: lipid_nf, : a list of number fractions (not necessarily normalized) of equal
+            length to 'lipids'.
+        To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
+        """
+
+        super().__init__(name=name, **kwargs)
+
+        # symmetric bilayers can provide only one list of lipids and number fractions
+        outer_lipids = lipids
+        outer_lipid_nf = lipid_nf
+        assert len(outer_lipids) > 0, 'Must specify at least one inner lipid'
+
+        # normalize number fractions. This allows ratios of lipids to be given instead of number fractions
+        self.outer_lipid_nf = numpy.array(outer_lipid_nf) / numpy.sum(outer_lipid_nf)
+        self.outer_lipids = outer_lipids
+        self.xray_wavelength = xray_wavelength
+
+        # unpack lipids
+        h, nh, m, mm = self._unpack_lipids(outer_lipids, 'headgroup2', 'methylene2', 'methyl2', innerleaflet=False)
+        self.headgroups2 = h
+        self.null_hg2 = nh
+        self.methylenes2 = m
+        self.methyls2 = mm
+
+        self.nf = 1.
+        self.vf_bilayer = 1.0
+        self.absorb = 0.
+        self.l_lipid2 = 11.
+        self.normarea = 60.
+        self.startz = 50.
+        self.sigma = 2.
+        # allow for different methyl sigmas if accessed directly (not providing interface)
+        self.methyl_sigma = numpy.full_like(self.inner_lipid_nf, 2.)
+        self.hc_substitution_2 = 0
+
+        self._calc_av_hg()
+
+        self.fnFindSubgroups()
+        self.fnSetBulknSLD(-0.56e-6)
+        self.fnAdjustParameters()
+
+    def _adjust_z(self, startz):
+        # startz is the position of the air/methyl2 interface.
+        # change here: use average headgroup length instead of a specific headgroup
+        self.z_om = startz - 0.5 * self.l_om
+        self.z_ohc = self.z_om + 0.5 * (self.l_om + self.l_ohc)
+        for m2 in self.methylenes2:
+            m2.fnSetZ(self.z_ohc)
+        for m2 in self.methyls2:
+            m2.fnSetZ(self.z_om)
+        for hg2 in self.headgroups2:
+            hg2.fnSetZ(self.z_ohc + 0.5 * self.l_ohc + 0.5 * hg2.length)
+
+    def _calc_av_hg(self):
+        # calculate average headgroup lengths, ignore zero volume (e.g. cholesterol)
+        self.av_hg2_l = numpy.sum(numpy.array([hg.length for hg, use in zip(self.headgroups2, ~self.null_hg2) if use]) *
+                                  self.outer_lipid_nf[~self.null_hg2]) / numpy.sum(self.outer_lipid_nf[~self.null_hg2])
+
+    def fnAdjustParameters(self):
+        self._adjust_outer_lipids()
+        self._adjust_z(self.startz)
+        self.fnSetSigma(self.sigma)
+
+    # return value of center of the membrane
+    def fnGetCenter(self):
+        return self.methyls2[0].z - 0.5 * self.methyls2[0].length + 0.5 * \
+            (self.methyls2[0].length + self.methylenes2[0].length + self.avg_hg2_l)
+
+    # Use limits of molecular subgroups
+    def fnGetLowerLimit(self):
+        return self.methyls2[0].z - 0.5 * self.methyls2[0].length
+
+    def fnGetUpperLimit(self):
+        return max([hg.fnGetUpperLimit() for hg in self.headgroups2])
+
+    def fnSet(self, sigma=2.0, bulknsld=-0.56e-6, startz=20., l_lipid2=11.0, vf_bilayer=1.0,
+              nf_lipids=None, hc_substitution_2=0., **kwargs):
+        self.sigma = sigma
+        self.fnSetBulknSLD(bulknsld)
+        self.startz = startz
+        self.l_lipid2 = l_lipid2
+        self.vf_bilayer = vf_bilayer
+
+        if nf_lipids is not None:
+            nf_outer_lipids = nf_lipids
+            self.outer_lipid_nf = numpy.array(nf_outer_lipids)
+
+        self.hc_substitution_2 = hc_substitution_2
+
+        self.fnAdjustParameters()
+
+    def fnSetSigma(self, sigma):
+        self.sigma = sigma
+        for hg2 in self.headgroups2:
+            hg2.fnSetSigma(sigma)
+
+        for i, (methyl2, methylene2) in enumerate(zip(self.methyls2, self.methylenes2)):
+            methyl2.fnSetSigma(numpy.sqrt(sigma ** 2 + self.methyl_sigma[i] ** 2),
+                               numpy.sqrt(sigma ** 2 + self.methyl_sigma[i] ** 2))
+            methylene2.fnSetSigma(numpy.sqrt(sigma ** 2 + self.methyl_sigma[i] ** 2), sigma)
+
+    def fnWriteGroup2File(self, fp, cName, z):
+        BLM.fnWriteGroup2File(self, fp, cName, z)
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        return BLM.fnWriteGroup2Dict(self, rdict, cName, z)
+
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+        rdict[cName]['area_per_lipid'] = self.normarea
+        rdict[cName]['volume_fraction'] = self.vf_bilayer
+        rdict[cName]['thickness_lipid_leaflet'] = self.l_ohc + self.l_om
+
+        if self.normarea != 0:
+            p3 = self.methyls2[0].z - 0.5 * self.methyls2[0].length
+            p5 = self.methylenes2[0].z + 0.5 * self.methylenes2[0].length
+            p6 = self.headgroups2[0].z + 0.5 * self.headgroups2[0].length
+
+            rdict[cName]['water in hydrocarbons'] = self.fnGetVolume(p3, p5, recalculate=False)
+            rdict[cName]['water in hydrocarbons'] /= (self.normarea * (p5 - p3))
+            rdict[cName]['water in hydrocarbons'] = 1 - rdict[cName]['water in hydrocarbons']
+            rdict[cName]['water in outer headgroups'] = self.fnGetVolume(p5, p6, recalculate=False)
+            rdict[cName]['water in outer headgroups'] /= (self.normarea * (p6 - p5))
+            rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
+
+        return rdict
+
+
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
                  lipid_nf=None, xray_wavelength=None, name='ssblm', **kwargs):
-        """ Solid supported bilayer object. Requires:
+        """
+        Solid supported bilayer object. Requires:
             o lipids definition:
                 - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
                     inner_lipids and outer_lipids. If not set, both inner_lipids and outer_lipids are required.
@@ -1057,8 +1196,9 @@ class ssBLM(BLM):
             o number fraction vector: lipid_nf, inner_lipid_nf, outer_lipid_nf: a list of number fractions
                 (not necessarily normalized) of equal length to 'lipids', 'inner_lipids', or 'outer_lipids',
                 respectively.
-            To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
+        To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
         """
+
         # add ssBLM-specific subgroups
         self.substrate = Box2Err(name='substrate')
         self.substrate.length = 40
@@ -2020,7 +2160,8 @@ class DiscreteEuler(nSLDObj):
 # ------------------------------------------------------------------------------------------------------
 
 class BLMProteinComplex(CompositenSLDObj):
-    """Composite bilayer/protein model
+    """
+    Composite bilayer/protein model
 
     Requires:
     blm: list of at least one bilayer object (BLM or its subclasses)
