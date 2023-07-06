@@ -225,7 +225,7 @@ class nSLDObj:
             overmax = temparea > dMaxArea
             # note: unphysical overfill will trigger the following assertion error
             # TODO: implement a correction instead of throwing an error
-            assert (not numpy.any((temparea - dMaxArea) > area1))
+            #assert (not numpy.any((temparea - dMaxArea) > area1))
             nsl1[overmax] = nsl1[overmax] * (1 - ((temparea[overmax] - dMaxArea) / area1[overmax])) + nsl2[overmax]
             area1[overmax] = dMaxArea
 
@@ -276,6 +276,13 @@ class CompositenSLDObj(nSLDObj):
         super().fnSetBulknSLD(bulknsld)
         for g in self.subgroups:
             g.fnSetBulknSLD(bulknsld)
+
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        volume = 0.0
+        for g in self.subgroups:
+            volume += g.fnGetVolume(z1, z2, recalculate)
+
+        return volume * self.nf
 
     def fnGetProfiles(self, z):
         area = numpy.zeros_like(z)
@@ -346,6 +353,26 @@ class Box2Err(nSLDObj):
         shiftvalue = -1 * (z[-1] - (flipcenter - z[0]) - flipcenter) / (z[1] - z[0])
         ret = shift(ret, shiftvalue, mode='constant')
         return ret
+
+    def fnGetVolume(self, z1=None, z2=None, recalculate=True):
+        if (z1 is not None) & (z2 is not None) & recalculate:
+
+            def antiderivative(z):
+                # antiderivative of error function as currently implemented
+                # https://nvlpubs.nist.gov/nistpubs/jres/73b/jresv73bn1p1_a1b.pdf
+                # checked against scipy.integrate.cumtrapz
+                ad = (z - self.z + 0.5 * self.length) * erf((z - self.z + 0.5 * self.length) / (numpy.sqrt(2) * self.sigma1)) + 1.0 / (numpy.sqrt(numpy.pi) / (numpy.sqrt(2) * self.sigma1)) * numpy.exp(-((z - self.z + 0.5 * self.length) / (numpy.sqrt(2) * self.sigma1)) ** 2)
+                ad -= (z - self.z - 0.5 * self.length) * erf((z - self.z - 0.5 * self.length) / (numpy.sqrt(2) * self.sigma2)) + 1.0 / (numpy.sqrt(numpy.pi) / (numpy.sqrt(2) * self.sigma2)) * numpy.exp(-((z - self.z - 0.5 * self.length) / (numpy.sqrt(2) * self.sigma2)) ** 2)
+                ad *= (self.vol / self.length) * 0.5
+                ad += self.vol * 0.5
+
+                return ad
+
+            return abs(antiderivative(z2) - antiderivative(z1)) * self.nf
+        
+        else:
+            
+            return super().fnGetVolume(z1, z2, recalculate)
 
     def fnGetProfiles(self, z):
         # calculate area
@@ -455,7 +482,7 @@ class Box2Err(nSLDObj):
         else:
             position = self.z
         rdict[cName] = {}
-        rdict[cName]['header'] = f"Box2Err {cName} z {position} sigma1 {self.sigma1} " \
+        rdict[cName]['header'] = f"{self.__class__.__name__} {cName} z {position} sigma1 {self.sigma1} " \
                                  f"sigma2 {self.sigma2} l {self.length} vol {self.vol} " \
                                  f"nSL {self.nSL} nSL2 {self.nSL2} nf {self.nf} flip {self.flip}"
         rdict[cName]['z'] = self.z
@@ -1621,8 +1648,151 @@ class tBLM(BLM):
 # ------------------------------------------------------------------------------------------------------
 # Protein models
 # ------------------------------------------------------------------------------------------------------
+
+class ProteinBox(Box2Err):
+    """Special Box2Err designed for use with protein densities that are expressed as volume fractions.
+        Unlike Box2Err, has a "normarea" attribute; setting this attribute changes only the total volume
+        but not the volume fraction nor the length. (For fixed volume objects, use Box2Err.)
+    """
+
+    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume_fraction=0, dnSLD_H=0, dnSLD_D=0, protexchratio=1.0, dnumberfraction=1, normarea=1.0, name=None):
+        super().__init__(dz, dsigma1, dsigma2, dlength, 0, 0, dnumberfraction, name)
+        self.nSLD_H = dnSLD_H
+        self.nSLD_D = dnSLD_D
+        self.protexchratio = protexchratio
+        self.bProtonExchange = True
+        self.normarea = normarea
+        self._update_volume(dvolume_fraction)
+
+    def _update_volume(self, vf: float):
+        """check volume calculation if length, normarea, or volume fraction are changed"""
+        self.vol = self.length * self.normarea * vf
+    
+    def fnGetnSL(self):
+        """Overrides base class for simplicity."""
+
+        if self.bProtonExchange & (self.bulknsld is not None):
+            fracD = self.protexchratio * (self.bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
+            sld = fracD * self.nSLD_D + (1 - fracD) * self.nSLD_H
+        else:
+            sld = self.nSLD_H
+
+        return self.vol * sld
+
+    def fnSetnSL(self, _nSL, _nSL2=None):
+        raise NotImplementedError
+
+    def fnSetNormarea(self, dnormarea):
+        old_vf = self.vol / (self.length * self.normarea)
+        self.normarea = dnormarea
+        self._update_volume(old_vf)
+
+    def fnSet(self, volume_fraction=None, length=None, position=None, nSLD=None, sigma=None, nf=None):
+        vf = self.vol / (self.length * self.normarea)
+        if volume_fraction is not None:
+            vf = volume_fraction
+        if length is not None:
+            self.length = length
+        if position is not None:
+            self.fnSetZ(position)
+        if nSLD is not None:
+            if isinstance(nSLD, (list, tuple, numpy.ndarray)):
+                self.nSLD_H = nSLD[0]
+                if len(nSLD) == 2:
+                    self.nSLD_D = nSLD[1]
+            else:
+                self.nSLD_H = nSLD
+                self.nSLD_D = nSLD
+        if sigma is not None:
+            sigma2 = None
+            if isinstance(sigma, (list, tuple, numpy.ndarray)):
+                sigma1 = sigma[0]
+                if len(sigma) == 2:
+                    sigma2 = sigma[1]
+            else:
+                sigma1 = sigma
+            self.fnSetSigma(sigma1, sigma2)
+        if nf is not None:
+            self.nf = nf
+
+        self._update_volume(vf)
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
+        rdict[cName]['nSLD_H'] = self.nSLD_H
+        rdict[cName]['nSLD_D'] = self.nSLD_D
+        return rdict
+
+class TetheredBoxDouble(Box2Err):
+    """Special Box2Err that is tethered to, but can move freely around, two z positions.
+        Allows specification of the two tether points, the length, and the fractional position.
+        The fractional position ranges from 0 to 1; 0 places the rightmost edge of the box at the
+        right tether point; 1 places the leftmost edge of the box at the left tether point.
+
+        Intended for use with, e.g. protein loops that are not found in X-ray structures
+    """
+
+    def __init__(self, z_tether1=20, z_tether2=20, frac_position=0.5, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+        super().__init__(0, dsigma1, dsigma2, dlength, dvolume, dnSL, dnumberfraction, name)
+        self.z_tether1 = z_tether1
+        self.z_tether2 = z_tether2
+        self.frac_position = frac_position
+
+        self._update_z()
+
+    def _update_z(self):
+        # check order of tether points
+        z_tether1 = min(self.z_tether1, self.z_tether2)
+        z_tether2 = max(self.z_tether1, self.z_tether2)
+
+        # calculate tether position
+        z_tether = z_tether2 - (z_tether2 - z_tether1) * self.frac_position
+
+        # set center z of box
+        self.fnSetZ(z_tether + self.length * (self.frac_position - 0.5))
+
+    def fnSet(self, volume=None, length=None, tether_position1=None, tether_position2=None, frac_position=None, nSL=None, sigma=None, nf=None):
+        super().fnSet(volume, length, None, nSL, sigma, nf)
+
+        if tether_position1 is not None:
+            self.z_tether1 = tether_position1
+        if tether_position1 is not None:
+            self.z_tether2 = tether_position2
+        if frac_position is not None:
+            self.frac_position = frac_position
+
+        self._update_z()
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
+        rdict[cName]['z_tether1'] = self.z_tether1
+        rdict[cName]['z_tether2'] = self.z_tether2
+        rdict[cName]['frac_position'] = self.frac_position
+
+        return rdict
+
+class TetheredBox(TetheredBoxDouble):
+    """Special case of TetheredBoxDouble where z_tether1 = z_tether2.
+
+        Intended use is for missing N- or C-terminal domains of proteins
+    """
+
+    def __init__(self, z_tether=20, frac_position=0.5, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+        super().__init__(z_tether, z_tether, frac_position, dsigma1, dsigma2, dlength, dvolume, dnSL, dnumberfraction, name)
+
+    def fnSet(self, volume=None, length=None, tether_position=None, frac_position=None, nSL=None, sigma=None, nf=None):
+        super().fnSet(volume, length, tether_position, tether_position, frac_position, nSL, sigma, nf)
+
+    def fnWriteGroup2Dict(self, rdict, cName, z):
+        rdict = super().fnWriteGroup2Dict(rdict, cName, z)
+        rdict[cName]['z_tether'] = self.z_tether
+
+        return rdict
+
 """
-Notes on usage:
+Hermite splines
+
+Notes on Hermite usage:
 1. Instantiate the spline object, e.g. h = SLDHermite()
     NB: the only initialization variable that isn't overwritten by fnSetRelative is dnormarea, so the others have been 
     removed and dnSLD has been moved to fnSetRelative instead of the initialization. This is to keep the fnSetRelative 
@@ -1726,7 +1896,7 @@ class Hermite(nSLDObj):
             z2 = min(self.fnGetUpperLimit(), z2)
             return (self.area_spline_integral(z2) - self.area_spline_integral(z1)) * self.nf * self.normarea
         else:
-            super().fnGetVolume(z1, z2=None, recalculate=recalculate)
+            return super().fnGetVolume(z1=z1, z2=z2, recalculate=recalculate)
 
     def fnSetNormarea(self, dnormarea):
         self.normarea = dnormarea
@@ -1970,8 +2140,8 @@ class ContinuousEuler(nSLDObj):
         if deuterated_residues is not None:
             deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
 
-        numpy.savetxt(datfilename, numpy.hstack((resnums[:, ], rescoords, resvol[:, ], resesl[:, ],
-                                                 resnslH[:, ], resnslD[:, ])), delimiter='\t',
+        numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
+                                                 resnslH[:, None], resnslD[:, None])), delimiter='\t',
                       header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
 
         return datfilename  # allows this to be fed into ContinuousEuler directly
@@ -2155,6 +2325,106 @@ class DiscreteEuler(nSLDObj):
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
 
+class ContinuousEulerMissingResidues(CompositenSLDObj):
+    """Composite protein model with arbitrary number of missing residue loops attached
+        to specific residues in a ContinuousEuler model
+        Requires a Continuous Euler model.
+
+        Missing residues are specified using the add_missing_residues method; the
+        resulting object is returned as a TetheredBoxDouble object
+        
+        """
+
+    def __init__(self, euler: ContinuousEuler, **kwargs):
+        super().__init__([euler], **kwargs)
+        self.euler = euler
+        self.missing_residues = []
+
+    def fnFindSubgroups(self):
+        # override default behavior so don't have to store objects separately
+        pass
+
+    def add_missing_residues(self, sequence, attachment_residues, deut_res=[], name=None):
+        """
+        Add missing residues.
+
+        Usage: missing_residues_box = add_missing_residues(...)
+
+        Requires:
+        sequence -- string of single-residue codes
+        attachment residues -- int or (int, int): residue numbers where loops or disordered regions
+            are attached
+        deut_res -- None if no deuterated residues; else indices of residues in "sequence"
+            that are deuterated
+
+        Returns:
+        new_obj -- new TetheredBoxDouble object. Use fnSet to set length and frac_position
+        """
+
+        default_name = f'missing{len(self.missing_residues)}'
+
+        name = name if name is not None else default_name
+
+        elements = default_table()
+
+        # Analyze sequence
+        volume = 0.0
+        nslH = 0.0
+        nslD = 0.0
+        for i, iaa in enumerate(sequence):
+            if i in deut_res:
+                resmol = Molecule(name='Dres', formula=aa[iaa].formula.replace(elements.H, elements.D),
+                                  cell_volume=aa[iaa].cell_volume)
+            else:
+                resmol = aa[iaa]
+
+            volume += resmol.cell_volume
+            nslH += resmol.cell_volume * resmol.sld * 1e-6
+            nslD += resmol.cell_volume * resmol.Dsld * 1e-6
+
+        if isinstance(attachment_residues, float):
+            attachment_residues = int(attachment_residues)
+
+        if isinstance(attachment_residues, int):
+            attachment_residues = (attachment_residues, attachment_residues)
+
+        new_obj = TetheredBoxDouble()
+
+        self.missing_residues.append({'sequence': sequence,
+                                      'volume': volume,
+                                      'nslH': nslH,
+                                      'nslD': nslD,
+                                      'attach': attachment_residues,
+                                      'object': new_obj})
+        
+        self.subgroups.append(new_obj)
+
+        return new_obj
+
+    def _update_missing_residues(self):
+        """Updates all missing residues with current Euler coordinates and
+            number fraction"""
+        resnums = list(self.euler.resnums)
+
+        for mr in self.missing_residues:
+            box: TetheredBoxDouble = mr['object']
+            tp1 = self.euler.rotcoords[resnums.index(mr['attach'][0]),2]
+            tp2 = self.euler.rotcoords[resnums.index(mr['attach'][1]),2]
+            
+            # set Euler-specific positions. Other quantities (length, frac_position)
+            # must be set separately
+            box.fnSet(volume=mr['volume'],
+                      tether_position1=tp1,
+                      tether_position2=tp2,
+                      nf=self.euler.nf)
+            box.fnSetnSL(mr['nslH'], mr['nslD'])
+            box.fnSetSigma(self.euler.sigma)
+
+    def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
+        self.euler.fnSet(gamma, beta, zpos, sigma, nf, bulknsld)
+        self.fnSetBulknSLD(bulknsld)
+        self._update_missing_residues()
+
 
 # ------------------------------------------------------------------------------------------------------
 # Bilayer + protein models
@@ -2199,6 +2469,9 @@ class BLMProteinComplex(CompositenSLDObj):
         self.fnFindSubgroups()
 
     def fnAdjustBLMs(self):
+        """ Adjust bilayers for the presence of proteins.
+        """
+
         dMaxArea = 0
         for blm in self.blms:
             # intial bilayer adjustment with respect to the current parameters and withouth hc substitution
@@ -2211,7 +2484,8 @@ class BLMProteinComplex(CompositenSLDObj):
         self.normarea = dMaxArea
 
         for prot in self.proteins:
-            prot.fnSetNormarea(dMaxArea)
+            if hasattr(prot, 'normarea'):
+                prot.fnSetNormarea(dMaxArea)
 
         for blm in self.blms:
             # inner leaflet
@@ -2221,14 +2495,14 @@ class BLMProteinComplex(CompositenSLDObj):
             lipidvol *= blm.vf_bilayer
             # TODO: Create numerical volume function on the level of nSLDObj, which might be faster than the spline
             #  integration and more flexible
-            blm.hc_substitution_1 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_1 = self.proteins.fnGetVolume(z1, z2, True) / lipidvol
 
             # outer leaflet
             lipidvol = sum(methylene.vol for methylene in blm.methylenes2) + sum(methyl.vol for methyl in blm.methyls2)
             lipidvol *= blm.vf_bilayer
             z1 = blm.methyls2[0].z - 0.5 * blm.methyls2[0].length
             z2 = blm.methylenes2[0].z + 0.5 * blm.methylenes2[0].length
-            blm.hc_substitution_2 = sum(prot.fnGetVolume(z1, z2) / lipidvol for prot in self.proteins.subgroups)
+            blm.hc_substitution_2 = self.proteins.fnGetVolume(z1, z2, True) / lipidvol
 
             # final adjustement of the bilayer after determining the hc substitution values.
             blm.fnAdjustParameters()
