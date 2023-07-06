@@ -1072,7 +1072,6 @@ class BLM(CompositenSLDObj):
         return rdict
 
 
-'''
 class Monolayer(CompositenSLDObj, BLM):
     def __init__(self, lipids=None, lipid_nf=None, xray_wavelength=None, name='monolayer', **kwargs):
         """
@@ -1207,7 +1206,6 @@ class Monolayer(CompositenSLDObj, BLM):
             rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
 
         return rdict
-'''
 
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
