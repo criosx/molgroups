@@ -29,9 +29,10 @@ def canvas(z, sigma, rho_bulk, irho_bulk, rho_substrate, irho_substrate, rho_pro
     irho_protein *= 1e-6
 
     # protein start position on canvas
-    startz = 20.
+
     substrate.fnSet(nSL=rho_substrate*substrate.vol, sigma=sigma, position=0)
-    protein.fnSetRelative(SPACING, startz-penetration, dDp, dVf, rho_protein, nf_protein)
+    startz = substrate.z + 0.5 * substrate.length
+    protein.fnSetRelative(SPACING, startz+penetration, dDp, dVf, rho_protein, nf_protein)
 
     # Calculate scattering properties of volume occupied by bilayer
     normarea, area, nsl = substrate.fnWriteProfile(z)
@@ -43,7 +44,7 @@ def canvas(z, sigma, rho_bulk, irho_bulk, rho_substrate, irho_substrate, rho_pro
 
     # Fill in the remaining volume with buffer of appropriate nSLD
     nsld = nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * rho_bulk
-    irho = insl / (normarea * np.gradient(z)) * (1.0 - area / normarea) * irho_bulk
+    irho = insl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * irho_bulk
 
     # === Export objects for post analysis ===
     dict1 = substrate.fnWriteGroup2Dict({}, 'substrate', np.arange(dimension) * stepsize)
@@ -73,7 +74,7 @@ for i in range(1, len(dVf)-1):
 dVf[0] = dVf[-1] = 0.0
 
 # Define molecule object
-substrate = mol.Box2Err(dz=10, dsigma1=0, dsigma2=2, dlength=40, dvolume=4000, dnSL=0, dnumberfraction=1, name='air')
+substrate = mol.Box2Err(dz=0, dsigma1=0, dsigma2=2, dlength=40, dvolume=4000, dnSL=0, dnumberfraction=1, name='air')
 substrate.xray = True
 
 # Define molgroups space.
@@ -141,7 +142,7 @@ h2o.irho.range(0.0, 2.0)
 probe = load4('data0.txt', back_reflectivity=True)
 
 # Set instrumental (probe) parameters
-probe.background.range(-1e-10, 1e-5)
+probe.background.range(-1e-12, 1e-8)
 probe.intensity.range(0.8, 1.2)
 probe.theta_offset.range(-0.015, 0.005)
 # probe.sample_broadening.range(-0.005, 0.02)
