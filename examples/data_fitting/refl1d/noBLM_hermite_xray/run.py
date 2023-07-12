@@ -6,8 +6,8 @@ from refl1d.flayer import FunctionalProfile
 
 CONTROLPOINTS = 8
 SPACING = 15.0
-dDp = [None] * CONTROLPOINTS
-dVf = [None] * CONTROLPOINTS
+dDp = [0.0] * CONTROLPOINTS
+dVf = [0.0] * CONTROLPOINTS
 
 
 # === Film structure definition section ===
@@ -39,6 +39,7 @@ def canvas(z, sigma, rho_bulk, irho_bulk, rho_substrate, irho_substrate, rho_pro
     area1 = area
     insl = (normarea * np.gradient(z)) * (area / normarea) * irho_substrate
 
+    protein.fnSetNormarea(normarea)
     area, nsl = protein.fnOverlayProfile(z, area, nsl, normarea)
     insl += (normarea * np.gradient(z)) * ((area-area1) / normarea) * irho_protein
 
