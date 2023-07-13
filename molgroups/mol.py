@@ -2162,7 +2162,7 @@ class ContinuousEuler(nSLDObj):
             volume = numpy.histogram(self.rotcoords[:, 2], bins=[z1, z2], weights=self.resscatter[:, 0])[0][0]
             return volume * self.nf
 
-    def fnSet(self, gamma, beta, zpos, sigma, nf, bulknsld=None):
+    def fnSet(self, gamma=0., beta=0., zpos=0., sigma=2.0, nf=1.0, bulknsld=None):
         self.gamma = gamma
         self.beta = beta
         self.z = zpos
