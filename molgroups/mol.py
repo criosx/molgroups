@@ -21,6 +21,71 @@ D2O_SLD *= 1e-6
 H2O_SLD *= 1e-6
 
 
+def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
+              deuterated_residues=None, xray_wavelength=1.5418):
+    """
+    Creates an 8-column data file for use with ContinuousEuler from a pdb file\
+    with optional selection. "center_of_mass" is the position in space at which to position the
+    molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
+    """
+    if deuterated_residues is None:
+        deuterated_residues = []
+
+    elements = default_table()
+
+    molec = MDAnalysis.Universe(pdbfilename)
+    sel = molec.select_atoms(selection)
+    Nres = sel.n_residues
+
+    if not Nres:
+        print('Warning: no atoms selected')
+
+    sel.translate(-sel.center_of_mass() + center_of_mass)
+
+    resnums = []
+    rescoords = []
+    resscatter = []
+    resvol = numpy.zeros(Nres)
+    resesl = numpy.zeros(Nres)
+    resnslH = numpy.zeros(Nres)
+    resnslD = numpy.zeros(Nres)
+    deut_header = ''
+
+    for i in range(Nres):
+        resnum = molec.residues[i].resid
+        resnums.append(resnum)
+        rescoords.append(molec.residues[i].atoms.center_of_mass())
+        key = convert_aa_code(molec.residues[i].resname)
+        if resnum in deuterated_residues:
+            resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D),
+                              cell_volume=aa[key].cell_volume)
+        else:
+            resmol = aa[key]
+        resvol[i] = resmol.cell_volume
+        # TODO: Make new column for xray imaginary part (this is real part only)
+        resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
+        resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
+        resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
+
+    resnums = numpy.array(resnums)
+    rescoords = numpy.array(rescoords)
+
+    average_sldH = numpy.sum(resnslH[:, ]) / numpy.sum(resvol[:, ])
+    average_sldD = numpy.sum(resnslD[:, ]) / numpy.sum(resvol[:, ])
+    average_header = f'Average nSLD in H2O: {average_sldH}\nAverage nSLD in D2O: {average_sldD}\n'
+
+    # replace base value in nsl calculation with proper deuterated scattering length
+    # resnsl = resscatter[:, 2]
+    if deuterated_residues is not None:
+        deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
+
+    numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
+                                             resnslH[:, None], resnslD[:, None])), delimiter='\t',
+                  header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
+
+    return datfilename  # allows this to be fed into ContinuousEuler directly
+
+
 class nSLDObj:
     def __init__(self, name=None):
         self.bWrapping = True
@@ -1788,22 +1853,20 @@ class TetheredBox(TetheredBoxDouble):
 
         return rdict
 
-"""
-Hermite splines
-
-Notes on Hermite usage:
-1. Instantiate the spline object, e.g. h = SLDHermite()
-    NB: the only initialization variable that isn't overwritten by fnSetRelative is dnormarea, so the others have been 
-    removed and dnSLD has been moved to fnSetRelative instead of the initialization. This is to keep the fnSetRelative 
-    function calls similar between Hermite and SLDHermite (except in Hermite nSLD is a constant and in SLDHermite it's 
-    a list of control points)
-2. Set all internal parameters, e.g. damping parameters, monotonic spline, etc.
-3. Call fnSetRelative.
-    NB: for speed, the spline interpolators are stored in the object. Only fnSetRelative will update them!
-"""
-
-
 class Hermite(nSLDObj):
+    """
+    Hermite splines
+
+    Notes on Hermite usage:
+    1. Instantiate the spline object, e.g. h = SLDHermite()
+        NB: the only initialization variable that isn't overwritten by fnSetRelative is dnormarea, so the others have
+        been removed and dnSLD has been moved to fnSetRelative instead of the initialization. This is to keep the
+        fnSetRelative function calls similar between Hermite and SLDHermite (except in Hermite nSLD is a constant and in
+        SLDHermite it's a list of control points)
+    2. Set all internal parameters, e.g. damping parameters, monotonic spline, etc.
+    3. Call fnSetRelative.
+        NB: for speed, the spline interpolators are stored in the object. Only fnSetRelative will update them!
+    """
     def __init__(self, dnormarea=60, name='hermite'):
         super().__init__(name=name)
         self.numberofcontrolpoints = 10
@@ -2080,70 +2143,6 @@ class ContinuousEuler(nSLDObj):
 
         return self.area, self.sl, self.sld
 
-    @staticmethod
-    def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.array([0, 0, 0]),
-                  deuterated_residues=None, xray_wavelength=1.5418):
-        """
-        Creates an 8-column data file for use with ContinuousEuler from a pdb file\
-        with optional selection. "center_of_mass" is the position in space at which to position the
-        molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
-        """
-        if deuterated_residues is None:
-            deuterated_residues = []
-
-        elements = default_table()
-
-        molec = MDAnalysis.Universe(pdbfilename)
-        sel = molec.select_atoms(selection)
-        Nres = sel.n_residues
-
-        if not Nres:
-            print('Warning: no atoms selected')
-
-        sel.translate(-sel.center_of_mass() + center_of_mass)
-
-        resnums = []
-        rescoords = []
-        resscatter = []
-        resvol = numpy.zeros(Nres)
-        resesl = numpy.zeros(Nres)
-        resnslH = numpy.zeros(Nres)
-        resnslD = numpy.zeros(Nres)
-        deut_header = ''
-
-        for i in range(Nres):
-            resnum = molec.residues[i].resid
-            resnums.append(resnum)
-            rescoords.append(molec.residues[i].atoms.center_of_mass())
-            key = convert_aa_code(molec.residues[i].resname)
-            if resnum in deuterated_residues:
-                resmol = Molecule(name='Dres', formula=aa[key].formula.replace(elements.H, elements.D),
-                                  cell_volume=aa[key].cell_volume)
-            else:
-                resmol = aa[key]
-            resvol[i] = resmol.cell_volume
-            # TODO: Make new column for xray imaginary part (this is real part only)
-            resesl[i] = resmol.cell_volume * xray_sld(resmol.formula, wavelength=xray_wavelength)[0] * 1e-6
-            resnslH[i] = resmol.cell_volume * resmol.sld * 1e-6
-            resnslD[i] = resmol.cell_volume * resmol.Dsld * 1e-6
-
-        resnums = numpy.array(resnums)
-        rescoords = numpy.array(rescoords)
-
-        average_sldH = numpy.sum(resnslH[:, ]) / numpy.sum(resvol[:, ])
-        average_sldD = numpy.sum(resnslD[:, ]) / numpy.sum(resvol[:, ])
-        average_header = f'Average nSLD in H2O: {average_sldH}\nAverage nSLD in D2O: {average_sldD}\n'
-
-        # replace base value in nsl calculation with proper deuterated scattering length
-        # resnsl = resscatter[:, 2]
-        if deuterated_residues is not None:
-            deut_header = 'deuterated residues: ' + ', '.join(map(str, deuterated_residues)) + '\n'
-
-        numpy.savetxt(datfilename, numpy.hstack((resnums[:, None], rescoords, resvol[:, None], resesl[:, None],
-                                                 resnslH[:, None], resnslD[:, None])), delimiter='\t',
-                      header=pdbfilename + '\n' + deut_header + average_header + 'resid\tx\ty\tz\tvol\tesl\tnslH\tnslD')
-
-        return datfilename  # allows this to be fed into ContinuousEuler directly
 
     def fnGetVolume(self, z1=None, z2=None, recalculate=True):
         """
@@ -2323,6 +2322,7 @@ class DiscreteEuler(nSLDObj):
         rdict[cName]['nf'] = self.nf
         rdict[cName] = self.fnWriteProfile2Dict(rdict[cName], z)
         return rdict
+
 
 class ContinuousEulerMissingResidues(CompositenSLDObj):
     """Composite protein model with arbitrary number of missing residue loops attached
