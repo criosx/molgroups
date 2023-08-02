@@ -86,7 +86,9 @@ def bilayer_prot(z, sigma, bulknsld, global_rough, rho_substrate, nf_tether, mul
     moldict1 = blm_prot.blms[0].fnWriteGroup2Dict({}, 'bilayer', numpy.arange(DIMENSION) * STEPSIZE)
     moldict2 = blm_prot.proteins[0].fnWriteGroup2Dict({}, 'protein', numpy.arange(DIMENSION) * STEPSIZE)
     problem.moldat = {**moldict1, **moldict2}
-    problem.results = blm_prot.fnWriteResults2Dict({}, 'bilayer')
+    dict3 = blm_prot.blms[0].fnWriteResults2Dict({}, 'substrate')
+    dict4 = blm_prot.proteins[0].fnWriteResults2Dict({}, 'protein')
+    problem.results = {**dict3, **dict4}
 
     # Return nSLD profile in Refl1D units
     return nsld * 1e6
