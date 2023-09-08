@@ -9,11 +9,17 @@ PC = [mol.CompositeHeadgroup, {'components': [cmp.carbonyl_glycerol, cmp.phospha
                                'length': 9.575}]
 
 # Lipids
+DLPE = cmp.Lipid(name='DLPE', headgroup=cmp.pe, tails=2 * [cmp.linoleoyl], methyls=[cmp.methyl])
 DOPC = cmp.Lipid(name='DOPC', headgroup=PC, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
-POPC = cmp.Lipid(name='POPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 DOPS = cmp.Lipid(name='DOPS', headgroup=cmp.ps, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
+DOPE = cmp.Lipid(name='DOPE', headgroup=cmp.pe, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
+DPSM = cmp.Lipid(name='DPSM', headgroup=cmp.sm, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
+PAPC = cmp.Lipid(name='PAPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
+PAPS = cmp.Lipid(name='PAPS', headgroup=cmp.ps, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
+POPC = cmp.Lipid(name='POPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 POPE = cmp.Lipid(name='POPE', headgroup=cmp.pe, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 POPG = cmp.Lipid(name='POPG', headgroup=cmp.pg, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
+POPIP2 = cmp.Lipid(name='POPIP2', headgroup=cmp.pip2, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 chol = cmp.Lipid(name='chol', headgroup=None, tails=[cmp.cholesterol], methyls=None)
 cardiolipin = cmp.Lipid(name='cardiolipin', headgroup=cmp.cardiolipin, tails=4 * [cmp.oleoyl],methyls=[cmp.methyl])
 
