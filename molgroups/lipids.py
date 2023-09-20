@@ -19,6 +19,7 @@ PAPS = cmp.Lipid(name='PAPS', headgroup=cmp.ps, tails=[cmp.palmitoyl, cmp.arachi
 POPC = cmp.Lipid(name='POPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 POPE = cmp.Lipid(name='POPE', headgroup=cmp.pe, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 POPG = cmp.Lipid(name='POPG', headgroup=cmp.pg, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
+POPS = cmp.Lipid(name='POPS', headgroup=cmp.ps, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 POPIP2 = cmp.Lipid(name='POPIP2', headgroup=cmp.pip2, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
 chol = cmp.Lipid(name='chol', headgroup=None, tails=[cmp.cholesterol], methyls=None)
 cardiolipin = cmp.Lipid(name='cardiolipin', headgroup=cmp.cardiolipin, tails=4 * [cmp.oleoyl],methyls=[cmp.methyl])
