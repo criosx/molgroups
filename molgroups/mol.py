@@ -1117,6 +1117,7 @@ class BLM(CompositenSLDObj):
         rdict[cName]['volume_fraction'] = self.vf_bilayer
         rdict[cName]['thickness_inner_leaflet'] = self.l_ihc + self.l_im
         rdict[cName]['thickness_outer_leaflet'] = self.l_ohc + self.l_om
+        rdict[cName]['thickness_total'] = self.l_ohc + self.l_om + self.l_ihc + self.l_im
 
         if self.normarea != 0:
             p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
@@ -1351,7 +1352,7 @@ class ssBLM(BLM):
             rdict[cName] = {}
 
         if self.normarea != 0:
-            p1 = self.substrate.z + 0.5 * self.substrate.length
+            p1 = self.siox.z + 0.5 * self.siox.length
             p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
             rdict[cName]['water in submembrane'] = self.fnGetVolume(p1, p2, recalculate=False)
             rdict[cName]['water in submembrane'] /= (self.normarea * (p2 - p1))
