@@ -111,7 +111,7 @@ pi = Component(name='PI', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, lengt
 pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0)  # diff to molgroups.cc
 # sphingosylphosphorylcholine headgroup of sphingomyelin, called sm for brevity, note that sphingomyelin has an acyl
 # chain attached, but many sm lipids add a second one
-sm = Component(name='SM', formula='C9 H19 N2 O6 P', cell_volume=280., length=10.0)
+sm = Component(name='SM', formula='C9 H19 N2 O6 P', cell_volume=265., length=10.0)
 cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
 
 # standard acyl chains
@@ -120,6 +120,7 @@ palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0,
 linoleoyl = Component(name='linoleoyl', formula='C17 H31', cell_volume=462., length=11.0)
 oleoyl = Component(name='oleoyl', formula='C17 H33', cell_volume=972./2.0, length=11.0)
 phytanoyl = Component(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0, length=11.0)
+steraoyl = Component(name='steraoyl', formula='C17 H35', cell_volume=980./2.0, length=11)
 arachidonoyl = Component(name='arachidonoyl', formula='C19 H31', cell_volume=493., length=11.0)
 
 # cholesterol
