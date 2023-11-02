@@ -102,6 +102,7 @@ phosphate = Component(name='phosphate', formula='PO4', cell_volume=54., length=3
 carbonyl_glycerol = Component(name='carbonyl_glycerol', formula='C5 O4 H5', cell_volume=147., length=4.21)
 
 # standard headgroups
+cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
 pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
 pe = Component(name='PE', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
 pg = Component(name='PG', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
@@ -111,8 +112,9 @@ pi = Component(name='PI', formula='C11 H7 H[1]5 O13 P', cell_volume=370.7, lengt
 pip2 = Component(name='PI(4,5)P2', formula='C11 H7 H[1]5 O19 P3', cell_volume=500., length=12.0)  # diff to molgroups.cc
 # sphingosylphosphorylcholine headgroup of sphingomyelin, called sm for brevity, note that sphingomyelin has an acyl
 # chain attached, but many sm lipids add a second one
-sm = Component(name='SM', formula='C9 H19 N2 O6 P', cell_volume=280., length=10.0)
-cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
+sm = Component(name='SM', formula='C9 H19 N2 O6 P', cell_volume=265., length=10.0)
+tap = Component(name='tap', formula='C8 H14 N O4', cell_volume=190., length=8.0)
+
 
 # standard acyl chains
 myristoyl = Component(name='myristoyl', formula='C13 H27', cell_volume=770./2.0, length=11.0)
@@ -120,6 +122,7 @@ palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0,
 linoleoyl = Component(name='linoleoyl', formula='C17 H31', cell_volume=462., length=11.0)
 oleoyl = Component(name='oleoyl', formula='C17 H33', cell_volume=972./2.0, length=11.0)
 phytanoyl = Component(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0, length=11.0)
+steraoyl = Component(name='steraoyl', formula='C17 H35', cell_volume=980./2.0, length=11)
 arachidonoyl = Component(name='arachidonoyl', formula='C19 H31', cell_volume=493., length=11.0)
 
 # cholesterol
