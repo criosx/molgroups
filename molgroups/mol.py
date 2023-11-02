@@ -6,6 +6,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
 from scipy.signal import peak_widths
 import sys
+import warnings
 
 import MDAnalysis
 from MDAnalysis.lib.util import convert_aa_code
@@ -1999,7 +2000,12 @@ class Hermite(nSLDObj):
         # to avoid costly recalculations, the results are derived from self.area stored after evaluating the profiles
         # this requires evaluating the profiles before calculation of the results, which is usually done
         pos = numpy.argmax(self.area)
-        results = peak_widths(self.area, [pos], rel_height=0.5)
+        # peak_widths often produces a PeakPropertyWarning when the peak prominence is zero
+        # we do not want to handle this situation or alert the user to it
+        # a meaningless result will be obvious (hopefully)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            results = peak_widths(self.area, [pos], rel_height=0.5)
         rdict[cName]['peak position'] = self.zaxis[pos]
         rdict[cName]['FWHM'] = results[0] * (self.zaxis[1] - self.zaxis[0])
         rdict[cName]['COM'] = numpy.sum(self.area * self.zaxis) / numpy.sum(self.area) if numpy.sum(self.area) != 0 else 0
