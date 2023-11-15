@@ -103,6 +103,7 @@ carbonyl_glycerol = Component(name='carbonyl_glycerol', formula='C5 O4 H5', cell
 
 # standard headgroups
 cardiolipin = Component(name='cardiolipin', formula='C13 H15 H[1] O17 P2', cell_volume=684.4, length=9.56)
+lps_short = Component(name='lps_short', formula='C26 N2 H26 O24 P2', cell_volume=900., length=11.0)
 pc = Component(name='PC', formula='C10 H18 O8 N P', cell_volume=331.00, length=9.575)
 pe = Component(name='PE', formula='C7 H9 H[1]3 O8 N P', cell_volume=262., length=7.7)
 pg = Component(name='PG', formula='C8 H10 H[1]2 O10 P', cell_volume=240., length=7.8)
@@ -117,13 +118,15 @@ tap = Component(name='tap', formula='C8 H14 N O4', cell_volume=190., length=8.0)
 
 
 # standard acyl chains
-myristoyl = Component(name='myristoyl', formula='C13 H27', cell_volume=770./2.0, length=11.0)
-palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0, length=11.0)
+arachidonoyl = Component(name='arachidonoyl', formula='C19 H31', cell_volume=493., length=11.0)
 linoleoyl = Component(name='linoleoyl', formula='C17 H31', cell_volume=462., length=11.0)
+lauroyl = Component(name='lauroyl', formula='C11 H23', cell_volume=335, length=11.0)
+myristoyl = Component(name='myristoyl', formula='C13 H27', cell_volume=770./2.0, length=11.0)
 oleoyl = Component(name='oleoyl', formula='C17 H33', cell_volume=972./2.0, length=11.0)
+palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0, length=11.0)
 phytanoyl = Component(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0, length=11.0)
 steraoyl = Component(name='steraoyl', formula='C17 H35', cell_volume=980./2.0, length=11)
-arachidonoyl = Component(name='arachidonoyl', formula='C19 H31', cell_volume=493., length=11.0)
+tridecanoyl = Component(name='tridecanoyl', formula='C12 H25', cell_volume=363.2, length=11.0)
 
 # cholesterol
 cholesterol = Component(name='cholesterol', formula='C27 H45 H[1] O', cell_volume=630., length=11.0)

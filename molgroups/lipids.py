@@ -15,6 +15,9 @@ DOPS = cmp.Lipid(name='DOPS', headgroup=cmp.ps, tails=2 * [cmp.oleoyl], methyls=
 DOPE = cmp.Lipid(name='DOPE', headgroup=cmp.pe, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOTAP = cmp.Lipid(name='DOTAP', headgroup=cmp.tap, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DPSM = cmp.Lipid(name='DPSM', headgroup=cmp.sm, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
+# approximation
+LPS_short = cmp.Lipid(name='LIPID_A', headgroup=cmp.lps_short, tails=2*[cmp.tridecanoyl]+4*[cmp.lauroyl],
+                      methyls=[cmp.methyl])
 PAPC = cmp.Lipid(name='PAPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
 PAPS = cmp.Lipid(name='PAPS', headgroup=cmp.ps, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
 PLPC = cmp.Lipid(name='PLPC', headgroup=PC, tails=[cmp.linoleoyl, cmp.oleoyl], methyls=[cmp.methyl])
