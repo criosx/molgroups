@@ -10,11 +10,15 @@ PC = [mol.CompositeHeadgroup, {'components': [cmp.carbonyl_glycerol, cmp.phospha
 
 # Lipids
 DLPE = cmp.Lipid(name='DLPE', headgroup=cmp.pe, tails=2 * [cmp.linoleoyl], methyls=[cmp.methyl])
+DLPG = cmp.Lipid(name='DLPG', headgroup=cmp.pg, tails=2 * [cmp.lauroyl], methyls=[cmp.methyl])
 DOPC = cmp.Lipid(name='DOPC', headgroup=PC, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOPS = cmp.Lipid(name='DOPS', headgroup=cmp.ps, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOPE = cmp.Lipid(name='DOPE', headgroup=cmp.pe, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOTAP = cmp.Lipid(name='DOTAP', headgroup=cmp.tap, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DPSM = cmp.Lipid(name='DPSM', headgroup=cmp.sm, tails=[cmp.palmitoyl, cmp.oleoyl], methyls=[cmp.methyl])
+# approximation
+LPS_short = cmp.Lipid(name='LIPID_A', headgroup=cmp.lps_short, tails=2*[cmp.tridecanoyl]+4*[cmp.lauroyl],
+                      methyls=[cmp.methyl])
 PAPC = cmp.Lipid(name='PAPC', headgroup=PC, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
 PAPS = cmp.Lipid(name='PAPS', headgroup=cmp.ps, tails=[cmp.palmitoyl, cmp.arachidonoyl], methyls=[cmp.methyl])
 PLPC = cmp.Lipid(name='PLPC', headgroup=PC, tails=[cmp.linoleoyl, cmp.oleoyl], methyls=[cmp.methyl])
