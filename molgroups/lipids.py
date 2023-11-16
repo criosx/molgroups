@@ -10,6 +10,7 @@ PC = [mol.CompositeHeadgroup, {'components': [cmp.carbonyl_glycerol, cmp.phospha
 
 # Lipids
 DLPE = cmp.Lipid(name='DLPE', headgroup=cmp.pe, tails=2 * [cmp.linoleoyl], methyls=[cmp.methyl])
+DLPG = cmp.Lipid(name='DLPG', headgroup=cmp.pg, tails=2 * [cmp.lauroyl], methyls=[cmp.methyl])
 DOPC = cmp.Lipid(name='DOPC', headgroup=PC, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOPS = cmp.Lipid(name='DOPS', headgroup=cmp.ps, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
 DOPE = cmp.Lipid(name='DOPE', headgroup=cmp.pe, tails=2 * [cmp.oleoyl], methyls=[cmp.methyl])
