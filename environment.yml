@@ -1,0 +1,23 @@
+# environment.yml
+name: molgroups310
+channels:
+ - conda-forge
+dependencies:
+ - python==3.10
+ - dill
+ - ipython
+ - jupyterlab
+ - matplotlib
+ - mdanalysis
+ - numpy
+ - periodictable
+ - pip
+ - pandas
+ - scikit-learn
+ - scipy
+ - setuptools
+ - pip:
+   - bumps
+   - refl1d
+   - sasdata
+   - sasmodels
