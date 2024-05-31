@@ -8,9 +8,6 @@ from scipy.signal import peak_widths
 import sys
 import warnings
 
-import MDAnalysis
-from MDAnalysis.lib.util import convert_aa_code
-
 from periodictable.fasta import Molecule, AMINO_ACID_CODES as aa
 from periodictable.core import default_table
 from periodictable.fasta import xray_sld
@@ -29,6 +26,9 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
     with optional selection. "center_of_mass" is the position in space at which to position the
     molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
     """
+    import MDAnalysis
+    from MDAnalysis.lib.util import convert_aa_code
+
     if deuterated_residues is None:
         deuterated_residues = []
 
