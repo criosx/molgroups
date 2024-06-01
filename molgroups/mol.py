@@ -1855,6 +1855,7 @@ class TetheredBox(TetheredBoxDouble):
 
         return rdict
 
+
 class Hermite(nSLDObj):
     """
     Hermite splines
@@ -1896,8 +1897,9 @@ class Hermite(nSLDObj):
             # if no points above trigger, damping doesn't apply
             if len(above_damptrigger) > 0:
                 # does nothing if peaked point is at the end
-                dampfactor[above_damptrigger[0] + 1:] = 1. / (1 + numpy.exp(-2.1 * (self.vf[above_damptrigger[0] + 1:] -
-                    self.dampthreshold) / self.dampFWHM))
+                dampfactor[above_damptrigger[0] + 1:] = 1. / (1 + numpy.exp(-2.1 * (self.vf[above_damptrigger[0] + 1:]
+                                                                                    - self.dampthreshold) /
+                                                                            self.dampFWHM))
                 dampfactor = numpy.cumprod(dampfactor)
 
         self.damp = self.vf * dampfactor
@@ -2568,6 +2570,15 @@ class BLMProteinComplex(CompositenSLDObj):
             rdict[cName]['water in outer headgroups'] = self.fnGetVolume(p5, p6, recalculate=False)
             rdict[cName]['water in outer headgroups'] /= (self.normarea * (p6 - p5))
             rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
+
+            rdict[cName]['total protein [cvo]'] = vprot / self.normarea
+
+            pos = numpy.argmax(self.proteins.area)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                results = peak_widths(self.area, [pos], rel_height=0.5)
+            rdict[cName]['total protein peak from hg'] = self.zaxis[pos] - p6
+            rdict[cName]['total protein FWHM'] = results[0] * (self.zaxis[1] - self.zaxis[0])
 
         return rdict
 
