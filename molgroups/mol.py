@@ -8,9 +8,6 @@ from scipy.signal import peak_widths
 import sys
 import warnings
 
-import MDAnalysis
-from MDAnalysis.lib.util import convert_aa_code
-
 from periodictable.fasta import Molecule, AMINO_ACID_CODES as aa
 from periodictable.core import default_table
 from periodictable.fasta import xray_sld
@@ -29,6 +26,9 @@ def pdbto8col(pdbfilename, datfilename, selection='all', center_of_mass=numpy.ar
     with optional selection. "center_of_mass" is the position in space at which to position the
     molecule's center of mass. "deuterated_residues" is a list of residue IDs for which to use deuterated values
     """
+    import MDAnalysis
+    from MDAnalysis.lib.util import convert_aa_code
+
     if deuterated_residues is None:
         deuterated_residues = []
 
@@ -1118,6 +1118,7 @@ class BLM(CompositenSLDObj):
         rdict[cName]['volume_fraction'] = self.vf_bilayer
         rdict[cName]['thickness_inner_leaflet'] = self.l_ihc + self.l_im
         rdict[cName]['thickness_outer_leaflet'] = self.l_ohc + self.l_om
+        rdict[cName]['thickness_total'] = self.l_ohc + self.l_om + self.l_ihc + self.l_im
 
         if self.normarea != 0:
             p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
@@ -1352,7 +1353,7 @@ class ssBLM(BLM):
             rdict[cName] = {}
 
         if self.normarea != 0:
-            p1 = self.substrate.z + 0.5 * self.substrate.length
+            p1 = self.siox.z + 0.5 * self.siox.length
             p2 = self.headgroups1[0].z - 0.5 * self.headgroups1[0].length
             rdict[cName]['water in submembrane'] = self.fnGetVolume(p1, p2, recalculate=False)
             rdict[cName]['water in submembrane'] /= (self.normarea * (p2 - p1))
