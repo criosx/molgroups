@@ -122,6 +122,7 @@ arachidonoyl = Component(name='arachidonoyl', formula='C19 H31', cell_volume=493
 linoleoyl = Component(name='linoleoyl', formula='C17 H31', cell_volume=462., length=11.0)
 lauroyl = Component(name='lauroyl', formula='C11 H23', cell_volume=335, length=11.0)
 myristoyl = Component(name='myristoyl', formula='C13 H27', cell_volume=770./2.0, length=11.0)
+d_myristoyl = Component(name='myristoyl', formula='C13 D27', cell_volume=770./2.0, length=11.0)
 oleoyl = Component(name='oleoyl', formula='C17 H33', cell_volume=972./2.0, length=11.0)
 palmitoyl = Component(name='palmitoyl', formula='C15 H31', cell_volume=897./2.0, length=11.0)
 phytanoyl = Component(name='phytanoyl', formula='C19 H39', cell_volume=1095./2.0, length=11.0)
@@ -133,6 +134,7 @@ cholesterol = Component(name='cholesterol', formula='C27 H45 H[1] O', cell_volum
 
 # methyl
 methyl = Component(name='methyl', formula='CH3', cell_volume=98.8/2.0, length=11.0)
+dmethyl = Component(name='dmethyl', formula='CD3', cell_volume=98.8/2.0, length=11.0)
 Dmethyl = Component(name='Dmethyl', formula='CD3', cell_volume=98.8/2.0, length=11.0)
 
 # Tether components
