@@ -1886,9 +1886,6 @@ class Hermite(nSLDObj):
         self.vf = numpy.zeros(self.numberofcontrolpoints)
         self.damp = numpy.zeros(self.numberofcontrolpoints)
 
-        # TODO: get the interface with a previous layer correct by defining an erf function at the first control
-        #  point or between the first two control points.
-
     def _apply_damping(self):
         dampfactor = numpy.ones_like(self.vf)
         if self.damping:
@@ -2015,14 +2012,58 @@ class Hermite(nSLDObj):
         rdict[cName]['INT'] = numpy.sum(self.area * numpy.gradient(self.zaxis))
         return rdict
 
+class BoxHermite(Hermite):
+    """Special Hermite class where the first control points define the first half of an error function.
+        Note that this may behave badly if sigma is more than about 1/2 the control point spacing.
+    """
+
+    def __init__(self, dnormarea=60, name='boxhermite'):
+        super().__init__(dnormarea, name)
+
+        # width of spline at previous interface
+        self.sigma = 2.0
+
+        # set number of control points for box. n = 9 keeps errors below 0.1 % (empirically)
+        self.n_box = 21
+
+    def _get_box_spline(self):
+        # finds extra control points corresponding to a generic error function with width sigma
+        new_dp = numpy.linspace(-3, 0, self.n_box, endpoint=True) * self.sigma
+        new_vf = 0.5 * (erf(new_dp / (self.sigma * numpy.sqrt(2))) + 1)
+
+        return new_dp, new_vf
+
+    def _set_area_spline(self):
+        new_dp, new_vf = self._get_box_spline()
+
+        # shift to correct start position
+        new_dp += self.dstartposition
+
+        # scale to volume fraction of first control point
+        new_vf *= self.vf[0]
+
+        # add new control points to user-defined list
+        if len(self.dp) > 1:
+            #self.dp = numpy.hstack((new_dp, self.dp[1:]))
+            #self.vf = numpy.hstack((new_vf, self.vf[1:]))
+            self.vf = numpy.hstack((new_vf[new_dp < (self.dp[1] - self.sigma)], self.vf[1:]))
+            self.dp = numpy.hstack((new_dp[new_dp < (self.dp[1] - self.sigma)], self.dp[1:]))
+
+        else:
+            self.dp = new_dp
+            self.vf = new_vf * self.vf[0]
+
+        return super()._set_area_spline()
+
+    def fnSetRelative(self, dSpacing, dStart, dDp, dVf, dnSLD, dnf, sigma):
+        self.sigma = sigma
+        return super().fnSetRelative(dSpacing, dStart, dDp, dVf, dnSLD, dnf)
+    
 
 class SLDHermite(Hermite):
     def __init__(self, dnormarea, **kwargs):
         super().__init__(dnormarea, **kwargs)
         self.sld = numpy.zeros(self.numberofcontrolpoints)
-
-        # TODO: get the interface with a previous layer correct by defining an erf function at the first control
-        #  point or between the first two control points.
 
     def _set_sld_spline(self):
         if self.monotonic:  # monotone interpolation
