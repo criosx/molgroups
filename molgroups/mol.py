@@ -2017,14 +2017,14 @@ class BoxHermite(Hermite):
         Note that this may behave badly if sigma is more than about 1/2 the control point spacing.
     """
 
-    def __init__(self, dnormarea=60, name='boxhermite'):
+    def __init__(self, dnormarea=60, n_box=21, name='boxhermite'):
         super().__init__(dnormarea, name)
 
         # width of spline at previous interface
         self.sigma = 2.0
 
         # set number of control points for box. n = 9 keeps errors below 0.1 % (empirically)
-        self.n_box = 21
+        self.n_box = n_box
 
     def _get_box_spline(self):
         # finds extra control points corresponding to a generic error function with width sigma
