@@ -1,16 +1,27 @@
 import numpy
+from dataclasses import dataclass, field
 from periodictable.fasta import Molecule, xray_sld
 # in formulas, use H[1] for exchangeable hydrogens, then Molecule.sld, Molecule.Dsld
 # to get limiting slds, or Molecule.D2Osld(D2O_fraction=??) to get arbitrary D2O fraction.
 
-
+@dataclass(init=False)
 class Component(Molecule):
     # Subclasses Molecule to automatically store a component length for use later
     # and calculate total neutron scattering lengths
-    def __init__(self, length=9.575, xray_wavelength=None, **kwargs):
-        super().__init__(**kwargs)
+
+    name: str | None = None
+    formula: str = ''
+    length: float = 9.575
+    xray_wavelength: float | None = None
+    cell_volume: float | None = None
+    density: float | None = None
+    charge: int = 0
+
+    def __init__(self, name, formula, length=9.575, xray_wavelength=None, cell_volume=None, density=None, charge=0):
+        super().__init__(name, formula, cell_volume, density, charge)
         self.length = length
         self.nSLs = self.fnGetnSL(xray_wavelength)
+        self.formula = str(self.formula)
 
     def fnGetnSL(self, xray_wavelength=None):
         if xray_wavelength is None:
@@ -23,8 +34,14 @@ class Component(Molecule):
 null_molecule = Molecule(name=None, formula='', cell_volume=0.0)
 null_component = Component(name=None, formula='', cell_volume=0.0, length=9.575)
 
+@dataclass(init=False)
+class Lipid:
 
-class Lipid(object):
+    headgroup: Component | None = None
+    tails: Component | list[Component] = field(default_factory=list)
+    methyls: Component | list[Component] = field(default_factory=list)
+    name: str | None = None
+
     def __init__(self, headgroup, tails, methyls, name=None):
         # hg = Component object with headgroup information or PC molgroups object
         # tails = List of component objects containing lipid tail information
@@ -32,33 +49,39 @@ class Lipid(object):
         #           that is copied to each tail; OR, None, which uses a null group with
         #           no volume (use with cholesterol). Use methyl=Dmethyl for CD3.
 
-        # tails section
-        n_tails = len(tails)
-        if not isinstance(tails, list):
-            tails = [tails]
-
-        tail_volume = sum([t.cell_volume for t in tails])
-        tail_formula = ' '.join([str(t.formula) for t in tails])
-        tail_length = sum([t.length for t in tails]) / n_tails
-        self.tails = Component(name='tails', formula=tail_formula, cell_volume=tail_volume, length=tail_length)
-
         # headgroup
         self.headgroup = headgroup if headgroup is not None else null_component
 
-        # Create methyl groups
-        if not isinstance(methyls, list):
-            methyls = [methyls]
-        if len(methyls) == 1:
-            methyls = n_tails * methyls
-        assert n_tails == len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' \
-                                            % (len(tails), len(methyls))
+        # if reserialized
+        if isinstance(tails, Component) & isinstance(methyls, Component):
+            self.tails = tails
+            self.methyls = methyls
 
-        # Replace None with null molecule
-        methyls = [m if m is not None else null_component for m in methyls]
-        m_volume = sum([m.cell_volume for m in methyls])
-        m_formula = ' '.join([str(m.formula) for m in methyls])
-        m_length = sum([m.length for m in methyls]) / n_tails
-        self.methyls = Component(name='methyls', formula=m_formula, cell_volume=m_volume, length=m_length)
+        else:
+                # tails section
+            n_tails = len(tails)
+            if not isinstance(tails, list):
+                tails = [tails]
+
+            tail_volume = sum([t.cell_volume for t in tails])
+            tail_formula = ' '.join([str(t.formula) for t in tails])
+            tail_length = sum([t.length for t in tails]) / n_tails
+            self.tails = Component(name='tails', formula=tail_formula, cell_volume=tail_volume, length=tail_length)
+        
+            # Create methyl groups
+            if not isinstance(methyls, list):
+                methyls = [methyls]
+            if len(methyls) == 1:
+                methyls = n_tails * methyls
+            assert n_tails == len(methyls), 'Lipid tails and lipid methyl lists must have equal length, not %i and %i' \
+                                                % (len(tails), len(methyls))
+
+            # Replace None with null molecule
+            methyls = [m if m is not None else null_component for m in methyls]
+            m_volume = sum([m.cell_volume for m in methyls])
+            m_formula = ' '.join([str(m.formula) for m in methyls])
+            m_length = sum([m.length for m in methyls]) / n_tails
+            self.methyls = Component(name='methyls', formula=m_formula, cell_volume=m_volume, length=m_length)
 
         if name is not None:
             self.name = name
