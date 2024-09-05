@@ -58,7 +58,8 @@ class BaseMolgroupsInteractor:
     id: str | None = None
     name: str | None = None
     _molgroup: nSLDObj | None = None
-    _stored_profile: dict[str, np.ndarray] | None = None
+    _stored_profile: dict | None = None
+    _group_names: dict[str, List[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
 
@@ -85,7 +86,7 @@ class BaseMolgroupsInteractor:
 
         pass
 
-    def render(self, z: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
+    def old_render(self, z: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
         """Renders the molecular group to an area and nSL
 
         Args:
@@ -96,12 +97,48 @@ class BaseMolgroupsInteractor:
         """
 
         normarea, area, nsl = self._molgroup.fnWriteProfile(z)
-        self._stored_profile = {'z': z,
-                               'area': area,
-                               'nsl': nsl,
-                               'normarea': normarea}
 
         return normarea, area, nsl
+    
+    def render(self, z: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
+        """Renders the molecular group to an area and nSL and stores result
+
+        Args:
+            z (np.ndarray): spatial domain on which to render molecular group
+
+        Returns:
+            Tuple (float,np.ndarray, np.ndarray): normarea, area, nSL
+        """
+
+        self.store_profile(z)
+        area = self._stored_profile['area']
+        nsl = self._stored_profile['sl']
+        normarea = self._stored_profile['normarea']
+
+        return normarea, area, nsl
+    
+    def store_profile(self, z: np.ndarray) -> dict:
+        """Renders the molecular group and writes to a dict
+
+        Args:
+            z (np.ndarray): spatial domain on which to render molecular group
+
+        Returns:
+            dict: stored profile dictionary
+        """
+
+        self._stored_profile = self._molgroup.fnWriteGroup2Dict(dict(frac_replacement=1), self.name, z)
+        self._stored_profile = self._molgroup.fnWriteProfile2Dict(self._stored_profile, z)
+        self._stored_profile['normarea'] = self._stored_profile['area'].max()
+    
+    def set_group_names(self, group_names: dict[str, List[str]]) -> None:
+        """Sets default group names
+
+        Args:
+            dict[str, List[str]]: group names structure
+        """
+
+        self._group_names = group_names
 
 @dataclass
 class ssBLMInteractor(BaseMolgroupsInteractor):
@@ -126,6 +163,15 @@ class ssBLMInteractor(BaseMolgroupsInteractor):
         super().__post_init__()
         self._molgroup = ssBLM(lipids=self.lipids,
                               lipid_nf=self.lipid_nf)
+
+        n_lipids = len(self.lipids)
+        self._group_names = {'substrate': [f'{self.name}.substrate'],
+                'silicon dioxide': [f'{self.name}.siox'],
+                f'{self.name} inner headgroups': [f'{self.name}.headgroup1_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} inner acyl chains': [f'{self.name}.methylene1_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl1_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} outer acyl chains': [f'{self.name}.methylene2_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl2_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} outer headgroups': [f'{self.name}.headgroup2_{i}' for i in range(1, n_lipids + 1)],
+                }
         
     def update(self, bulknsld: float):
 
@@ -140,19 +186,27 @@ class ssBLMInteractor(BaseMolgroupsInteractor):
             l_submembrane=self.l_submembrane.value,
             vf_bilayer=self.vf_bilayer.value,
             radius_defect=1e8)
-
+        
 # =========================
 
 @dataclass(init=False)
 class MolgroupsLayer(Layer):
+
+    base_group: BaseMolgroupsInteractor
+    add_groups: List[BaseMolgroupsInteractor] = field(default_factory=list)
+    overlay_groups: List[BaseMolgroupsInteractor] = field(default_factory=list)
+    contrast: SLD | None=None
+    overlap: float | Parameter = 20.0
+    thickness: float | Parameter = 0.0
+    name: str | None = None
 
     def __init__(self,
                  base_group: BaseMolgroupsInteractor,
                  add_groups: List[BaseMolgroupsInteractor] = [],
                  overlay_groups: List[BaseMolgroupsInteractor] = [],
                  contrast: SLD | None=None,
-                 overlap: float = 20.0,
-                 thickness: float = 0.0,
+                 overlap: float | Parameter = 20.0,
+                 thickness: float | Parameter = 0.0,
                  name=None) -> None:
 
         self.base_group = base_group
@@ -162,6 +216,7 @@ class MolgroupsLayer(Layer):
 
         if name is None:
             name = self.base_group.name
+        self.overlap = Parameter.default(overlap, name=name+ " overlap")
         self.thickness = Parameter.default(thickness, name=name+" thickness")
         self.interface = Parameter.default(0.0, name=name+" interface")
 
@@ -220,8 +275,7 @@ class MolgroupsLayer(Layer):
 
         # 4c. Scale stored profiles by frac_replacement
         for group in [self.base_group] + self.add_groups:
-            group._stored_profile['area'] /= frac_replacement
-            group._stored_profile['nsl'] /= frac_replacement
+            group._stored_profile['frac_replacement'] = frac_replacement
 
         return normarea, area, nsl        
 
@@ -259,15 +313,128 @@ class MolgroupsLayer(Layer):
         # add buffer slab (better done at sample stack level)
         #slabs.append(rho=self.contrast.rho.value, irho=0.0, w=0.0, sigma=0.0)
 
+    def _get_moldat(self) -> dict:
+        """Gets moldat object for plotting and statistical analysis
+
+        Returns:
+            dict: moldat
+        """
+
+        return {group.name: group._stored_profile
+                    for group in [self.base_group] + self.add_groups + self.overlay_groups}
+
+    def _custom_plot(self):
+
+        import plotly.graph_objs as go
+        from refl1d.webview.server.colors import COLORS
+
+        def hex_to_rgb(hex_string):
+            r_hex = hex_string[1:3]
+            g_hex = hex_string[3:5]
+            b_hex = hex_string[5:7]
+            return int(r_hex, 16), int(g_hex, 16), int(b_hex, 16)
+
+        # compile moldat
+        moldat = {}
+        group_names = {}
+        for group in [self.base_group] + self.add_groups + self.overlay_groups:
+            for k, v in group._group_names.items():
+                # propagate frac_replacement to subgroups
+                for gp in v:
+                    group._stored_profile[gp]['frac_replacement'] = group._stored_profile['frac_replacement']
+
+                # merge group names
+                if k not in group_names.keys():
+                    group_names[k] = []
+                group_names[k] += v
+
+            
+            moldat.update(group._stored_profile)
+
+        # define normarea
+        normarea = self.base_group._stored_profile['normarea']
+
+        fig = go.Figure()
+        traces = []
+        MOD_COLORS = COLORS[1:]
+        color_idx = 1
+        sumarea = 0
+        for lbl, item in group_names.items():
+            area = 0
+            for gp in item:
+                if gp in moldat.keys():
+                    zaxis = moldat[gp]['zaxis']
+                    newarea = moldat[gp]['area'] / moldat[gp]['frac_replacement']
+                    area += np.maximum(0, newarea)
+                else:
+                    print(f'Warning: {gp} not found')
+
+            color = MOD_COLORS[color_idx % len(MOD_COLORS)]
+            plotly_color = ','.join(map(str, hex_to_rgb(color)))
+            traces.append(go.Scatter(x=zaxis,
+                                    y=area / normarea,
+                                    mode='lines',
+                                    name=lbl,
+                                    line=dict(color=color)))
+            traces.append(go.Scatter(x=zaxis,
+                                    y=area / normarea,
+                                    mode='lines',
+                                    line=dict(width=0),
+                                    fill='tozeroy',
+                                    fillcolor=f'rgba({plotly_color},0.3)',
+                                    showlegend=False
+                                    ))
+            color_idx += 1
+            sumarea += area
+
+        color = COLORS[0]
+        plotly_color = ','.join(map(str, hex_to_rgb(color)))
+        
+        traces.append(go.Scatter(x=zaxis,
+                                    y=sumarea / normarea,
+                                    mode='lines',
+                                    name='buffer',
+                                    line=dict(color=color)))
+        traces.append(go.Scatter(x=zaxis,
+                                    y=sumarea / normarea,
+                                    mode='lines',
+                                    line=dict(width=0),
+                                    fill='tonexty',
+                                    fillcolor=f'rgba({plotly_color},0.3)',
+                                    showlegend=False
+                                    ))    
+        traces.append(go.Scatter(x=zaxis,
+                                    y=[1.0] * len(zaxis),
+                                    mode='lines',
+                                    line=dict(color=color, width=0),
+                                    showlegend=False))
+
+        
+        fig.add_traces(traces[::-1])
+
+        fig.update_layout(
+            title='Component Volume Occupancy',
+            template = 'plotly_white',
+            xaxis_title=dict(text='z (Ang)'),
+            yaxis_title=dict(text='volume occupancy')
+        )
+
+        return fig
+
 # =============
 
 @dataclass(init=False)
 class MolgroupsStack(Stack):
 
+    substrate: Stack | Slab
+    molgroups_layer: MolgroupsLayer
+
     def __init__(self,
                  substrate: Stack | Slab,
                  molgroups_layer: MolgroupsLayer,
-                 name="Stack"):
+                 name="MolgroupsStack",
+                 **kw):
+        self.substrate, self.molgroups_layer = substrate, molgroups_layer
         layer_contrast = Slab(material=molgroups_layer.contrast, thickness=0.0000, interface=0.0000)
         if isinstance(substrate, Stack):
             substrate.layers[-1].thickness = substrate.layers[-1].thickness - molgroups_layer.overlap
@@ -285,6 +452,8 @@ class MolgroupsStack(Stack):
 @dataclass(init=False)
 class MolgroupsExperiment(Experiment):
 
+    sample: MolgroupsStack | None = None,
+
     def __init__(self,
                  sample: MolgroupsStack | None = None,
                  probe=None,
@@ -299,6 +468,7 @@ class MolgroupsExperiment(Experiment):
                  version: str | None = None,
                  auto_tag=False):
         super().__init__(sample, probe, name, roughness_limit, dz, dA, step_interfaces, smoothness, interpolation, constraints, version, auto_tag)
+        self._custom_plot = self.sample.molgroups_layer._custom_plot
 
 if __name__ == '__main__':
     from bumps.serialize import serialize, deserialize
@@ -383,8 +553,10 @@ if __name__ == '__main__':
     mexp = MolgroupsExperiment(sample=mstack, probe=QProbe(Q, dQ), dz=1.0)
 
     problem=FitProblem(mexp)
-    print(problem.labels())
 
-    plt.figure()
-    problem.plot()
-    plt.show()
+    setattr(problem, 'custom_plot', mexp._custom_plot)
+    #print(problem.labels())
+
+    #plt.figure()
+    #problem.plot()
+    #plt.show()
