@@ -7,11 +7,11 @@ from periodictable.fasta import Molecule, xray_sld
 @dataclass(init=False)
 class Component(Molecule):
     # Subclasses Molecule to automatically store a component length for use later
-    # and calculate total neutron scattering lengths
+    # and calculate total neutron scattering lengths. Use length=None for Molecule-like behavior
 
     name: str | None = None
     formula: str = ''
-    length: float = 9.575
+    length: float | None = None
     xray_wavelength: float | None = None
     cell_volume: float | None = None
     density: float | None = None
@@ -31,7 +31,7 @@ class Component(Molecule):
 
 
 # null components and molecules for use with bilayer species that do not have headgroups or methyls (e.g. cholesterol)
-null_molecule = Molecule(name=None, formula='', cell_volume=0.0)
+null_molecule = Component(name=None, formula='', cell_volume=0.0, length=None)
 null_component = Component(name=None, formula='', cell_volume=0.0, length=9.575)
 
 @dataclass(init=False)
@@ -88,14 +88,17 @@ class Lipid:
         else:
             self.name = ' + '.join([c.name for c in (tails + [self.headgroup]) if c.name is not None])
 
-
+dataclass(init=False)
 class Tether(Lipid):
     """Subclass of Lipid for use with tether molecules.
         Uses hg field for tether glycerol.
         Tether includes both volume from the surface-attachment group (e.g. thiol)
             and the length of the separating polymer"""
+    
+    tether: Component | None = None
+    tetherg: Component | None = None
 
-    def __init__(self, tether, tetherg, tails, methyls, name=None):
+    def __init__(self, tether=None, tetherg=None, tails=[], methyls=[], name=None):
 
         super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
         self.tether = tether
@@ -113,10 +116,8 @@ def AddMolecules(component_list, length=None):
     total_formula = ' '.join([str(c.formula) for c in component_list])
     total_cell_volume = sum([c.cell_volume for c in component_list])
     total_name = ' + '.join([c.name for c in component_list])
-    if length is None:
-        return Molecule(name=total_name, formula=total_formula, cell_volume=total_cell_volume)
-    else:
-        return Component(name=total_name, formula=total_formula, cell_volume=total_cell_volume, length=length)
+
+    return Component(name=total_name, formula=total_formula, cell_volume=total_cell_volume, length=length)
 
 
 # PC headgroup pieces
@@ -161,12 +162,12 @@ dmethyl = Component(name='dmethyl', formula='CD3', cell_volume=98.8/2.0, length=
 Dmethyl = Component(name='Dmethyl', formula='CD3', cell_volume=98.8/2.0, length=11.0)
 
 # Tether components
-SAc = Molecule(name='thiol acetate', formula='C2H3OS', cell_volume=117.0)
-EO6 = Molecule(name='6x ethylene oxide', formula='(C2H4O)6', cell_volume=360.0)
-tetherg_ether = Molecule(name='tether glycerol ether', formula='C5H9O2', cell_volume=125.40)
+SAc = Component(name='thiol acetate', formula='C2H3OS', cell_volume=117.0)
+EO6 = Component(name='6x ethylene oxide', formula='(C2H4O)6', cell_volume=360.0)
+tetherg_ether = Component(name='tether glycerol ether', formula='C5H9O2', cell_volume=125.40)
 tetherg_ester = carbonyl_glycerol
-ethanoyl = Molecule(name='ethanoyl', formula='C2H5O', cell_volume=(117 - 25.75))
-thiol = Molecule(name='sulfur', formula='S', cell_volume=25.75)
+ethanoyl = Component(name='ethanoyl', formula='C2H5O', cell_volume=(117 - 25.75))
+thiol = Component(name='sulfur', formula='S', cell_volume=25.75)
 SEO6 = AddMolecules([thiol, EO6])
 SAcEO6 = AddMolecules([SAc, EO6])
 
