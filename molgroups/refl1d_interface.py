@@ -13,8 +13,8 @@ from refl1d.flayer import FunctionalProfile
 from refl1d.model import Layer
 from refl1d.probe import QProbe
 
-from molgroups.mol import nSLDObj, ssBLM
-from molgroups.components import Component, Lipid
+from molgroups.mol import nSLDObj, ssBLM, tBLM
+from molgroups.components import Component, Lipid, Tether, bme
 
 def write_groups(groups: List[nSLDObj], labels: List[str], dimension: int, stepsize: float):
     """Return dictionaries with combined output of fnWriteGroup2Dict and fnWriteResults2Dict
@@ -30,25 +30,6 @@ def write_groups(groups: List[nSLDObj], labels: List[str], dimension: int, steps
         resdict = {**resdict, **gp.fnWriteResults2Dict({}, lbl)}
         
     return moldict, resdict
-
-def make_samples(func, substrate, contrasts, **kwargs):
-    """Create samples from combining a substrate stack with a molgroups layer
-    
-        Inputs:
-        func: function used to define FunctionalProfile object. Must have form func(z, bulknsld, *args)
-        substrate: Refl1D Stack or Layer object representing the substrate
-        contrasts: list of buffer materials, e.g. [d2o, h2o]. One sample will be created for each contrast
-        **kwargs: keyword arguments. Must have one keyword argument for each arg in func(..., *args), but
-                  not one for bulknsld"""
-    samples = []
-
-    for contrast in contrasts:
-        mollayer = FunctionalProfile(DIMENSION * STEPSIZE, 0, profile=func, bulknsld=contrast.rho, **kwargs)
-        layer_contrast = Slab(material=contrast, thickness=0.0000, interface=5.0000)
-        samples.append(substrate | mollayer | layer_contrast)
-
-    return samples
-
 
 @dataclass
 class BaseMolgroupsInterface:
@@ -186,7 +167,62 @@ class ssBLMInterface(BaseMolgroupsInterface):
             l_submembrane=self.l_submembrane.value,
             vf_bilayer=self.vf_bilayer.value,
             radius_defect=1e8)
+
+@dataclass
+class tBLMInterface(BaseMolgroupsInterface):
+    """Refl1D interactor for ssBLM class
+    """
+
+    _molgroup: tBLM | None = None
+
+    tether: Tether = field(default_factory=Tether)
+    filler: Component = field(default_factory=lambda: bme)
+    lipids: List[Lipid] = field(default_factory=list)
+    lipid_nf: List[float] = field(default_factory=list)
+    rho_substrate: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
+    vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction bilayer', value=0.9))
+    l_lipid1: Parameter = field(default_factory=lambda: Parameter(name='inner acyl chain thickness', value=10.0))
+    l_lipid2: Parameter = field(default_factory=lambda: Parameter(name='outer acyl chain thickness', value=10.0))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='bilayer roughness', value=5))
+    substrate_rough: Parameter = field(default_factory=lambda: Parameter(name ='substrate roughness', value=5))
+    l_tether: Parameter = field(default_factory=lambda: Parameter(name='tether length', value=10))
+    nf_tether: Parameter = field(default_factory=Parameter(name='number fraction tether', value=0.45)) # number fraction of tether molecules in inner leaflet
+    mult_tether: Parameter = field(default_factory=Parameter(name='bME to tether ratio', value=3)) #ratio of bME to tether molecules at surface
+
+
+    def __post_init__(self):
+        super().__post_init__()
+        self._molgroup = tBLM(tether=self.tether,
+                              filler=self.filler,
+                              lipids=self.lipids,
+                              lipid_nf=self.lipid_nf)
+
+        n_lipids = len(self.lipids)
+        self._group_names = {'substrate': [f'{self.name}.substrate'],
+                f'{self.name} bME': [f'{self.name}.bME'],
+                f'{self.name} tether': [f'{self.name}.tether_bme', f'{self.name}.tether_free', f'{self.name}.tether_hg'],
+                f'{self.name} tether acyl chains': [f'{self.name}.tether_methylene', f'{self.name}.tether_methyl'],
+                f'{self.name} inner headgroups': [f'{self.name}.headgroup1_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} inner acyl chains': [f'{self.name}.methylene1_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl1_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} outer acyl chains': [f'{self.name}.methylene2_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl2_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} outer headgroups': [f'{self.name}.headgroup2_{i}' for i in range(1, n_lipids + 1)],
+                }
         
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSet(sigma=self.sigma.value,
+            bulknsld=bulknsld * 1e-6,
+            global_rough=self.substrate_rough.value,
+            rho_substrate=self.rho_substrate.value * 1e-6,
+            l_lipid1=self.l_lipid1.value,
+            l_lipid2=self.l_lipid2.value,
+            l_tether=self.l_tether.value,
+            vf_bilayer=self.vf_bilayer.value,
+            nf_tether=self.nf_tether.value,
+            mult_tether=self.mult_tether.value,
+            radius_defect=1e8)
+        
+
 # =========================
 
 @dataclass(init=False)
@@ -469,6 +505,29 @@ class MolgroupsExperiment(Experiment):
                  auto_tag=False):
         super().__init__(sample, probe, name, roughness_limit, dz, dA, step_interfaces, smoothness, interpolation, constraints, version, auto_tag)
         self._custom_plot = self.sample.molgroups_layer._custom_plot
+
+def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsExperiment]:
+    """Create samples from combining a substrate stack with a molgroups layer
+    
+        Args:
+            layer_template: molgroups layer template
+            substrate: Refl1D Stack or Layer object representing the substrate
+            contrasts: list of buffer materials, e.g. [d2o, h2o]. One sample will be created for each contrast
+    """
+    samples = []
+
+    for contrast in contrasts:
+        mollayer = MolgroupsLayer(base_group=layer_template.base_group,
+                                  add_groups=layer_template.add_groups,
+                                  overlay_groups=layer_template.overlay_groups,
+                                  contrast=contrast,
+                                  overlap=layer_template.overlap,
+                                  thickness=layer_template.thickness,
+                                  name=contrast.name + ' ' + layer_template.name)
+        samples.append(MolgroupsStack(substrate=substrate,
+                                      molgroups_layer=mollayer))
+
+    return samples
 
 if __name__ == '__main__':
     from bumps.serialize import serialize, deserialize
