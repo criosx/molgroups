@@ -51,7 +51,7 @@ def make_samples(func, substrate, contrasts, **kwargs):
 
 
 @dataclass
-class BaseMolgroupsInteractor:
+class BaseMolgroupsInterface:
     """Base class for interacting with molgroups objects
     """
 
@@ -141,7 +141,7 @@ class BaseMolgroupsInteractor:
         self._group_names = group_names
 
 @dataclass
-class ssBLMInteractor(BaseMolgroupsInteractor):
+class ssBLMInterface(BaseMolgroupsInterface):
     """Refl1D interactor for ssBLM class
     """
 
@@ -192,18 +192,18 @@ class ssBLMInteractor(BaseMolgroupsInteractor):
 @dataclass(init=False)
 class MolgroupsLayer(Layer):
 
-    base_group: BaseMolgroupsInteractor
-    add_groups: List[BaseMolgroupsInteractor] = field(default_factory=list)
-    overlay_groups: List[BaseMolgroupsInteractor] = field(default_factory=list)
+    base_group: BaseMolgroupsInterface
+    add_groups: List[BaseMolgroupsInterface] = field(default_factory=list)
+    overlay_groups: List[BaseMolgroupsInterface] = field(default_factory=list)
     contrast: SLD | None=None
     overlap: float | Parameter = 20.0
     thickness: float | Parameter = 0.0
     name: str | None = None
 
     def __init__(self,
-                 base_group: BaseMolgroupsInteractor,
-                 add_groups: List[BaseMolgroupsInteractor] = [],
-                 overlay_groups: List[BaseMolgroupsInteractor] = [],
+                 base_group: BaseMolgroupsInterface,
+                 add_groups: List[BaseMolgroupsInterface] = [],
+                 overlay_groups: List[BaseMolgroupsInterface] = [],
                  contrast: SLD | None=None,
                  overlap: float | Parameter = 20.0,
                  thickness: float | Parameter = 0.0,
@@ -423,7 +423,7 @@ class MolgroupsLayer(Layer):
 
 # =============
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False)
 class MolgroupsStack(Stack):
 
     substrate: Stack | Slab
@@ -533,7 +533,7 @@ if __name__ == '__main__':
 
     substrate = layer_silicon | layer_siox | layer_cr | layer_gold
 
-    blm = ssBLMInteractor(name='bilayer',
+    blm = ssBLMInterface(name='bilayer',
                           lipids=[DOPC, DOPE],
                           lipid_nf=[0.6, 0.4],
                           l_submembrane=l_submembrane)
