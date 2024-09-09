@@ -95,10 +95,10 @@ class Tether(Lipid):
         Tether includes both volume from the surface-attachment group (e.g. thiol)
             and the length of the separating polymer"""
     
-    tether: Component | None = None
-    tetherg: Component | None = None
+    tether: Component = field(default_factory=lambda: null_component)
+    tetherg: Component = field(default_factory=lambda: null_component)
 
-    def __init__(self, tether=None, tetherg=None, tails=[], methyls=[], name=None):
+    def __init__(self, tether=null_component, tetherg=null_component, headgroup=null_component, tails=[], methyls=[], name=None):
 
         super().__init__(name=name, headgroup=tetherg, tails=tails, methyls=methyls)
         self.tether = tether
