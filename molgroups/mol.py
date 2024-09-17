@@ -188,7 +188,11 @@ class nSLDObj:
                 print('Scalar-defined interval for area calculation requires using a stored profile')
                 sys.exit(1)
             else:
-                zaxis_gradient = numpy.gradient(self.zaxis[numpy.where((z1 <= self.zaxis) & (self.zaxis <= z2))])
+                z_interval = self.zaxis[numpy.where((z1 <= self.zaxis) & (self.zaxis <= z2))]
+                if len(z_interval) > 1:
+                    zaxis_gradient = numpy.gradient(z_interval)
+                else:
+                    return 0.0
         return numpy.sum(area * zaxis_gradient)
 
     def fnGetZ(self):
