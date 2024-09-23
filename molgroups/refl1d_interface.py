@@ -13,7 +13,7 @@ from refl1d.flayer import FunctionalProfile
 from refl1d.model import Layer
 from refl1d.probe import QProbe
 
-from molgroups.mol import nSLDObj, ssBLM, tBLM
+from molgroups.mol import nSLDObj, ssBLM, tBLM, Box2Err
 from molgroups.components import Component, Lipid, Tether, bme
 
 def write_groups(groups: List[nSLDObj], labels: List[str], dimension: int, stepsize: float):
@@ -30,6 +30,8 @@ def write_groups(groups: List[nSLDObj], labels: List[str], dimension: int, steps
         resdict = {**resdict, **gp.fnWriteResults2Dict({}, lbl)}
         
     return moldict, resdict
+
+# =============
 
 @dataclass
 class MolgroupsInterface:
@@ -121,6 +123,8 @@ class MolgroupsInterface:
 
         self._group_names = group_names
 
+# ============= BaseGroup objects ===============
+
 @dataclass
 class BaseGroupInterface(MolgroupsInterface):
     """Interface specifically for base groups, i.e. those that occupy the edges of the molgroups canvas
@@ -128,6 +132,29 @@ class BaseGroupInterface(MolgroupsInterface):
 
     normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1.0))
     overlap: Parameter = field(default_factory=lambda: Parameter(name='overlap', value=20.0))
+
+@dataclass
+class SubstrateInterface(BaseGroupInterface):
+    """Refl1D interface for Box2Err, specifically when used as a base group
+    """
+
+    _molgroup: Box2Err | None = None
+
+    rho: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='substrate roughness', value=2.07))
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self._molgroup = Box2Err(name=self.name)
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSet(volume=self.normarea.value * self.overlap.value * 2.0,
+                             length=2.0 * self.overlap.value,
+                             position=0.0,
+                             sigma=self.sigma.value,
+                             nf=1.0,
+                             nSL=self.normarea.value * self.overlap.value * 2.0 * self.rho.value)
 
 @dataclass
 class ssBLMInterface(BaseGroupInterface):
