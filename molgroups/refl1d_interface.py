@@ -7,6 +7,7 @@ from dataclasses import dataclass, InitVar, field, fields, asdict
 import uuid
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 from refl1d.names import Slab, Stack, Parameter, Experiment, FitProblem, SLD
 from refl1d.flayer import FunctionalProfile
@@ -299,6 +300,8 @@ class MolgroupsLayer(Layer):
         self.magnetism = None
         self.contrast = contrast
 
+        self._penalty = 0.0
+
     def update(self):
 
         # 1. update base_group
@@ -361,18 +364,27 @@ class MolgroupsLayer(Layer):
                 for group in [self.base_group] + self.add_groups + self.overlay_groups
                     for k, p in group._get_parameters().items()}
 
+
+    def penalty(self) -> float:
+
+        return self._penalty
+
     def _filled_profile(self, z):
         """Given area and nSL profiles, fill in the remaining volume with bulk material"""
         
         self.update()
         normarea, area, nsl = self.profile(z)
 
+        # calculate penalty due to overfilling anywhere
+        over_filled = area > normarea
+        self._penalty = trapezoid((area - normarea)[over_filled], z[over_filled])
+
         # Fill in the remaining volume with buffer of appropriate nSLD
         nsld = 1e6 * nsl / (normarea * np.gradient(z)) + (1.0 - area / normarea) * self.contrast.rho.value
 
         # Return nSLD profile in Refl1D units
         return nsld
-    
+
     def render(self, probe, slabs) -> None:
         """Adapted from refl1d.flayer.FunctionalProfile
         """
