@@ -32,7 +32,7 @@ def write_groups(groups: List[nSLDObj], labels: List[str], dimension: int, steps
     return moldict, resdict
 
 @dataclass
-class BaseMolgroupsInterface:
+class MolgroupsInterface:
     """Base class for interacting with molgroups objects
     """
 
@@ -122,7 +122,15 @@ class BaseMolgroupsInterface:
         self._group_names = group_names
 
 @dataclass
-class ssBLMInterface(BaseMolgroupsInterface):
+class BaseGroupInterface(MolgroupsInterface):
+    """Interface specifically for base groups, i.e. those that occupy the edges of the molgroups canvas
+    """
+
+    normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1.0))
+    overlap: Parameter = field(default_factory=lambda: Parameter(name='overlap', value=20.0))
+
+@dataclass
+class ssBLMInterface(BaseGroupInterface):
     """Refl1D interactor for ssBLM class
     """
 
@@ -156,6 +164,8 @@ class ssBLMInterface(BaseMolgroupsInterface):
         
     def update(self, bulknsld: float):
 
+        self._molgroup.substrate.length = 2.0 * self.overlap
+
         self._molgroup.fnSet(sigma=self.sigma.value,
             bulknsld=bulknsld * 1e-6,
             global_rough=self.global_rough.value,
@@ -167,9 +177,11 @@ class ssBLMInterface(BaseMolgroupsInterface):
             l_submembrane=self.l_submembrane.value,
             vf_bilayer=self.vf_bilayer.value,
             radius_defect=1e8)
+        
+        self.normarea.value = self._molgroup.normarea
 
 @dataclass
-class tBLMInterface(BaseMolgroupsInterface):
+class tBLMInterface(BaseGroupInterface):
     """Refl1D interactor for ssBLM class
     """
 
@@ -210,6 +222,8 @@ class tBLMInterface(BaseMolgroupsInterface):
         
     def update(self, bulknsld: float):
 
+        self._molgroup.substrate.length = 2.0 * self.overlap
+
         self._molgroup.fnSet(sigma=self.sigma.value,
             bulknsld=bulknsld * 1e-6,
             global_rough=self.substrate_rough.value,
@@ -222,37 +236,35 @@ class tBLMInterface(BaseMolgroupsInterface):
             mult_tether=self.mult_tether.value,
             radius_defect=1e8)
         
+        self.normarea.value = self._molgroup.normarea
 
 # =========================
 
 @dataclass(init=False)
 class MolgroupsLayer(Layer):
 
-    base_group: BaseMolgroupsInterface
-    add_groups: List[BaseMolgroupsInterface] = field(default_factory=list)
-    overlay_groups: List[BaseMolgroupsInterface] = field(default_factory=list)
+    base_group: BaseGroupInterface
+    add_groups: List[MolgroupsInterface] = field(default_factory=list)
+    overlay_groups: List[MolgroupsInterface] = field(default_factory=list)
     contrast: SLD | None=None
-    overlap: float | Parameter = 20.0
     thickness: float | Parameter = 0.0
     name: str | None = None
 
     def __init__(self,
-                 base_group: BaseMolgroupsInterface,
-                 add_groups: List[BaseMolgroupsInterface] = [],
-                 overlay_groups: List[BaseMolgroupsInterface] = [],
+                 base_group: BaseGroupInterface,
+                 add_groups: List[MolgroupsInterface] = [],
+                 overlay_groups: List[MolgroupsInterface] = [],
                  contrast: SLD | None=None,
-                 overlap: float | Parameter = 20.0,
                  thickness: float | Parameter = 0.0,
                  name=None) -> None:
 
         self.base_group = base_group
         self.add_groups = add_groups
         self.overlay_groups = overlay_groups
-        self.overlap = overlap
 
         if name is None:
             name = self.base_group.name
-        self.overlap = Parameter.default(overlap, name=name+ " overlap")
+
         self.thickness = Parameter.default(thickness, name=name+" thickness")
         self.interface = Parameter.default(0.0, name=name+" interface")
 
@@ -264,9 +276,7 @@ class MolgroupsLayer(Layer):
 
         # 1. update base_group
         self.base_group.update(bulknsld=self.contrast.rho.value)
-        normarea = self.base_group._molgroup.normarea \
-                    if hasattr(self.base_group._molgroup, 'normarea') \
-                        else 1.0
+        normarea = self.base_group.normarea.value
 
         # 2. apply normarea to all remaining objects
         for group in self.add_groups + self.overlay_groups:
@@ -504,9 +514,11 @@ class MolgroupsExperiment(Experiment):
                  version: str | None = None,
                  auto_tag=False):
         super().__init__(sample, probe, name, roughness_limit, dz, dA, step_interfaces, smoothness, interpolation, constraints, version, auto_tag)
-        self._custom_plot = self.sample.molgroups_layer._custom_plot
+        self.register_webview_plot(plot_title='Component Volume Occupancy',
+                                   plot_function=lambda model, problem, state: self.sample.molgroups_layer._custom_plot,
+                                   change_with='parameter')
 
-def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsExperiment]:
+def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsStack]:
     """Create samples from combining a substrate stack with a molgroups layer
     
         Args:
@@ -521,7 +533,6 @@ def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: Li
                                   add_groups=layer_template.add_groups,
                                   overlay_groups=layer_template.overlay_groups,
                                   contrast=contrast,
-                                  overlap=layer_template.overlap,
                                   thickness=layer_template.thickness,
                                   name=contrast.name + ' ' + layer_template.name)
         samples.append(MolgroupsStack(substrate=substrate,
