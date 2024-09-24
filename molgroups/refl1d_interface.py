@@ -50,7 +50,9 @@ class MolgroupsInterface:
         if self.id is None:
             self.id = str(uuid.uuid4())
 
-        for p in self._get_parameters().values():
+        for k, p in self._get_parameters().items():
+            p = Parameter.default(p, name=k)
+            setattr(self, k, p)
             if not p.name.startswith(self.name):
                 p.name = self.name + ' ' + p.name
 
@@ -131,8 +133,15 @@ class BaseGroupInterface(MolgroupsInterface):
     """Interface specifically for base groups, i.e. those that occupy the edges of the molgroups canvas
     """
 
-    normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1.0))
-    overlap: Parameter = field(default_factory=lambda: Parameter(name='overlap', value=20.0))
+    normarea: Parameter | float = 1.0
+    overlap: Parameter | float = 20.0
+
+    def __post_init__(self) -> None:
+
+        self.normarea = Parameter.default(self.normarea, name=f'{self.name} normarea')
+        self.overlap = Parameter.default(self.overlap, name=f'{self.name} overlap')
+
+        super().__post_init__()
 
 @dataclass
 class SubstrateInterface(BaseGroupInterface):
@@ -192,7 +201,7 @@ class ssBLMInterface(BaseGroupInterface):
         
     def update(self, bulknsld: float):
 
-        self._molgroup.substrate.length = 2.0 * self.overlap
+        self._molgroup.substrate.length = 2.0 * self.overlap.value
 
         self._molgroup.fnSet(sigma=self.sigma.value,
             bulknsld=bulknsld * 1e-6,
@@ -250,7 +259,7 @@ class tBLMInterface(BaseGroupInterface):
         
     def update(self, bulknsld: float):
 
-        self._molgroup.substrate.length = 2.0 * self.overlap
+        self._molgroup.substrate.length = 2.0 * self.overlap.value
 
         self._molgroup.fnSet(sigma=self.sigma.value,
             bulknsld=bulknsld * 1e-6,
@@ -339,8 +348,9 @@ class MolgroupsLayer(Layer):
         # 4. Perform overlay
         # 4a. Calculate fraction of base_group + add_groups left after replacement
         frac_replacement = np.ones_like(area)
-        over_filled = (area + overlay_area) > normarea
-        frac_replacement[over_filled] = (area / (normarea - overlay_area))[over_filled]
+        if len(self.overlay_groups):
+            over_filled = (area + overlay_area) > normarea
+            frac_replacement[over_filled] = (area / (normarea - overlay_area))[over_filled]
         
         # 4b. Scale area, nsl by replacement fraction and add
         # in overlay_area, overlay_nsl
@@ -408,10 +418,11 @@ class MolgroupsLayer(Layer):
         return {group.name: group._stored_profile
                     for group in [self.base_group] + self.add_groups + self.overlay_groups}
 
-    def _custom_plot(self):
+    def _custom_plot(self, model, problem, state):
 
         import plotly.graph_objs as go
         from refl1d.webview.server.colors import COLORS
+        from bumps.webview.server.custom_plot import CustomWebviewPlot
 
         def hex_to_rgb(hex_string):
             r_hex = hex_string[1:3]
@@ -501,14 +512,19 @@ class MolgroupsLayer(Layer):
             title='Component Volume Occupancy',
             template = 'plotly_white',
             xaxis_title=dict(text='z (Ang)'),
-            yaxis_title=dict(text='volume occupancy')
+            yaxis_title=dict(text='volume occupancy'),
+            legend=dict(yanchor='top',
+                        xanchor='right',
+                        x=0.99,
+                        y=0.99),
+            yaxis_range=[0, 1]
         )
 
-        return fig
-
+        return CustomWebviewPlot(fig_type='plotly',
+                                 plotdata=fig)
 # =============
 
-@dataclass(init=False, eq=False)
+@dataclass(init=False, eq=False, match_args=False)
 class MolgroupsStack(Stack):
 
     substrate: Stack | Slab
@@ -519,18 +535,19 @@ class MolgroupsStack(Stack):
                  molgroups_layer: MolgroupsLayer,
                  name="MolgroupsStack",
                  **kw):
-        self.substrate, self.molgroups_layer = substrate, molgroups_layer
         layer_contrast = Slab(material=molgroups_layer.contrast, thickness=0.0000, interface=0.0000)
-        if isinstance(substrate, Stack):
-            substrate.layers[-1].thickness = substrate.layers[-1].thickness - molgroups_layer.overlap
-        elif isinstance(substrate, Slab):
-            substrate.thickness = substrate.thickness - molgroups_layer.overlap
+        #if isinstance(substrate, Stack):
+        #    substrate.layers[-1].thickness = substrate.layers[-1].thickness - molgroups_layer.base_group.overlap
+        #elif isinstance(substrate, Slab):
+        #    substrate.thickness = substrate.thickness - molgroups_layer.overlap
         layers = substrate | molgroups_layer | layer_contrast
         super().__init__(base=None, 
                          layers=layers,
                          name=name,
                          interface=None,
                          thickness=None)
+        
+        self.substrate, self.molgroups_layer = substrate, molgroups_layer
 
 # =============
 
@@ -554,7 +571,7 @@ class MolgroupsExperiment(Experiment):
                  auto_tag=False):
         super().__init__(sample, probe, name, roughness_limit, dz, dA, step_interfaces, smoothness, interpolation, constraints, version, auto_tag)
         self.register_webview_plot(plot_title='Component Volume Occupancy',
-                                   plot_function=lambda model, problem, state: self.sample.molgroups_layer._custom_plot,
+                                   plot_function=self.sample.molgroups_layer._custom_plot,
                                    change_with='parameter')
 
 def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsStack]:
