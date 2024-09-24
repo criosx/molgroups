@@ -10,7 +10,7 @@ import numpy as np
 
 from refl1d.names import Parameter
 
-from molgroups.mol import nSLDObj, ssBLM, tBLM, Box2Err
+from molgroups.mol import nSLDObj, ssBLM, tBLM, Box2Err, BoxHermite
 from molgroups.components import Component, Lipid, Tether, bme
 
 @dataclass
@@ -20,6 +20,7 @@ class MolgroupsInterface:
 
     id: str | None = None
     name: str | None = None
+    nf: Parameter = field(default_factory=lambda: Parameter(name='number fraction', value=1))
     _molgroup: nSLDObj | None = None
     _stored_profile: dict | None = None
     _group_names: dict[str, List[str]] = field(default_factory=dict)
@@ -29,11 +30,16 @@ class MolgroupsInterface:
         if self.id is None:
             self.id = str(uuid.uuid4())
 
-        for k, p in self._get_parameters().items():
-            p = Parameter.default(p, name=k)
-            setattr(self, k, p)
-            if not p.name.startswith(self.name):
-                p.name = self.name + ' ' + p.name
+        for f in fields(self):
+            if f.type == Parameter:
+                default_name = f.default_factory().name
+                p = getattr(self, f.name)
+                if hasattr(p, 'name'):
+                    if p.name == default_name:
+                        p.name = f'{self.name} {p.name}'
+                        setattr(self, f.name, p)
+                else:
+                    setattr(self, f.name, Parameter.default(p, name=f'{self.name} {default_name}'))
 
     def _get_parameters(self) -> dict[str, Parameter]:
         """Gets a list of the parameters associated with the interactor
@@ -41,8 +47,23 @@ class MolgroupsInterface:
         Returns:
             List[Parameter]: Parameter list
         """
-        parlist = [f.name for f in fields(self) if f.type == Parameter]
-        return {p: getattr(self, p) for p in parlist}
+
+        pars = {}
+        for f in fields(self):
+            if f.type == Parameter:
+                p = getattr(self, f.name)
+                p = Parameter.default(p, name=f'{self.name} {f.name}')
+                setattr(self, f.name, p)
+                pars.update({f'{self.name} {f.name}': p})
+            elif f.type == List[Parameter]:
+                plist = getattr(self, f.name)
+                for i, p in enumerate(plist):
+                    p = Parameter.default(p, name=f'{self.name} {f.name}{i}')
+                    pars.update({f'{self.name} {f.name}{i}': p})
+                    plist[i] = p
+                setattr(self, f.name, plist)
+
+        return pars
 
     def update(self, bulknsld: float) -> None:
         """Updates the molecular group with current values of the parameters,
@@ -253,3 +274,59 @@ class tBLMInterface(BaseGroupInterface):
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea
+
+class BaseBLMProteinComplexInterface(BaseGroupInterface):
+    pass
+
+# ============= Box-type objects ===============
+
+class ComponentBoxInterface(MolgroupsInterface):
+    pass
+
+class ProteinBoxInterface(MolgroupsInterface):
+    pass
+
+class TetheredBoxInterface(MolgroupsInterface):
+    pass
+
+class TetheredBoxDoubleInterface(MolgroupsInterface):
+    pass
+
+# ============= Spline objects ================
+@dataclass
+class BoxHermiteInterface(MolgroupsInterface):
+    
+    _molgroup: BoxHermite | None = None
+
+    dSpacing: float = 15.0
+    startz: Parameter = field(default_factory=lambda: Parameter(name='start position', value=20))
+    Dp: List[Parameter] = field(default_factory=[])
+    Vf: List[Parameter] = field(default_factory=[])
+    rho: Parameter = field(default_factory=lambda: Parameter(name='rho', value=0.0))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
+
+    def __post_init__(self):
+        self._molgroup = BoxHermite(name=self.name, n_box=21)
+        self._group_names = {f'{self.name}': [f'{self.name}']}
+
+        super().__post_init__()
+
+    def update(self, bulknsld: float) -> None:
+
+        self._molgroup.fnSetRelative(dSpacing=self.dSpacing,
+                                     dStart=self.startz.value,
+                                     dDp=[d.value for d in self.Dp],
+                                     dVf=[d.value for d in self.Vf],
+                                     dnSLD=self.rho.value * 1e-6,
+                                     dnf=self.nf.value,
+                                     sigma=self.sigma.value)
+
+# ============= Euler objects =================
+
+class ContinuousEulerInterface(MolgroupsInterface):
+    pass
+
+# ============= Complex objects ===============
+
+class BaseBLMProteinComplexInterface(BaseGroupInterface):
+    pass
