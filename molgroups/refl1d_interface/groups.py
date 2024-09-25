@@ -24,22 +24,12 @@ class CalculatedReferencePoint(Parameter):
         calculation = Calculation(description=description)
         if function is not None:
             calculation.set_function(function)
-        super().__init__(slot=calculation, fixed=True, name=name, id=id, discrete=discrete, tags=tags, **kw)
+        tags = [] if tags is None else tags
+        super().__init__(slot=calculation, fixed=True, name=name, id=id, discrete=discrete, tags=tags + ['Reference Point'], **kw)
     
     def set_function(self, function: Callable) -> None:
 
         self.slot.set_function(function)
-
-def calculate_center_of_mass(gp: nSLDObj):
-
-    zaxis, area = gp.zaxis, gp.area
-
-    if zaxis is None:
-        return 0.0
-    
-    volume = trapezoid(area, zaxis)
-
-    return trapezoid(area * zaxis, zaxis) / volume if volume else 0.0
 
 @dataclass
 class MolgroupsInterface:
@@ -156,6 +146,15 @@ class MolgroupsInterface:
         """
 
         self._group_names = group_names
+
+    def _center_of_volume(self):
+
+        if self._stored_profile is None:
+            return 0.0
+
+        z, area = self._stored_profile['zaxis'], self._stored_profile['area']
+
+        return trapezoid(area * z, z) / trapezoid(area, z) if np.sum(area) else 0.0
 
 # ============= BaseGroup objects ===============
 
@@ -382,13 +381,13 @@ class BoxHermiteInterface(MolgroupsInterface):
     rho: Parameter = field(default_factory=lambda: Parameter(name='rho', value=0.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
 
-    center_of_mass: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='center_of_mass', description='center of mass'))
+    center_of_volume: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='center_of_volume', description='center of volume'))
 
     def __post_init__(self):
         self._molgroup = BoxHermite(name=self.name, n_box=21)
         self._group_names = {f'{self.name}': [f'{self.name}']}
 
-        self.center_of_mass.set_function(functools.partial(calculate_center_of_mass, self._molgroup))
+        self.center_of_volume.set_function(self._center_of_volume)
 
         super().__post_init__()
 
@@ -402,7 +401,6 @@ class BoxHermiteInterface(MolgroupsInterface):
                                      dnf=self.nf.value,
                                      sigma=self.sigma.value)
         
-
 # ============= Euler objects =================
 
 class ContinuousEulerInterface(MolgroupsInterface):
