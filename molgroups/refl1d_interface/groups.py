@@ -2,16 +2,44 @@
     Uses Refl1D Parameter objects for parameters, thus allowing model serialization
 """
 
-from typing import List
+from typing import List, Tuple, Callable, Dict, TypedDict
 from dataclasses import dataclass, field, fields
 import uuid
+import functools
 
+from bumps.parameter import Uniform, ValueType, Variable
+from bumps.util import Literal
 import numpy as np
 
+from scipy.integrate import trapezoid
 from refl1d.names import Parameter
+from bumps.parameter import Calculation
 
 from molgroups.mol import nSLDObj, ssBLM, tBLM, Box2Err, BoxHermite
 from molgroups.components import Component, Lipid, Tether, bme
+
+class CalculatedReferencePoint(Parameter):
+
+    def __init__(self, function: Callable | None = None, description: str = '', name: str | None = None, id: str | None = None, discrete: bool = False, tags: List[str] | None = None, **kw):
+        calculation = Calculation(description=description)
+        if function is not None:
+            calculation.set_function(function)
+        super().__init__(slot=calculation, fixed=True, name=name, id=id, discrete=discrete, tags=tags, **kw)
+    
+    def set_function(self, function: Callable) -> None:
+
+        self.slot.set_function(function)
+
+def calculate_center_of_mass(gp: nSLDObj):
+
+    zaxis, area = gp.zaxis, gp.area
+
+    if zaxis is None:
+        return 0.0
+    
+    volume = trapezoid(area, zaxis)
+
+    return trapezoid(area * zaxis, zaxis) / volume if volume else 0.0
 
 @dataclass
 class MolgroupsInterface:
@@ -62,6 +90,9 @@ class MolgroupsInterface:
                     pars.update({f'{self.name} {f.name}{i}': p})
                     plist[i] = p
                 setattr(self, f.name, plist)
+            elif f.type == CalculatedReferencePoint:
+                p: CalculatedReferencePoint = getattr(self, f.name)
+                pars.update({f'{self.name} {p.name}': p})
 
         return pars
 
@@ -138,8 +169,8 @@ class BaseGroupInterface(MolgroupsInterface):
 
     def __post_init__(self) -> None:
 
-        self.normarea = Parameter.default(self.normarea, name=f'{self.name} normarea')
-        self.overlap = Parameter.default(self.overlap, name=f'{self.name} overlap')
+        self.normarea = Parameter.default(self.normarea, name=f'{self.name} normarea', fixed=True)
+        self.overlap = Parameter.default(self.overlap, name=f'{self.name} overlap', fixed=True)
 
         super().__post_init__()
 
@@ -153,9 +184,13 @@ class SubstrateInterface(BaseGroupInterface):
     rho: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='substrate roughness', value=2.07))
 
+    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
+
     def __post_init__(self) -> None:
         super().__post_init__()
         self._molgroup = Box2Err(name=self.name)
+
+        self.substrate_surface.set_function(functools.partial(lambda box: box.z + 0.5 * box.length, self._molgroup))
         
     def update(self, bulknsld: float):
 
@@ -185,8 +220,17 @@ class ssBLMInterface(BaseGroupInterface):
     global_rough: Parameter = field(default_factory=lambda: Parameter(name ='substrate roughness', value=5))
     l_submembrane: Parameter = field(default_factory=lambda: Parameter(name='submembrane thickness', value=10))
 
+    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
+    siox_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='siox_surface', description='surface of siox layer'))
+    bilayer_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='bilayer_center', description='center of bilayer'))
+    inner_headgroup_bottom: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
+    inner_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
+    inner_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
+    outer_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
+    outer_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
+
     def __post_init__(self):
-        super().__post_init__()
         self._molgroup = ssBLM(lipids=self.lipids,
                               lipid_nf=self.lipid_nf)
 
@@ -198,7 +242,20 @@ class ssBLMInterface(BaseGroupInterface):
                 f'{self.name} outer acyl chains': [f'{self.name}.methylene2_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl2_{i}' for i in range(1, n_lipids + 1)],
                 f'{self.name} outer headgroups': [f'{self.name}.headgroup2_{i}' for i in range(1, n_lipids + 1)],
                 }
-        
+
+        # connect reference points
+        self.substrate_surface.set_function(functools.partial(lambda blm: blm.substrate.z + 0.5 * blm.substrate.length, self._molgroup))
+        self.siox_surface.set_function(functools.partial(lambda blm: blm.siox.z + 0.5 * blm.siox.length, self._molgroup))
+        self.bilayer_center.set_function(self._molgroup.fnGetCenter)
+        self.inner_headgroup_bottom.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc - blm.av_hg1_l, self._molgroup))
+        self.inner_headgroup_center.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc - 0.5 * blm.av_hg1_l, self._molgroup))
+        self.inner_hydrophobic_interface.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc, self._molgroup))
+        self.outer_hydrophobic_interface.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc, self._molgroup))
+        self.outer_headgroup_center.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + 0.5 * blm.av_hg2_l, self._molgroup))
+        self.outer_headgroup_top.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + blm.av_hg2_l, self._molgroup))
+
+        super().__post_init__()
+
     def update(self, bulknsld: float):
 
         self._molgroup.substrate.length = 2.0 * self.overlap.value
@@ -238,9 +295,17 @@ class tBLMInterface(BaseGroupInterface):
     nf_tether: Parameter = field(default_factory=Parameter(name='number fraction tether', value=0.45)) # number fraction of tether molecules in inner leaflet
     mult_tether: Parameter = field(default_factory=Parameter(name='bME to tether ratio', value=3)) #ratio of bME to tether molecules at surface
 
+    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
+    filler_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='filler_surface', description='surface of filler molecule'))
+    bilayer_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='bilayer_center', description='center of bilayer'))
+    inner_headgroup_bottom: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
+    inner_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
+    inner_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
+    outer_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
+    outer_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
-        super().__post_init__()
         self._molgroup = tBLM(tether=self.tether,
                               filler=self.filler,
                               lipids=self.lipids,
@@ -256,7 +321,19 @@ class tBLMInterface(BaseGroupInterface):
                 f'{self.name} outer acyl chains': [f'{self.name}.methylene2_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl2_{i}' for i in range(1, n_lipids + 1)],
                 f'{self.name} outer headgroups': [f'{self.name}.headgroup2_{i}' for i in range(1, n_lipids + 1)],
                 }
-        
+
+        self.substrate_surface.set_function(functools.partial(lambda blm: blm.substrate.z + 0.5 * blm.substrate.length, self._molgroup))
+        self.filler_surface.set_function(functools.partial(lambda blm: blm.bme.z + 0.5 * blm.bme.length, self._molgroup))
+        self.bilayer_center.set_function(self._molgroup.fnGetCenter)
+        self.inner_headgroup_bottom.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc - blm.av_hg1_l, self._molgroup))
+        self.inner_headgroup_center.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc - 0.5 * blm.av_hg1_l, self._molgroup))
+        self.inner_hydrophobic_interface.set_function(functools.partial(lambda blm: blm.z_ihc - 0.5 * blm.l_ihc, self._molgroup))
+        self.outer_hydrophobic_interface.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc, self._molgroup))
+        self.outer_headgroup_center.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + 0.5 * blm.av_hg2_l, self._molgroup))
+        self.outer_headgroup_top.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + blm.av_hg2_l, self._molgroup))    
+
+        super().__post_init__()
+
     def update(self, bulknsld: float):
 
         self._molgroup.substrate.length = 2.0 * self.overlap.value
@@ -305,9 +382,13 @@ class BoxHermiteInterface(MolgroupsInterface):
     rho: Parameter = field(default_factory=lambda: Parameter(name='rho', value=0.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
 
+    center_of_mass: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='center_of_mass', description='center of mass'))
+
     def __post_init__(self):
         self._molgroup = BoxHermite(name=self.name, n_box=21)
         self._group_names = {f'{self.name}': [f'{self.name}']}
+
+        self.center_of_mass.set_function(functools.partial(calculate_center_of_mass, self._molgroup))
 
         super().__post_init__()
 
@@ -320,6 +401,7 @@ class BoxHermiteInterface(MolgroupsInterface):
                                      dnSLD=self.rho.value * 1e-6,
                                      dnf=self.nf.value,
                                      sigma=self.sigma.value)
+        
 
 # ============= Euler objects =================
 
