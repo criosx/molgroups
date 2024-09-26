@@ -8,4 +8,5 @@ from molgroups.refl1d_interface.groups import (SubstrateInterface,
                                                ssBLMInterface,
                                                tBLMInterface,
                                                BoxHermiteInterface,
-                                               BLMInterface)
+                                               BLMInterface,
+                                               BLMProteinComplexInterface)
