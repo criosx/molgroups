@@ -165,7 +165,8 @@ class BLMInterface(MolgroupsInterface):
     _molgroup: BLM | None = None
 
     lipids: List[Lipid] = field(default_factory=list)
-    lipid_nf: List[float] = field(default_factory=list)
+    inner_lipid_nf: List[Parameter] = field(default_factory=list)
+    outer_lipid_nf: List[Parameter] = field(default_factory=list)
     startz: Parameter = field(default_factory=lambda: Parameter(name='position of inner hydrophobic interface', value=0.9))
     vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction bilayer', value=0.9))
     l_lipid1: Parameter = field(default_factory=lambda: Parameter(name='inner acyl chain thickness', value=10.0))
@@ -182,9 +183,11 @@ class BLMInterface(MolgroupsInterface):
     outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
-        self._molgroup = BLM(lipids=self.lipids,
-                              lipid_nf=self.lipid_nf,
-                              name=self.name)
+        self._molgroup = BLM(inner_lipids=self.lipids,
+                             outer_lipids=self.lipids,
+                             inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
+                             outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
+                             name=self.name)
 
         n_lipids = len(self.lipids)
         self._group_names = {f'{self.name} inner headgroups': [f'{self.name}.headgroup1_{i}' for i in range(1, n_lipids + 1)],
@@ -212,6 +215,8 @@ class BLMInterface(MolgroupsInterface):
             l_lipid1=self.l_lipid1.value,
             l_lipid2=self.l_lipid2.value,
             vf_bilayer=self.vf_bilayer.value,
+            nf_inner_lipids=[p.value for p in self.inner_lipid_nf],
+            nf_outer_lipids=[p.value for p in self.outer_lipid_nf],
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea
@@ -269,7 +274,8 @@ class ssBLMInterface(BaseGroupInterface):
     _molgroup: ssBLM | None = None
 
     lipids: List[Lipid] = field(default_factory=list)
-    lipid_nf: List[float] = field(default_factory=list)
+    inner_lipid_nf: List[Parameter] = field(default_factory=list)
+    outer_lipid_nf: List[Parameter] = field(default_factory=list)
     rho_substrate: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
     rho_siox: Parameter = field(default_factory=lambda: Parameter(name='rho siox', value=3.3))
     l_siox: Parameter = field(default_factory=lambda: Parameter(name='siox thickness', value=10))
@@ -291,9 +297,12 @@ class ssBLMInterface(BaseGroupInterface):
     outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
-        self._molgroup = ssBLM(lipids=self.lipids,
-                              lipid_nf=self.lipid_nf,
-                              name=self.name)
+        print([p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf])
+        self._molgroup = ssBLM(inner_lipids=self.lipids,
+                               outer_lipids=self.lipids,
+                             inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
+                             outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
+                             name=self.name)
 
         n_lipids = len(self.lipids)
         self._group_names = {'substrate': [f'{self.name}.substrate'],
@@ -331,6 +340,8 @@ class ssBLMInterface(BaseGroupInterface):
             l_siox=self.l_siox.value,
             l_submembrane=self.l_submembrane.value,
             vf_bilayer=self.vf_bilayer.value,
+            nf_inner_lipids=[p.value for p in self.inner_lipid_nf],
+            nf_outer_lipids=[p.value for p in self.outer_lipid_nf],
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea
@@ -345,7 +356,8 @@ class tBLMInterface(BaseGroupInterface):
     tether: Tether = field(default_factory=Tether)
     filler: Component = field(default_factory=lambda: bme)
     lipids: List[Lipid] = field(default_factory=list)
-    lipid_nf: List[float] = field(default_factory=list)
+    inner_lipid_nf: List[Parameter] = field(default_factory=list)
+    outer_lipid_nf: List[Parameter] = field(default_factory=list)
     rho_substrate: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
     vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction bilayer', value=0.9))
     l_lipid1: Parameter = field(default_factory=lambda: Parameter(name='inner acyl chain thickness', value=10.0))
@@ -369,8 +381,10 @@ class tBLMInterface(BaseGroupInterface):
     def __post_init__(self):
         self._molgroup = tBLM(tether=self.tether,
                               filler=self.filler,
-                              lipids=self.lipids,
-                              lipid_nf=self.lipid_nf,
+                              inner_lipids=self.lipids,
+                              outer_lipids=self.lipids,
+                              inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
+                              outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
                               name=self.name)
 
         n_lipids = len(self.lipids)
@@ -410,6 +424,8 @@ class tBLMInterface(BaseGroupInterface):
             vf_bilayer=self.vf_bilayer.value,
             nf_tether=self.nf_tether.value,
             mult_tether=self.mult_tether.value,
+            nf_inner_lipids=[p.value for p in self.inner_lipid_nf],
+            nf_outer_lipids=[p.value for p in self.outer_lipid_nf],
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea
