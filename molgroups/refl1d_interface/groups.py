@@ -297,7 +297,6 @@ class ssBLMInterface(BaseGroupInterface):
     outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
-        print([p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf])
         self._molgroup = ssBLM(inner_lipids=self.lipids,
                                outer_lipids=self.lipids,
                              inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
