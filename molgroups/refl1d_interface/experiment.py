@@ -39,6 +39,9 @@ def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: Li
             layer_template: molgroups layer template
             substrate: Refl1D Stack or Layer object representing the substrate
             contrasts: list of buffer materials, e.g. [d2o, h2o]. One sample will be created for each contrast
+
+        Returns:
+            List[MolgroupsStack]: list of samples (MolgroupsStack), one for each contrast
     """
     samples = []
 
