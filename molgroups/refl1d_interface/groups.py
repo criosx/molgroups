@@ -13,7 +13,7 @@ from scipy.integrate import trapezoid
 from refl1d.names import Parameter
 from bumps.parameter import Calculation
 
-from molgroups.mol import nSLDObj, BLM, ssBLM, tBLM, Box2Err, BoxHermite
+from molgroups.mol import nSLDObj, BLM, ssBLM, tBLM, Box2Err, BoxHermite, BLMProteinComplex
 from molgroups.components import Component, Lipid, Tether, bme
 
 class CalculatedReferencePoint(Parameter):
@@ -183,7 +183,8 @@ class BLMInterface(MolgroupsInterface):
 
     def __post_init__(self):
         self._molgroup = BLM(lipids=self.lipids,
-                              lipid_nf=self.lipid_nf)
+                              lipid_nf=self.lipid_nf,
+                              name=self.name)
 
         n_lipids = len(self.lipids)
         self._group_names = {f'{self.name} inner headgroups': [f'{self.name}.headgroup1_{i}' for i in range(1, n_lipids + 1)],
@@ -291,7 +292,8 @@ class ssBLMInterface(BaseGroupInterface):
 
     def __post_init__(self):
         self._molgroup = ssBLM(lipids=self.lipids,
-                              lipid_nf=self.lipid_nf)
+                              lipid_nf=self.lipid_nf,
+                              name=self.name)
 
         n_lipids = len(self.lipids)
         self._group_names = {'substrate': [f'{self.name}.substrate'],
@@ -368,7 +370,8 @@ class tBLMInterface(BaseGroupInterface):
         self._molgroup = tBLM(tether=self.tether,
                               filler=self.filler,
                               lipids=self.lipids,
-                              lipid_nf=self.lipid_nf)
+                              lipid_nf=self.lipid_nf,
+                              name=self.name)
 
         n_lipids = len(self.lipids)
         self._group_names = {'substrate': [f'{self.name}.substrate'],
@@ -410,9 +413,6 @@ class tBLMInterface(BaseGroupInterface):
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea
-
-class BaseBLMProteinComplexInterface(BaseGroupInterface):
-    pass
 
 # ============= Box-type objects ===============
 
@@ -468,5 +468,91 @@ class ContinuousEulerInterface(MolgroupsInterface):
 
 # ============= Complex objects ===============
 
-class BaseBLMProteinComplexInterface(BaseGroupInterface):
-    pass
+@dataclass
+class BLMProteinComplexInterface(BaseGroupInterface):
+    
+    _molgroup: BLMProteinComplex | None = None
+
+    base_blm: ssBLMInterface | tBLMInterface | None = None
+    blms: List[BLMInterface] = field(default_factory=list)
+    proteins: List[ProteinBoxInterface | BoxHermiteInterface] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+
+        self._molgroup = BLMProteinComplex(blms=[blm._molgroup for blm in self.all_blms],
+                                           proteins=[prot._molgroup for prot in self.proteins])
+        
+        # compile group names
+        _group_names = {}
+        for prepend, gplist in zip(['blms', 'proteins'], [self.all_blms, self.proteins]):
+            prepend = f'{self.name}.{prepend}'
+            for gp in gplist:
+                for k, gpnames in gp._group_names.items():
+                    gpnames = [f'{prepend}.{gpname}' for gpname in gpnames]
+                    _group_names.update({k: gpnames})
+        self._group_names = _group_names
+
+        print(self._group_names)
+        #for gp in self.all_blms + self.proteins:
+        #    self._group_names.update(gp._group_names)
+
+        super().__post_init__()
+
+        # tie base group overlap to this overlap, after conversion to a parameter
+        self.base_blm.overlap = self.overlap
+
+    def _get_parameters(self) -> Dict[str, Parameter]:
+
+        pars = {}
+        for gp in self.all_blms + self.proteins:
+            pars.update(gp._get_parameters())
+        return pars
+
+    @property
+    def all_blms(self) -> List[BLMInterface | ssBLMInterface | tBLMInterface]:
+        return [self.base_blm] + self.blms if self.base_blm is not None else self.blms
+
+    def update(self, bulknsld: float) -> None:
+
+        for gp in self.all_blms + self.proteins:
+            gp.update(bulknsld)
+
+        self._molgroup.fnAdjustBLMs()
+        self.normarea.value = self._molgroup.normarea
+
+    def store_profile(self, z: np.ndarray) -> Dict:
+        # special profile storage that takes into account excess density.
+        # TODO: this is somewhat hackish. It might make more sense to have a subclass of MolgroupsLayer that
+        # incorporates this logic
+        super().store_profile(z)
+
+        normarea = self.normarea.value
+        
+        prot_area = np.zeros_like(z)
+        prot_nsl = np.zeros_like(z)
+        for gp in self.proteins:
+            _, area, nsl = gp.render(z)
+            prot_area += area
+            prot_nsl += nsl
+        
+        blm_area = np.zeros_like(z)
+        blm_nsl = np.zeros_like(z)
+        for gp in self.all_blms:
+            _, area, nsl = gp.render(z)
+            blm_area += area
+            blm_nsl += nsl
+        
+        frac_replacement = np.ones_like(area)
+        if len(self.proteins):
+            over_filled = (blm_area + prot_area) > normarea
+            frac_replacement[over_filled] = (blm_area / (normarea - prot_area))[over_filled]
+
+        for blm in self.all_blms:
+            for gplist in blm._group_names.values():
+                for gp in gplist:
+                    self._stored_profile[f'{self.name}.blms.{gp}']['area'] /= frac_replacement
+                    self._stored_profile[f'{self.name}.blms.{gp}']['sl'] /= frac_replacement
+
+        self._stored_profile['area'] = blm_area / frac_replacement + prot_area
+        self._stored_profile['sl'] = blm_nsl / frac_replacement + prot_nsl
+        self._stored_profile['normarea'] = normarea
