@@ -51,7 +51,7 @@ class MolgroupsLayer(Layer):
 
         # 2. apply normarea to all remaining objects
         for group in self.add_groups + self.overlay_groups:
-            if hasattr(group._molgroup, 'normarea'):
+            if hasattr(group._molgroup, 'fnSetNormarea'):
                 group._molgroup.fnSetNormarea(normarea)
         
         # 3. update all remaining objects
