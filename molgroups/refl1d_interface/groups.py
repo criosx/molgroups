@@ -16,6 +16,25 @@ from bumps.parameter import Calculation
 from molgroups.mol import nSLDObj, BLM, ssBLM, tBLM, Box2Err, BoxHermite, BLMProteinComplex
 from molgroups.components import Component, Lipid, Tether, bme
 
+from periodictable.fasta import H2O_SLD, D2O_SLD
+
+def sld_from_bulk(rhoH: float, rhoD: float, bulknsld: float) -> float:
+    """Calculates scattering length density of material with
+        labile hydrogens from bulk nSLD and SLDs in pure water and D2O
+
+    Args:
+        rhoH (float): nSLD in pure H2O
+        rhoD (float): nSLD in pure D2O
+        bulknsld (float): nSLD of bulk water
+
+    Returns:
+        float: nSLD of material 
+    """
+    
+    frac_d2o = (bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
+
+    return rhoH + (rhoD - rhoH) * frac_d2o
+
 class ReferencePoint(Parameter):
 
     def __init__(self, function: Callable | None = None, description: str = '', name: str | None = None, id: str | None = None, discrete: bool = False, tags: List[str] | None = None, **kw):
@@ -448,25 +467,31 @@ class TetheredBoxDoubleInterface(MolgroupsInterface):
 class BoxHermiteInterface(MolgroupsInterface):
     
     _molgroup: BoxHermite | None = None
+    _bulknsld: float = 0.0
 
     dSpacing: float = 15.0
     startz: Parameter = field(default_factory=lambda: Parameter(name='start position', value=20))
     Dp: List[Parameter] = field(default_factory=[])
     Vf: List[Parameter] = field(default_factory=[])
-    rho: Parameter = field(default_factory=lambda: Parameter(name='rho', value=0.0))
+    rhoH: Parameter = field(default_factory=lambda: Parameter(name='rhoH', value=0.0))
+    rhoD: Parameter = field(default_factory=lambda: Parameter(name='rhoD', value=0.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
 
     center_of_volume: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='center_of_volume', description='center of volume'))
+    rho: ReferencePoint = field(default_factory=lambda: ReferencePoint(name=f'nSLD', description='H/D aware nSLD of Hermite'))
 
     def __post_init__(self):
         self._molgroup = BoxHermite(name=self.name, n_box=21)
         self._group_names = {f'{self.name}': [f'{self.name}']}
 
         self.center_of_volume.set_function(self._center_of_volume)
+        self.rho.set_function(functools.partial(lambda self: sld_from_bulk(self.rhoH.value, self.rhoD.value, self._bulknsld), self))
 
         super().__post_init__()
 
     def update(self, bulknsld: float) -> None:
+
+        self._bulknsld = bulknsld
 
         self._molgroup.fnSetRelative(dSpacing=self.dSpacing,
                                      dStart=self.startz.value,
