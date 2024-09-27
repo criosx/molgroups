@@ -12,7 +12,6 @@
         in the copied models.
 """
 from typing import List, Dict, Callable, Tuple
-from functools import partial
 
 import numpy as np
 
@@ -122,6 +121,24 @@ def make_samples(func: Callable,
 
     return samples
 
+class CVOPlot:
+
+    def __init__(self,
+                 z: np.ndarray,
+                 groups: List[nSLDObj],
+                 labels: List[str],
+                 group_names: Dict[str, List[str]],
+                 normarea_group: str | None = None) -> None:
+    
+        self.z = z
+        self.groups = groups
+        self.labels = labels
+        self.group_names = group_names
+        self.normarea_group = normarea_group
+
+    def __call__(self, model, problem, state):
+        return cvo_functionalprofileplot(self.z, self.groups, self.labels,self.group_names, model, problem, state, self.normarea_group)
+
 def register_cvo_plot(model: Experiment,
                   z: np.ndarray,
                   groups: List[nSLDObj],
@@ -145,12 +162,14 @@ def register_cvo_plot(model: Experiment,
             for normalizing area.
     """
 
+    # NOTE: must use lambda here, not functools.partial or CVOPlot
     model.register_webview_plot('Component Volume Occupancy',
-                                partial(cvo_functionalprofileplot,
+                                lambda model, problem, state: cvo_functionalprofileplot(
                                         z,
                                         groups,
                                         labels,
                                         group_names,
+                                        model, problem, state,
                                         normarea_group=normarea_group),
                                 'parameter')
 
