@@ -13,12 +13,14 @@ from scipy.integrate import trapezoid
 from refl1d.names import Parameter
 from bumps.parameter import Calculation
 
-from molgroups.mol import nSLDObj, BLM, ssBLM, tBLM, Box2Err, BoxHermite, BLMProteinComplex
+from molgroups.mol import (nSLDObj, BLM, ssBLM, tBLM, Box2Err,
+                           BoxHermite, BLMProteinComplex, ProteinBox,
+                           ComponentBox)
 from molgroups.components import Component, Lipid, Tether, bme
 
 from periodictable.fasta import H2O_SLD, D2O_SLD
 
-def sld_from_bulk(rhoH: float, rhoD: float, bulknsld: float) -> float:
+def sld_from_bulk(rhoH: float, rhoD: float, bulknsld: float, protexchratio: float = 1.0) -> float:
     """Calculates scattering length density of material with
         labile hydrogens from bulk nSLD and SLDs in pure water and D2O
 
@@ -33,7 +35,7 @@ def sld_from_bulk(rhoH: float, rhoD: float, bulknsld: float) -> float:
     
     frac_d2o = (bulknsld - H2O_SLD) / (D2O_SLD - H2O_SLD)
 
-    return rhoH + (rhoD - rhoH) * frac_d2o
+    return rhoH + protexchratio * (rhoD - rhoH) * frac_d2o
 
 class ReferencePoint(Parameter):
 
@@ -78,6 +80,10 @@ class MolgroupsInterface:
                         setattr(self, f.name, p)
                 else:
                     setattr(self, f.name, Parameter.default(p, name=f'{self.name} {default_name}'))
+            elif f.type == ReferencePoint:
+                p: ReferencePoint = getattr(self, f.name)
+                p.name = f'{self.name} {p.name}'
+                setattr(self, f.name, p)
 
     def _get_parameters(self) -> dict[str, Parameter]:
         """Gets a list of the parameters associated with the interactor
@@ -449,16 +455,132 @@ class tBLMInterface(BaseGroupInterface):
         self.normarea.value = self._molgroup.normarea
 
 # ============= Box-type objects ===============
+@dataclass
+class BoxInterface(MolgroupsInterface):
+    """Refl1D interface for Box2Err
+    """
 
+    _molgroup: Box2Err | None = None
+
+    z: Parameter = field(default_factory=lambda: Parameter(name='center position', value=0))
+    rhoH: Parameter = field(default_factory=lambda: Parameter(name='rho in H2O', value=2.07))
+    rhoD: Parameter = field(default_factory=lambda: Parameter(name='rho in D2O', value=2.07))
+    volume: Parameter = field(default_factory=lambda: Parameter(name='volume', value=10))
+    length: Parameter = field(default_factory=lambda: Parameter(name='length', value=10))
+    sigma_bottom: Parameter = field(default_factory=lambda: Parameter(name='roughness of bottom interface', value=2.5))
+    sigma_top: Parameter = field(default_factory=lambda: Parameter(name='roughness of top interface', value=2.5))
+
+    bottom_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='bottom of box'))
+    top_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='top of box'))
+
+    def __post_init__(self) -> None:
+        self._molgroup = Box2Err(name=self.name)
+
+        self.bottom_surface.set_function(functools.partial(lambda box: box.z - 0.5 * box.length, self._molgroup))
+        self.top_surface.set_function(functools.partial(lambda box: box.z + 0.5 * box.length, self._molgroup))
+
+        super().__post_init__()
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
+        self._molgroup.fnSet(volume=self.volume.value,
+                             length=self.length.value,
+                             position=self.z.value,
+                             sigma=(self.sigma_bottom.value,
+                                    self.sigma_top.value),
+                             nf=self.nf.value,
+                             nSL=(self.volume.value * self.rhoH.value * 1e-6,
+                                  self.volume.value * self.rhoD.value * 1e-6))
+
+@dataclass
 class ComponentBoxInterface(MolgroupsInterface):
-    pass
+    """Refl1D interface for ComponentBox (material defined by a
+        list of fixed volume and fixed nSLD components);
+        adjust volume fraction using nf and normarea, e.g.
+            `component_box.nf = volume_fraction / (component_box.volume / (component_box.length * normarea))`
+    """
 
-class ProteinBoxInterface(MolgroupsInterface):
-    pass
+    _molgroup: ComponentBox | None = None
+    components: List[Component] = field(default_factory=list)
+    diff_components: List[Component] = field(default_factory=list)
+    xray_wavelength: float | None = None
 
+    z: Parameter = field(default_factory=lambda: Parameter(name='center position', value=0))
+    length: Parameter = field(default_factory=lambda: Parameter(name='length', value=10))
+    sigma_bottom: Parameter = field(default_factory=lambda: Parameter(name='roughness of bottom interface', value=2.5))
+    sigma_top: Parameter = field(default_factory=lambda: Parameter(name='roughness of top interface', value=2.5))
+
+    bottom_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='bottom of box'))
+    top_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='top of box'))
+    volume: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='component_volume', description='sum of component volumes'))
+
+    def __post_init__(self) -> None:
+        self._molgroup = ComponentBox(name=self.name,
+                                      components=self.components,
+                                      diffcomponents=self.diff_components,
+                                      xray_wavelength=self.xray_wavelength)
+
+        self.bottom_surface.set_function(functools.partial(lambda box: box.z - 0.5 * box.length, self._molgroup))
+        self.top_surface.set_function(functools.partial(lambda box: box.z + 0.5 * box.length, self._molgroup))
+        self.volume.set_function(functools.partial(lambda box: box.vol, self._molgroup))
+
+        super().__post_init__()
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
+        self._molgroup.fnSet(length=self.length.value,
+                             position=self.z.value,
+                             sigma=(self.sigma_bottom.value, self.sigma_top.value),
+                             nf=self.nf.value)
+
+@dataclass
+class VolumeFractionBoxInterface(MolgroupsInterface):
+    """Refl1D interface for ProteinBox (H/D aware volume fraction box
+        function)
+    """
+
+    _molgroup: ProteinBox | None = None
+
+    z: Parameter = field(default_factory=lambda: Parameter(name='center position', value=0))
+    rhoH: Parameter = field(default_factory=lambda: Parameter(name='rho in H2O', value=2.07))
+    rhoD: Parameter = field(default_factory=lambda: Parameter(name='rho in D2O', value=2.07))
+    proton_exchange_efficiency: Parameter = field(default_factory=lambda: Parameter(name='proton exchange efficiency', value=1.0))
+    volume_fraction: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=10))
+    length: Parameter = field(default_factory=lambda: Parameter(name='length', value=10))
+    sigma_bottom: Parameter = field(default_factory=lambda: Parameter(name='roughness of bottom interface', value=2.5))
+    sigma_top: Parameter = field(default_factory=lambda: Parameter(name='roughness of top interface', value=2.5))
+
+    bottom_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='bottom of box'))
+    top_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bottom_surface', description='top of box'))
+
+    def __post_init__(self) -> None:
+        self._molgroup = ProteinBox(name=self.name)
+
+        self.bottom_surface.set_function(functools.partial(lambda box: box.z - 0.5 * box.length, self._molgroup))
+        self.top_surface.set_function(functools.partial(lambda box: box.z + 0.5 * box.length, self._molgroup))
+
+        super().__post_init__()
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
+        self._molgroup.protexchratio = self.proton_exchange_efficiency.value
+        self._molgroup.fnSet(volume_fraction=self.volume_fraction.value,
+                             nSLD=(self.rhoH.value * 1e-6,
+                                   self.rhoD.value * 1e-6),
+                             length=self.length.value,
+                             position=self.z.value,
+                             sigma=(self.sigma_bottom.value,
+                                    self.sigma_top.value),
+                             nf=self.nf.value)
+
+@dataclass
 class TetheredBoxInterface(MolgroupsInterface):
     pass
 
+@dataclass
 class TetheredBoxDoubleInterface(MolgroupsInterface):
     pass
 
@@ -467,7 +589,6 @@ class TetheredBoxDoubleInterface(MolgroupsInterface):
 class BoxHermiteInterface(MolgroupsInterface):
     
     _molgroup: BoxHermite | None = None
-    _bulknsld: float = 0.0
 
     dSpacing: float = 15.0
     startz: Parameter = field(default_factory=lambda: Parameter(name='start position', value=20))
@@ -475,24 +596,28 @@ class BoxHermiteInterface(MolgroupsInterface):
     Vf: List[Parameter] = field(default_factory=[])
     rhoH: Parameter = field(default_factory=lambda: Parameter(name='rhoH', value=0.0))
     rhoD: Parameter = field(default_factory=lambda: Parameter(name='rhoD', value=0.0))
+    proton_exchange_efficiency: Parameter = field(default_factory=lambda: Parameter(name='proton exchange efficiency', value=1.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
 
-    center_of_volume: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='center_of_volume', description='center of volume'))
-    rho: ReferencePoint = field(default_factory=lambda: ReferencePoint(name=f'nSLD', description='H/D aware nSLD of Hermite'))
+    center_of_volume: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='center of volume', description='center of volume'))
+    rho: ReferencePoint = field(default_factory=lambda: ReferencePoint(name=f'nSLD', description='H/D aware nSLD of spline'))
 
     def __post_init__(self):
         self._molgroup = BoxHermite(name=self.name, n_box=21)
+
+         # protects against initial errors calculation self.rho
+        self._molgroup.fnSetBulknSLD(0.0)
+
         self._group_names = {f'{self.name}': [f'{self.name}']}
 
         self.center_of_volume.set_function(self._center_of_volume)
-        self.rho.set_function(functools.partial(lambda self: sld_from_bulk(self.rhoH.value, self.rhoD.value, self._bulknsld), self))
+        self.rho.set_function(functools.partial(lambda self: sld_from_bulk(self.rhoH.value, self.rhoD.value, self._molgroup.bulknsld * 1e6, self.proton_exchange_efficiency.value), self))
 
         super().__post_init__()
 
     def update(self, bulknsld: float) -> None:
 
-        self._bulknsld = bulknsld
-
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
         self._molgroup.fnSetRelative(dSpacing=self.dSpacing,
                                      dStart=self.startz.value,
                                      dDp=[d.value for d in self.Dp],
@@ -515,14 +640,15 @@ class BLMProteinComplexInterface(BaseGroupInterface):
 
     base_blm: ssBLMInterface | tBLMInterface | None = None
     blms: List[BLMInterface] = field(default_factory=list)
-    proteins: List[ProteinBoxInterface | BoxHermiteInterface] = field(default_factory=list)
+    proteins: List[ComponentBoxInterface | VolumeFractionBoxInterface | BoxHermiteInterface] = field(default_factory=list)
 
     def __post_init__(self) -> None:
 
         self._molgroup = BLMProteinComplex(blms=[blm._molgroup for blm in self.all_blms],
                                            proteins=[prot._molgroup for prot in self.proteins])
         
-        # compile group names
+        # compile group names based on
+        # BLMProteinComplex.fnWriteGroup2Dict
         _group_names = {}
         for prepend, gplist in zip(['blms', 'proteins'], [self.all_blms, self.proteins]):
             prepend = f'{self.name}.{prepend}'
@@ -531,10 +657,6 @@ class BLMProteinComplexInterface(BaseGroupInterface):
                     gpnames = [f'{prepend}.{gpname}' for gpname in gpnames]
                     _group_names.update({k: gpnames})
         self._group_names = _group_names
-
-        print(self._group_names)
-        #for gp in self.all_blms + self.proteins:
-        #    self._group_names.update(gp._group_names)
 
         super().__post_init__()
 
