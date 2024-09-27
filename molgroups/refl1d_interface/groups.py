@@ -16,7 +16,7 @@ from bumps.parameter import Calculation
 from molgroups.mol import nSLDObj, BLM, ssBLM, tBLM, Box2Err, BoxHermite, BLMProteinComplex
 from molgroups.components import Component, Lipid, Tether, bme
 
-class CalculatedReferencePoint(Parameter):
+class ReferencePoint(Parameter):
 
     def __init__(self, function: Callable | None = None, description: str = '', name: str | None = None, id: str | None = None, discrete: bool = False, tags: List[str] | None = None, **kw):
         calculation = Calculation(description=description)
@@ -81,8 +81,8 @@ class MolgroupsInterface:
                     pars.update({f'{self.name} {f.name}{i}': p})
                     plist[i] = p
                 setattr(self, f.name, plist)
-            elif f.type == CalculatedReferencePoint:
-                p: CalculatedReferencePoint = getattr(self, f.name)
+            elif f.type == ReferencePoint:
+                p: ReferencePoint = getattr(self, f.name)
                 pars.update({f'{self.name} {p.name}': p})
 
         return pars
@@ -174,13 +174,13 @@ class BLMInterface(MolgroupsInterface):
     sigma: Parameter = field(default_factory=lambda: Parameter(name='bilayer roughness', value=5))
     normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1))
 
-    bilayer_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='bilayer_center', description='center of bilayer'))
-    inner_headgroup_bottom: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
-    inner_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
-    inner_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
-    outer_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
-    outer_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
-    outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
+    bilayer_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bilayer_center', description='center of bilayer'))
+    inner_headgroup_bottom: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
+    inner_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
+    inner_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
+    outer_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
+    outer_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    outer_headgroup_top: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
         self._molgroup = BLM(inner_lipids=self.lipids,
@@ -248,7 +248,7 @@ class SubstrateInterface(BaseGroupInterface):
     rho: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='substrate roughness', value=2.07))
 
-    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
+    substrate_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='substrate_surface', description='surface of substrate'))
 
     def __post_init__(self) -> None:
         self._molgroup = Box2Err(name=self.name)
@@ -286,15 +286,15 @@ class ssBLMInterface(BaseGroupInterface):
     global_rough: Parameter = field(default_factory=lambda: Parameter(name ='substrate roughness', value=5))
     l_submembrane: Parameter = field(default_factory=lambda: Parameter(name='submembrane thickness', value=10))
 
-    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
-    siox_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='siox_surface', description='surface of siox layer'))
-    bilayer_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='bilayer_center', description='center of bilayer'))
-    inner_headgroup_bottom: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
-    inner_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
-    inner_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
-    outer_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
-    outer_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
-    outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
+    substrate_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='substrate_surface', description='surface of substrate'))
+    siox_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='siox_surface', description='surface of siox layer'))
+    bilayer_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bilayer_center', description='center of bilayer'))
+    inner_headgroup_bottom: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
+    inner_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
+    inner_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
+    outer_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
+    outer_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    outer_headgroup_top: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
         self._molgroup = ssBLM(inner_lipids=self.lipids,
@@ -367,15 +367,15 @@ class tBLMInterface(BaseGroupInterface):
     nf_tether: Parameter = field(default_factory=Parameter(name='number fraction tether', value=0.45)) # number fraction of tether molecules in inner leaflet
     mult_tether: Parameter = field(default_factory=Parameter(name='bME to tether ratio', value=3)) #ratio of bME to tether molecules at surface
 
-    substrate_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='substrate_surface', description='surface of substrate'))
-    filler_surface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='filler_surface', description='surface of filler molecule'))
-    bilayer_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='bilayer_center', description='center of bilayer'))
-    inner_headgroup_bottom: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
-    inner_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
-    inner_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
-    outer_hydrophobic_interface: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
-    outer_headgroup_center: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
-    outer_headgroup_top: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
+    substrate_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='substrate_surface', description='surface of substrate'))
+    filler_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='filler_surface', description='surface of filler molecule'))
+    bilayer_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bilayer_center', description='center of bilayer'))
+    inner_headgroup_bottom: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_bottom', description='bottom of inner headgroups'))
+    inner_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_headgroup_center', description='center of inner headgroups'))
+    inner_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='inner_hydrophobic_interface', description='interface between inner headgroups and acyl chains'))
+    outer_hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_hydrophobic_interface', description='interface between outer headgroups and acyl chains'))
+    outer_headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    outer_headgroup_top: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
 
     def __post_init__(self):
         self._molgroup = tBLM(tether=self.tether,
@@ -456,7 +456,7 @@ class BoxHermiteInterface(MolgroupsInterface):
     rho: Parameter = field(default_factory=lambda: Parameter(name='rho', value=0.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
 
-    center_of_volume: CalculatedReferencePoint = field(default_factory=lambda: CalculatedReferencePoint(name='center_of_volume', description='center of volume'))
+    center_of_volume: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='center_of_volume', description='center of volume'))
 
     def __post_init__(self):
         self._molgroup = BoxHermite(name=self.name, n_box=21)
