@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal, Union, Optional
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -176,3 +176,21 @@ class MolgroupsStack(Stack):
                          thickness=None)
         
         self.substrate, self.molgroups_layer = substrate, molgroups_layer
+
+    def __copy__(self):
+        stack = MolgroupsStack(substrate=self.substrate,
+                               molgroups_layer=self.molgroups_layer)
+        stack.interface = self.interface
+        stack._layers = self._layers[:]
+        stack.thickness = self.thickness
+
+        return stack
+
+    def __getstate__(self):
+        return self.interface, self._layers, self.name, self.thickness, self.substrate, self.molgroups_layer
+
+    def __setstate__(self, state):
+        self.interface, self._layers, self.name, self.thickness, self.substrate, self.molgroups_layer = state
+        # TODO: not clear that this is needed here.  The thickness parameter
+        # from __getstate__ should have a valid expression in it.
+        self._set_thickness()
