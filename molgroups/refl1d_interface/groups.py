@@ -289,7 +289,7 @@ class SubstrateInterface(BaseGroupInterface):
                              position=0.0,
                              sigma=self.sigma.value,
                              nf=1.0,
-                             nSL=self.normarea.value * self.overlap.value * 2.0 * self.rho.value)
+                             nSL=self.normarea.value * self.overlap.value * 2.0 * self.rho.value * 1e-6)
 
 @dataclass
 class ssBLMInterface(BaseGroupInterface):
