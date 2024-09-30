@@ -44,6 +44,8 @@ class ReferencePoint(Parameter):
         if function is not None:
             calculation.set_function(function)
         tags = [] if tags is None else tags
+        kw.pop('fixed', None)
+        kw.pop('slot', None)
         super().__init__(slot=calculation, fixed=True, name=name, id=id, discrete=discrete, tags=tags + ['Reference Point'], **kw)
     
     def set_function(self, function: Callable) -> None:
@@ -303,12 +305,12 @@ class ssBLMInterface(BaseGroupInterface):
     outer_lipid_nf: List[Parameter] = field(default_factory=list)
     rho_substrate: Parameter = field(default_factory=lambda: Parameter(name='rho substrate', value=2.07))
     rho_siox: Parameter = field(default_factory=lambda: Parameter(name='rho siox', value=3.3))
-    l_siox: Parameter = field(default_factory=lambda: Parameter(name='siox thickness', value=10))
+    l_siox: Parameter = field(default_factory=lambda: Parameter(name='siox thickness', value=0.0))
     vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction bilayer', value=0.9))
     l_lipid1: Parameter = field(default_factory=lambda: Parameter(name='inner acyl chain thickness', value=10.0))
     l_lipid2: Parameter = field(default_factory=lambda: Parameter(name='outer acyl chain thickness', value=10.0))
     sigma: Parameter = field(default_factory=lambda: Parameter(name='bilayer roughness', value=5))
-    global_rough: Parameter = field(default_factory=lambda: Parameter(name ='substrate roughness', value=5))
+    substrate_rough: Parameter = field(default_factory=lambda: Parameter(name ='substrate roughness', value=5))
     l_submembrane: Parameter = field(default_factory=lambda: Parameter(name='submembrane thickness', value=10))
 
     substrate_surface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='substrate_surface', description='surface of substrate'))
@@ -356,7 +358,7 @@ class ssBLMInterface(BaseGroupInterface):
 
         self._molgroup.fnSet(sigma=self.sigma.value,
             bulknsld=bulknsld * 1e-6,
-            global_rough=self.global_rough.value,
+            global_rough=self.substrate_rough.value,
             rho_substrate=self.rho_substrate.value * 1e-6,
             rho_siox=self.rho_siox.value * 1e-6,
             l_lipid1=self.l_lipid1.value,
