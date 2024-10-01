@@ -57,6 +57,7 @@ def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: Li
                                   thickness=layer_template.thickness,
                                   name=contrast.name + ' ' + layer_template.name)
         samples.append(MolgroupsStack(substrate=substrate,
-                                      molgroups_layer=mollayer))
+                                      molgroups_layer=mollayer,
+                                      name=mollayer.name))
 
     return samples
