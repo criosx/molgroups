@@ -19,7 +19,7 @@ def hex_to_rgb(hex_string):
 
 from .layers import MolgroupsLayer
 
-def cvo_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None):
+def cvo_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None):
     # component volume occupancy plot
 
     # compile moldat
@@ -117,7 +117,7 @@ def cvo_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: Fi
 
 # =============== Uncertainty plot ================
 
-def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None):
+def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None, n_samples: int = 50):
 
     # TODO: allow groups to label some items as uncertainty groups and use the median or best for others
 
@@ -144,7 +144,14 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
     print('Starting CVO uncertainty calculation...')
     init_time = time.time()
 
-    for pt in state.draw().points[:500]:
+    # condition the points draw (adapted from bumps.errplot.calc_errors_from_state)
+    points = state.draw().points
+    if points.shape[0] < n_samples:
+        n_samples = points.shape[0]
+    points = points[np.random.permutation(len(points) - 1)]
+    points = points[-n_samples:-1]
+
+    for pt in points:
         problem.setp(pt)
         model.update()
         model.nllf()
