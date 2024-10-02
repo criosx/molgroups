@@ -122,7 +122,7 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
     # TODO: allow groups to label some items as uncertainty groups and use the median or best for others
 
     if state is None:
-        return cvo_plot(layer, model, problem, state)
+        return cvo_plot(layer, model, problem)
     
     fig = go.Figure()
     traces = []
