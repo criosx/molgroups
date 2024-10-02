@@ -165,15 +165,10 @@ class MolgroupsInterface:
         self._stored_profile = self._molgroup.fnWriteGroup2Dict(dict(frac_replacement=1), self.name, z)
         self._stored_profile = self._molgroup.fnWriteProfile2Dict(self._stored_profile, z)
         self._stored_profile['normarea'] = self._stored_profile['area'].max()
-    
-    def set_group_names(self, group_names: dict[str, List[str]]) -> None:
-        """Sets default group names
 
-        Args:
-            dict[str, List[str]]: group names structure
-        """
-
-        self._group_names = group_names
+    @property
+    def group_names(self) -> dict[str, List[str]]:
+        return self._group_names
 
     def _center_of_volume(self):
 
@@ -549,7 +544,7 @@ class VolumeFractionBoxInterface(MolgroupsInterface):
     rhoH: Parameter = field(default_factory=lambda: Parameter(name='rho in H2O', value=2.07))
     rhoD: Parameter = field(default_factory=lambda: Parameter(name='rho in D2O', value=2.07))
     proton_exchange_efficiency: Parameter = field(default_factory=lambda: Parameter(name='proton exchange efficiency', value=1.0))
-    volume_fraction: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=10))
+    volume_fraction: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=1))
     length: Parameter = field(default_factory=lambda: Parameter(name='length', value=10))
     sigma_bottom: Parameter = field(default_factory=lambda: Parameter(name='roughness of bottom interface', value=2.5))
     sigma_top: Parameter = field(default_factory=lambda: Parameter(name='roughness of top interface', value=2.5))
