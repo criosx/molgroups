@@ -7,7 +7,7 @@ import functools
 from refl1d.names import Experiment, Stack, SLD
 
 from .layers import MolgroupsStack, MolgroupsLayer
-from .plots import cvo_plot, cvo_uncertainty_plot
+from .plots import cvo_plot, cvo_uncertainty_plot, results_table
 
 @dataclass(init=False)
 class MolgroupsExperiment(Experiment):
@@ -34,7 +34,9 @@ class MolgroupsExperiment(Experiment):
         self.register_webview_plot(plot_title='Component Volume Occupancy Uncertainty',
                                    plot_function=functools.partial(cvo_uncertainty_plot, self.sample.molgroups_layer),
                                    change_with='uncertainty')
-        
+        self.register_webview_plot(plot_title='Statistics table',
+                                   plot_function=functools.partial(results_table, self.sample.molgroups_layer),
+                                   change_with='uncertainty')        
 
 def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsStack]:
     """Create samples from combining a substrate stack with a molgroups layer

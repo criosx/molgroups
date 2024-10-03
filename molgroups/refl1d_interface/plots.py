@@ -1,9 +1,13 @@
 """Plots for the Refl1D webview interface
     Used with MolgroupsExperiment.register_webview_plot
 """
+
+import csv
 import time
 import numpy as np
 import plotly.graph_objs as go
+
+from typing import List, Dict, Tuple
 
 from bumps.dream.state import MCMCDraw
 from bumps.webview.server.custom_plot import CustomWebviewPlot
@@ -277,3 +281,79 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
 
     return CustomWebviewPlot(fig_type='plotly',
                              plotdata=fig)
+
+# ============= Results table =============
+
+def results_table(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None, n_samples: int = 50):
+
+    import io
+    import csv
+    from bumps.dream.stats import credible_interval
+
+    FIELDNAMES = ['origin', 'property', 'lower 95% CI', 'lower 68% CI', 'median', 'upper 68% CI', 'upper 95% CI']
+
+    def combine_results(data: list[dict]) -> dict:
+        # combines a list of identical dicts to a dict of lists having the same structure
+        def combine_identical_dicts(d: dict, combined_dict: dict) -> dict:
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    if k not in combined_dict.keys():
+                        combined_dict[k] = {}
+                    combine_identical_dicts(v, combined_dict[k])
+                elif isinstance(v, list):
+                    if k in combined_dict.keys():
+                        combined_dict[k] += v
+                    else:
+                        combined_dict[k] = v
+                else:
+                    if k in combined_dict.keys():
+                        combined_dict[k] += [v]
+                    else:
+                        combined_dict[k] = [v]
+
+        cd = {}
+        for d in data:
+            combine_identical_dicts(d, cd)
+
+        return cd
+
+    # condition the points draw (adapted from bumps.errplot.calc_errors_from_state)
+    points = state.draw().points
+    if points.shape[0] < n_samples:
+        n_samples = points.shape[0]
+    points = points[np.random.permutation(len(points) - 1)]
+    points = points[-n_samples:-1]
+
+    print('Starting statistical analysis...')
+    init_time = time.time()
+    results: List[dict] = []
+    for pt in points:
+        problem.setp(pt)
+        model.update()
+        model.nllf()
+        iresults = {'parameters': {k: v for k, v in zip(problem.labels(), pt)}}
+        for group in [layer.base_group] + layer.add_groups + layer.overlay_groups:
+            iresults = group._molgroup.fnWriteResults2Dict(iresults, group.name)
+
+        results.append(iresults)
+
+    # walk through keys and combine into lists
+    combined_results = combine_results(results)
+
+    # walk through outer levels of keys and calculate confidence intervals, writing to csv
+    with io.StringIO() as f:
+
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        for origin, v in combined_results.items():
+            for property, vlist in v.items():
+                (median, _), (onesigmam, onesigmap), (twosigmam, twosigmap) = credible_interval(np.array(vlist), (0, 0.68, 0.95))
+                median, onesigmam, onesigmap, twosigmam, twosigmap = (f'{v: 0.4g}' for v in (median, onesigmam, onesigmap, twosigmam, twosigmap))
+                writer.writerow(dict([(fname, value) for fname, value in zip(FIELDNAMES, [origin, property, twosigmam, onesigmam, median, onesigmap, twosigmap])]))
+
+        csv_result = f.getvalue()
+
+    print(f'Statistical analysis done after {time.time() - init_time} seconds')
+
+    return CustomWebviewPlot(fig_type='table',
+                             plotdata=csv_result)
