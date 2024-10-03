@@ -284,13 +284,19 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
 
 # ============= Results table =============
 
-def results_table(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None, n_samples: int = 50):
+def results_table(layer: MolgroupsLayer, model: Experiment | None = None, problem: FitProblem | None = None, state: MCMCDraw | None = None, n_samples: int = 50, report_delta=False):
 
     import io
     import csv
     from bumps.dream.stats import credible_interval
 
-    FIELDNAMES = ['origin', 'property', 'lower 95% CI', 'lower 68% CI', 'median', 'upper 68% CI', 'upper 95% CI']
+    # TODO: Consider whether to include *all* fields (relative or absolute) in the same table. Would require calculating the table only once
+    # and give the same values regardless.
+
+    if report_delta:
+        FIELDNAMES = ['origin', 'property', 'delta lower 95% CI', 'delta lower 68% CI', 'median', 'delta upper 68% CI', 'delta upper 95% CI']
+    else:
+        FIELDNAMES = ['origin', 'property', 'lower 95% CI', 'lower 68% CI', 'median', 'upper 68% CI', 'upper 95% CI']
 
     def combine_results(data: list[dict]) -> dict:
         # combines a list of identical dicts to a dict of lists having the same structure
@@ -348,7 +354,8 @@ def results_table(layer: MolgroupsLayer, model: Experiment | None = None, proble
         for origin, v in combined_results.items():
             for property, vlist in v.items():
                 (median, _), (onesigmam, onesigmap), (twosigmam, twosigmap) = credible_interval(np.array(vlist), (0, 0.68, 0.95))
-                median, onesigmam, onesigmap, twosigmam, twosigmap = (f'{v: 0.4g}' for v in (median, onesigmam, onesigmap, twosigmam, twosigmap))
+                value_delta = median if report_delta else 0.0
+                median, onesigmam, onesigmap, twosigmam, twosigmap = (f'{v - value_delta: 0.4g}' for v in (median + value_delta, onesigmam, onesigmap, twosigmam, twosigmap))
                 writer.writerow(dict([(fname, value) for fname, value in zip(FIELDNAMES, [origin, property, twosigmam, onesigmam, median, onesigmap, twosigmap])]))
 
         csv_result = f.getvalue()

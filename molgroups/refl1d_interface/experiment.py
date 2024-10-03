@@ -35,8 +35,12 @@ class MolgroupsExperiment(Experiment):
                                    plot_function=functools.partial(cvo_uncertainty_plot, self.sample.molgroups_layer),
                                    change_with='uncertainty')
         self.register_webview_plot(plot_title='Statistics table',
-                                   plot_function=functools.partial(results_table, self.sample.molgroups_layer),
+                                   plot_function=functools.partial(results_table, self.sample.molgroups_layer, report_delta=False),
                                    change_with='uncertainty')        
+        self.register_webview_plot(plot_title='Difference statistics table',
+                                   plot_function=functools.partial(results_table, self.sample.molgroups_layer, report_delta=True),
+                                   change_with='uncertainty')        
+
 
 def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: List[SLD]) -> List[MolgroupsStack]:
     """Create samples from combining a substrate stack with a molgroups layer
