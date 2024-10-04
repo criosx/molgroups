@@ -21,13 +21,14 @@ class Component(Molecule):
         super().__init__(name, formula, cell_volume, density, charge)
         self.length = length
         self.nSLs = self.fnGetnSL(xray_wavelength)
+        self.density = self.formula.density
         self.formula = str(self.formula)
 
     def fnGetnSL(self, xray_wavelength=None):
         if xray_wavelength is None:
             return numpy.array([self.sld * self.cell_volume * 1e-6, self.Dsld * self.cell_volume * 1e-6])
         else:
-            return numpy.array([xray_sld(self.formula, wavelength=xray_wavelength)[0] * self.cell_volume * 1e-6])
+            return numpy.array([xray_sld(self.formula, density=self.density, wavelength=xray_wavelength)[0] * self.cell_volume * 1e-6])
 
 
 # null components and molecules for use with bilayer species that do not have headgroups or methyls (e.g. cholesterol)
