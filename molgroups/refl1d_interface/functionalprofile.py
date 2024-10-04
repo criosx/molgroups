@@ -19,9 +19,9 @@ from ..mol import nSLDObj
 
 from bumps.dream.state import MCMCDraw
 from bumps.webview.server.custom_plot import CustomWebviewPlot
+from bumps.webview.server.colors import COLORS
 from refl1d.names import Slab, Stack, SLD, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
-from refl1d.webview.server.colors import COLORS
 
 import plotly.graph_objs as go
 
@@ -137,7 +137,7 @@ class CVOPlot:
         self.normarea_group = normarea_group
 
     def __call__(self, model, problem, state):
-        return cvo_functionalprofileplot(self.z, self.groups, self.labels,self.group_names, model, problem, state, self.normarea_group)
+        return cvo_functionalprofileplot(self.z, self.groups, self.labels,self.group_names, model, problem, self.normarea_group)
 
 def register_cvo_plot(model: Experiment,
                   z: np.ndarray,
@@ -164,12 +164,12 @@ def register_cvo_plot(model: Experiment,
 
     # NOTE: must use lambda here, not functools.partial or CVOPlot
     model.register_webview_plot('Component Volume Occupancy',
-                                lambda model, problem, state: cvo_functionalprofileplot(
+                                lambda model, problem: cvo_functionalprofileplot(
                                         z,
                                         groups,
                                         labels,
                                         group_names,
-                                        model, problem, state,
+                                        model, problem,
                                         normarea_group=normarea_group),
                                 'parameter')
 
@@ -179,7 +179,6 @@ def cvo_functionalprofileplot(z: np.ndarray,
                               group_names: Dict[str, List[str]],
                               model: Experiment,
                               problem: FitProblem,
-                              state: MCMCDraw | None,
                               normarea_group: str | None = None,
                               ) -> CustomWebviewPlot:
 
