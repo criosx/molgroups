@@ -290,6 +290,10 @@ def results_table(layer: MolgroupsLayer, model: Experiment | None = None, proble
     import csv
     from bumps.dream.stats import credible_interval
 
+    if state is None:
+        return CustomWebviewPlot(fig_type='table',
+                                 plotdata="")
+
     # TODO: Consider whether to include *all* fields (relative or absolute) in the same table. Would require calculating the table only once
     # and give the same values regardless.
 
@@ -364,3 +368,8 @@ def results_table(layer: MolgroupsLayer, model: Experiment | None = None, proble
 
     return CustomWebviewPlot(fig_type='table',
                              plotdata=csv_result)
+
+def test_table(model, problem):
+
+    return CustomWebviewPlot(fig_type='table',
+                             plotdata="hello,goodbye\n1,2")
