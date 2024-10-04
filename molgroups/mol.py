@@ -2630,6 +2630,9 @@ class BLMProteinComplex(CompositenSLDObj):
 
         return rdict
 
+# ------------------------------------------------------------------------------------------------------
+# Polymer models
+# ------------------------------------------------------------------------------------------------------
 
 class PolymerMushroom(nSLDObj):
     """Polymer mushroom model (relatively low grafting density)
