@@ -395,7 +395,7 @@ class CompositenSLDObj(nSLDObj):
 
 
 class Box2Err(nSLDObj):
-    def __init__(self, dz=20, dsigma1=2, dsigma2=2, dlength=10, dvolume=10, dnSL=0, dnumberfraction=1, name=None):
+    def __init__(self, dz=20., dsigma1=2., dsigma2=2., dlength=10., dvolume=10., dnSL=0., dnumberfraction=1., name=None):
         super().__init__(name=name)
         self.z = dz
         self.sigma1 = dsigma1
