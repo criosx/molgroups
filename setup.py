@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='molgroups',
     version='0.2.0',
-    packages=['molgroups'],
+    packages=['molgroups', 'molgroups.refl1d_interface'],
     url='https://github.com/criosx/molgroups',
     license='MIT License',
     author='Frank Heinrich, David Hoogerheide, Alyssa Thomas',
