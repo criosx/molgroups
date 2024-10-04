@@ -1,5 +1,6 @@
 import numpy
 from scipy.special import erf
+from scipy.integrate import trapezoid
 from scipy.interpolate import PchipInterpolator, CubicHermiteSpline, interpn
 from scipy.spatial.transform import Rotation
 from scipy.ndimage.filters import gaussian_filter
@@ -7,6 +8,8 @@ from scipy.ndimage.interpolation import shift
 from scipy.signal import peak_widths
 import sys
 import warnings
+
+from refl1d.polymer import mushroom_math, smear
 
 from periodictable.fasta import Molecule, AMINO_ACID_CODES as aa
 from periodictable.core import default_table
@@ -2628,3 +2631,53 @@ class BLMProteinComplex(CompositenSLDObj):
         return rdict
 
 
+class PolymerMushroom(nSLDObj):
+    def __init__(self, startz=0.0, rho=0.7e-6, vf=0.1, Rg=7.0, delta=1.0, normarea=1.0, sigma=2.0, name=None):
+        super().__init__(name=name)
+        self.startz = startz
+        self.rho = rho
+        self.vf = vf
+        self.Rg = Rg
+        self.delta = delta
+        self.normarea = normarea
+        self.sigma = sigma
+        self.nf = 1.0
+
+    def fnGetProfiles(self, z):
+
+        v = numpy.zeros_like(z)
+        x = (z - self.startz) / self.Rg
+
+        # protect against divide by zero error (from refl1d.polymer)
+        delta_thresh = 1e-10
+
+        if abs(self.delta) > delta_thresh:
+            v[x > 0] = mushroom_math(x[x>0], self.delta, self.vf)
+        else: # we should RARELY get here
+            scale = (self.delta+delta_thresh)/2.0/delta_thresh
+            v[x > 0] = (scale*mushroom_math(x[x>0], delta_thresh, self.vf)
+                                + (1.0-scale)*mushroom_math(x[x>0], -delta_thresh, self.vf))
+
+        # convolve with roughness        
+        self.area = self.normarea * smear(z, v, self.sigma) * self.nf
+        self.zaxis = z
+        self.sl = self.area * self.rho
+        self.sld = numpy.ones_like(self.area) * self.rho
+
+        return self.area, self.sl, self.sld
+    
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+        vol = trapezoid(self.area, self.zaxis)
+        rdict[cName]['INT'] = vol
+        rdict[cName]['COM'] = trapezoid(self.area * self.zaxis, self.zaxis) / vol if vol != 0 else 0
+        rdict[cName]['max area'] = max(self.area)
+        maxpos = numpy.argmax(self.area)
+        rdict[cName]['starting position'] = self.startz
+        rdict[cName]['position of maximum area'] = self.zaxis[maxpos]
+        rdict[cName]['position of half-height'] = numpy.interp(0.5 * max(self.area), self.area[maxpos:][::-1], self.zaxis[maxpos:][::-1])
+        rdict[cName]['distance to maximum area'] = rdict[cName]['position of maximum area'] - self.startz
+        rdict[cName]['distance to half-height'] = rdict[cName]['position of half-height'] - self.startz
+        return rdict
