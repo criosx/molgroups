@@ -1282,6 +1282,116 @@ class Monolayer(CompositenSLDObj, BLM):
         return rdict
 '''
 
+class Monolayer(BLM):
+    def __init__(self, lipids=None, lipid_nf=None, xray_wavelength=None, name='monolayer', **kwargs):
+        """
+        Monolayer object at an interface. Requires:
+            o lipids definition:
+                - lipids: list of components.Lipid objects. If set, creates a symmetric bilayer and overrides
+                    inner_lipids and outer_lipids. If not set, both inner_lipids and outer_lipids are required.
+            o number fraction vector: lipid_nf: a list of number fractions (not necessarily normalized) of equal length
+                to 'lipids'.
+        To use an xray probe, set xray_wavelength to the appropriate value in Angstroms.
+        """
+
+        super().__init__(inner_lipids=lipids, inner_lipid_nf=lipid_nf, outer_lipids=lipids, outer_lipid_nf=lipid_nf,
+                         lipids=lipids, lipid_nf=lipid_nf, xray_wavelength=xray_wavelength, name=name, **kwargs)
+        
+        self.methyl_sigma = numpy.zeros_like(self.outer_lipid_nf)
+
+    def fnGetCenter(self):
+        return self.methyls2[0].z - 0.5 * self.methyls2[0].length
+
+    def _adjust_defects(self):
+        hclength = self.l_om + self.l_ohc
+        hglength = self.av_hg2_l
+
+        if self.radius_defect < (0.5 * (hclength + hglength)):
+            self.radius_defect = 0.5 * (hclength + hglength)
+
+        volhalftorus = numpy.pi ** 2 * (self.radius_defect - (2. * hclength / 3. / numpy.pi)) * hclength * hclength / 4.
+        volcylinder = numpy.pi * self.radius_defect * self.radius_defect * hclength
+        defectarea = volhalftorus / volcylinder * (1 - self.vf_bilayer) * self.normarea
+
+        self.defect_hydrocarbon.vol = defectarea * hclength
+        self.defect_hydrocarbon.length = hclength
+        self.defect_hydrocarbon.z = self.z_ohc + 0.5 * self.l_ohc - 0.5 * hclength
+        self.defect_hydrocarbon.nSL = (self.nsl_ohc + self.nsl_om) / (self.V_ohc + self.V_om) *\
+            self.defect_hydrocarbon.vol
+        self.defect_hydrocarbon.fnSetSigma(self.sigma)
+        self.defect_hydrocarbon.nf = 1
+
+        defectratio = self.defect_hydrocarbon.vol / self.V_ohc
+        self.defect_headgroup.vol = defectratio * numpy.sum([hg.nf * hg.vol for hg in self.headgroups2])
+        self.defect_headgroup.length = hclength + hglength
+        self.defect_headgroup.z = self.z_ohc + 0.5 * self.l_ihc + 0.5 * self.av_hg2_l - 0.5 * (hclength + hglength)
+        self.defect_headgroup.nSL = defectratio * numpy.sum([hg.nf * hg.fnGetnSL() for hg in self.headgroups2])
+        self.defect_headgroup.fnSetSigma(self.sigma)
+        self.defect_headgroup.nf = 1
+
+    def fnAdjustParameters(self):
+        self._adjust_outer_lipids()
+        self._adjust_inner_lipids()
+
+        # turn off inner lipids
+        for gp in self.headgroups1 + self.methyls1 + self.methylenes1:
+            gp.nf = 0.0
+
+        # reference this to outer leaflet hydrophobic interface
+        self._adjust_z(self.startz - self.l_ihc - self.l_im - self.l_ohc - self.l_om)
+        self._adjust_defects()
+        self.fnSetSigma(self.sigma)
+
+    def fnSet(self, startz = 20.0, sigma=2.0, bulknsld=-0.56e-6, l_lipid2=11.0, vf_bilayer=1.0,
+              nf_outer_lipids=None, nf_lipids=None, hc_substitution_2=0., radius_defect=100.):
+
+        if startz is not None:
+            self.startz = startz
+        if sigma is not None:
+            self.sigma = sigma
+        if bulknsld is not None:
+            self.fnSetBulknSLD(bulknsld)
+        if l_lipid2 is not None:
+            self.l_lipid2 = l_lipid2
+        if vf_bilayer is not None:
+            self.vf_bilayer = vf_bilayer
+
+        if nf_lipids is not None:
+            nf_outer_lipids = nf_lipids
+        if nf_outer_lipids is not None:  # pass None to keep lipid_nf unchanged
+            assert len(nf_outer_lipids) == len(self.outer_lipids), \
+                'nf_lipids must be same length as number of lipids in bilayer, not %i and %i' % (len(nf_outer_lipids),
+                                                                                                 len(self.outer_lipids))
+            self.outer_lipid_nf = numpy.array(nf_outer_lipids)
+
+        self.hc_substitution_2 = hc_substitution_2
+        self.radius_defect = radius_defect
+
+        self.fnAdjustParameters()
+
+    def fnWriteResults2Dict(self, rdict, cName):
+        rdict = super().fnWriteResults2Dict(rdict, cName)
+        if cName not in rdict:
+            rdict[cName] = {}
+
+        rdict[cName]['area_per_lipid'] = self.normarea
+        rdict[cName]['volume_fraction'] = self.vf_bilayer
+        rdict[cName]['hydrocarbon_thickness'] = self.l_ohc + self.l_om
+
+        if self.normarea != 0:
+            p3 = self.fnGetCenter()
+            p5 = self.methylenes2[0].z + 0.5 * self.methylenes2[0].length
+            p6 = self.headgroups2[0].z + 0.5 * self.headgroups2[0].length
+
+            #rdict[cName]['water in hydrocarbons'] = self.fnGetVolume(p3, p5, recalculate=False)
+            #rdict[cName]['water in hydrocarbons'] /= (self.normarea * (p5 - p3))
+            #rdict[cName]['water in hydrocarbons'] = 1 - rdict[cName]['water in hydrocarbons']
+            rdict[cName]['water in outer headgroups'] = self.fnGetVolume(p5, p6, recalculate=False)
+            rdict[cName]['water in outer headgroups'] /= (self.normarea * (p6 - p5))
+            rdict[cName]['water in outer headgroups'] = 1 - rdict[cName]['water in outer headgroups']
+
+        return rdict
+
 class ssBLM(BLM):
     def __init__(self, inner_lipids=None, inner_lipid_nf=None, outer_lipids=None, outer_lipid_nf=None, lipids=None,
                  lipid_nf=None, xray_wavelength=None, name='ssblm', **kwargs):
