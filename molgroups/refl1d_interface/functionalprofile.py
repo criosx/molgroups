@@ -19,7 +19,7 @@ from ..mol import nSLDObj
 
 from bumps.dream.state import MCMCDraw
 from bumps.webview.server.custom_plot import CustomWebviewPlot
-from bumps.webview.server.colors import COLORS
+from refl1d.webview.server.colors import COLORS
 from refl1d.names import Slab, Stack, SLD, Experiment, FitProblem
 from refl1d.flayer import FunctionalProfile
 
