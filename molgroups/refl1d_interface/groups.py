@@ -15,7 +15,7 @@ from bumps.parameter import Calculation
 
 from molgroups.mol import (nSLDObj, BLM, ssBLM, tBLM, Box2Err,
                            BoxHermite, BLMProteinComplex, ProteinBox,
-                           ComponentBox)
+                           ComponentBox, PolymerMushroom, PolymerBrush)
 from molgroups.components import Component, Lipid, Tether, bme
 
 from periodictable.fasta import H2O_SLD, D2O_SLD
@@ -190,10 +190,10 @@ class BLMInterface(MolgroupsInterface):
     inner_lipid_nf: List[Parameter] = field(default_factory=list)
     outer_lipid_nf: List[Parameter] = field(default_factory=list)
     startz: Parameter = field(default_factory=lambda: Parameter(name='position of inner hydrophobic interface', value=0.9))
-    vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction bilayer', value=0.9))
+    vf_bilayer: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=0.9))
     l_lipid1: Parameter = field(default_factory=lambda: Parameter(name='inner acyl chain thickness', value=10.0))
     l_lipid2: Parameter = field(default_factory=lambda: Parameter(name='outer acyl chain thickness', value=10.0))
-    sigma: Parameter = field(default_factory=lambda: Parameter(name='bilayer roughness', value=5))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
     normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1))
 
     bilayer_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='bilayer_center', description='center of bilayer'))
@@ -715,3 +715,100 @@ class BLMProteinComplexInterface(BaseGroupInterface):
         self._stored_profile['area'] = blm_area / frac_replacement + prot_area
         self._stored_profile['sl'] = blm_nsl / frac_replacement + prot_nsl
         self._stored_profile['normarea'] = normarea
+
+# ============= Polymer objects ===============
+
+@dataclass
+class PolymerMushroomInterface(MolgroupsInterface):
+    """Refl1D interface for PolymerMushroom (H/D aware polymer mushroom
+        function). Intended for relatively low grafting densities (<<1)
+    """
+
+    _molgroup: PolymerMushroom | None = None
+
+
+    startz: Parameter = field(default_factory=lambda: Parameter(name='starting position', value=0))
+    rhoH: Parameter = field(default_factory=lambda: Parameter(name='rho in H2O', value=2.07))
+    rhoD: Parameter = field(default_factory=lambda: Parameter(name='rho in D2O', value=2.07))
+    proton_exchange_efficiency: Parameter = field(default_factory=lambda: Parameter(name='proton exchange efficiency', value=1.0))
+    grafting_density: Parameter = field(default_factory=lambda: Parameter(name='grafting density', value=0.1))
+    radius_of_gyration: Parameter = field(default_factory=lambda: Parameter(name='radius of gyration', value=10))
+    interaction_strength: Parameter = field(default_factory=lambda: Parameter(name='interaction strength', value=1))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=4))
+    normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1))
+
+    rho: ReferencePoint = field(default_factory=lambda: ReferencePoint(name=f'nSLD', description='H/D aware nSLD of spline'))
+    max_density: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='max_density', description='maximum fractional density'))
+    max_position: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='max_position', description='position of maximum density'))
+    half_height_position: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='half_height_position', description='position of half density'))
+
+    def __post_init__(self) -> None:
+        self._molgroup = PolymerMushroom(name=self.name)
+        # protects against initial errors calculation self.rho
+        self._molgroup.fnSetBulknSLD(0.0)
+
+        self.rho.set_function(functools.partial(lambda self: sld_from_bulk(self.rhoH.value, self.rhoD.value, self._molgroup.bulknsld * 1e6, self.proton_exchange_efficiency.value), self))
+        self.max_position.set_function(functools.partial(lambda gp: gp.fnGetMaxandHalfHeight()[0], self._molgroup))
+        self.max_density.set_function(functools.partial(lambda gp: gp.fnGetMaxandHalfHeight()[2], self._molgroup))
+        self.half_height_position.set_function(functools.partial(lambda gp: gp.fnGetMaxandHalfHeight()[1], self._molgroup))
+
+        super().__post_init__()
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
+        self._molgroup.startz = self.startz.value
+        self._molgroup.rho = self.rho.value * 1e-6
+        self._molgroup.vf = self.grafting_density.value
+        self._molgroup.Rg = self.radius_of_gyration.value
+        self._molgroup.delta = self.interaction_strength.value
+        self._molgroup.sigma = self.sigma.value
+        self._molgroup.normarea = self.normarea.value
+        self._molgroup.nf = self.nf.value
+
+@dataclass
+class PolymerBrushInterface(MolgroupsInterface):
+    """Refl1D interface for PolymerBrush (H/D aware parabolic polymer
+        brush density). 
+    """
+
+    _molgroup: PolymerBrush | None = None
+
+    startz: Parameter = field(default_factory=lambda: Parameter(name='starting position', value=0))
+    rhoH: Parameter = field(default_factory=lambda: Parameter(name='rho in H2O', value=2.07))
+    rhoD: Parameter = field(default_factory=lambda: Parameter(name='rho in D2O', value=2.07))
+    proton_exchange_efficiency: Parameter = field(default_factory=lambda: Parameter(name='proton exchange efficiency', value=1.0))
+    volume_fraction: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=0.1))
+    base_length: Parameter = field(default_factory=lambda: Parameter(name='length of base region', value=20))
+    interface_length: Parameter = field(default_factory=lambda: Parameter(name='length of interface region', value=20))
+    thinning_power: Parameter = field(default_factory=lambda: Parameter(name='thinning power', value=1))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=4))
+    normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1))
+
+    rho: ReferencePoint = field(default_factory=lambda: ReferencePoint(name=f'nSLD', description='H/D aware nSLD of spline'))
+    max_density: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='max_density', description='maximum fractional density'))
+    half_height_position: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='half_height_position', description='position of half density'))
+
+    def __post_init__(self) -> None:
+        self._molgroup = PolymerBrush(name=self.name)
+
+        # protects against initial errors calculation self.rho
+        self._molgroup.fnSetBulknSLD(0.0)
+        self.rho.set_function(functools.partial(lambda self: sld_from_bulk(self.rhoH.value, self.rhoD.value, self._molgroup.bulknsld * 1e6, self.proton_exchange_efficiency.value), self))
+        self.max_density.set_function(functools.partial(lambda gp: gp.fnGetMaxandHalfHeight()[2], self._molgroup))
+        self.half_height_position.set_function(functools.partial(lambda gp: gp.fnGetMaxandHalfHeight()[1], self._molgroup))
+
+        super().__post_init__()
+        
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSetBulknSLD(bulknsld * 1e-6)
+        self._molgroup.startz = self.startz.value
+        self._molgroup.rho = self.rho.value * 1e-6
+        self._molgroup.vf = self.volume_fraction.value
+        self._molgroup.base_length = self.base_length.value
+        self._molgroup.interface_length = self.interface_length.value
+        self._molgroup.thinning_power = self.thinning_power.value
+        self._molgroup.sigma = self.sigma.value
+        self._molgroup.normarea = self.normarea.value
+        self._molgroup.nf = self.nf.value

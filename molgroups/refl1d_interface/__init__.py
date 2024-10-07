@@ -12,4 +12,6 @@ from molgroups.refl1d_interface.groups import (SubstrateInterface,
                                                BLMProteinComplexInterface,
                                                VolumeFractionBoxInterface,
                                                ComponentBoxInterface,
-                                               BoxInterface)
+                                               BoxInterface,
+                                               PolymerBrushInterface,
+                                               PolymerMushroomInterface)
