@@ -13,7 +13,7 @@ from scipy.integrate import trapezoid
 from refl1d.names import Parameter
 from bumps.parameter import Calculation
 
-from molgroups.mol import (nSLDObj, BLM, ssBLM, tBLM, Box2Err,
+from molgroups.mol import (nSLDObj, BLM, ssBLM, tBLM, Monolayer, Box2Err,
                            BoxHermite, BLMProteinComplex, ProteinBox,
                            ComponentBox, PolymerMushroom, PolymerBrush)
 from molgroups.components import Component, Lipid, Tether, bme
@@ -239,6 +239,57 @@ class BLMInterface(MolgroupsInterface):
             vf_bilayer=self.vf_bilayer.value,
             nf_inner_lipids=[p.value for p in self.inner_lipid_nf],
             nf_outer_lipids=[p.value for p in self.outer_lipid_nf],
+            radius_defect=1e8)
+        
+        self.normarea.value = self._molgroup.normarea
+
+@dataclass
+class MonolayerInterface(MolgroupsInterface):
+    """Refl1D interactor for free floating BLM
+    """
+
+    _molgroup: Monolayer | None = None
+
+    lipids: List[Lipid] = field(default_factory=list)
+    lipid_nf: List[Parameter] = field(default_factory=list)
+    startz: Parameter = field(default_factory=lambda: Parameter(name='position of hydrophobic interface', value=20))
+    vf_lipids: Parameter = field(default_factory=lambda: Parameter(name='volume fraction', value=0.9))
+    l_lipid: Parameter = field(default_factory=lambda: Parameter(name='acyl chain thickness', value=10.0))
+    sigma: Parameter = field(default_factory=lambda: Parameter(name='roughness', value=5))
+    normarea: Parameter = field(default_factory=lambda: Parameter(name='normarea', value=1))
+
+    acyl_chain_end: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='acyl_chain_end', description='end of acyl chains'))
+    hydrophobic_interface: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='hydrophobic_interface', description='interface between headgroups and acyl chains'))
+    headgroup_center: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_center', description='center of outer headgroups'))
+    headgroup_top: ReferencePoint = field(default_factory=lambda: ReferencePoint(name='outer_headgroup_top', description='top of outer headgroups'))
+
+    def __post_init__(self):
+        self._molgroup = Monolayer(lipids=self.lipids,
+                                   lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.lipid_nf],
+                                   name=self.name)
+
+        n_lipids = len(self.lipids)
+        self._group_names = {
+                f'{self.name} acyl chains': [f'{self.name}.methylene2_{i}' for i in range(1, n_lipids + 1)] + [f'{self.name}.methyl2_{i}' for i in range(1, n_lipids + 1)],
+                f'{self.name} headgroups': [f'{self.name}.headgroup2_{i}' for i in range(1, n_lipids + 1)],
+                }
+
+        # connect reference points
+        self.acyl_chain_end.set_function(self._molgroup.fnGetCenter)
+        self.hydrophobic_interface.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc, self._molgroup))
+        self.headgroup_center.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + 0.5 * blm.av_hg2_l, self._molgroup))
+        self.headgroup_top.set_function(functools.partial(lambda blm: blm.z_ohc + 0.5 * blm.l_ohc + blm.av_hg2_l, self._molgroup))
+
+        super().__post_init__()
+
+    def update(self, bulknsld: float):
+
+        self._molgroup.fnSet(sigma=self.sigma.value,
+            bulknsld=bulknsld * 1e-6,
+            startz=self.startz.value,
+            l_lipid2=self.l_lipid.value,
+            vf_bilayer=self.vf_lipids.value,
+            nf_lipids=[p.value for p in self.lipid_nf],
             radius_defect=1e8)
         
         self.normarea.value = self._molgroup.normarea

@@ -51,6 +51,7 @@ def make_samples(layer_template: MolgroupsLayer, substrate: Stack, contrasts: Li
 
     for contrast in contrasts:
         mollayer = MolgroupsLayer(base_group=layer_template.base_group,
+                                  normarea_group=layer_template.normarea_group,
                                   add_groups=layer_template.add_groups,
                                   overlay_groups=layer_template.overlay_groups,
                                   contrast=contrast,

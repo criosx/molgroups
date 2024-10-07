@@ -13,6 +13,7 @@ from .groups import BaseGroupInterface, MolgroupsInterface
 class MolgroupsLayer(Layer):
 
     base_group: BaseGroupInterface
+    normarea_group: MolgroupsInterface | None = None
     add_groups: List[MolgroupsInterface] = field(default_factory=list)
     overlay_groups: List[MolgroupsInterface] = field(default_factory=list)
     contrast: SLD | None=None
@@ -21,6 +22,7 @@ class MolgroupsLayer(Layer):
 
     def __init__(self,
                  base_group: BaseGroupInterface,
+                 normarea_group: MolgroupsInterface | None = None,
                  add_groups: List[MolgroupsInterface] = [],
                  overlay_groups: List[MolgroupsInterface] = [],
                  contrast: SLD | None=None,
@@ -28,6 +30,7 @@ class MolgroupsLayer(Layer):
                  name=None) -> None:
 
         self.base_group = base_group
+        self.normarea_group = normarea_group
         self.add_groups = add_groups
         self.overlay_groups = overlay_groups
 
@@ -45,18 +48,34 @@ class MolgroupsLayer(Layer):
 
     def update(self):
 
-        # 1. update base_group
+        normarea: float | None = None
+
+        # 0. update normarea_group
+
+        # 1. update base_group (may be required twice if normarea_group is defined differently)
         self.base_group.update(bulknsld=self.contrast.rho.value)
-        normarea = self.base_group.normarea.value
+        if self.normarea_group is None:
+            normarea = self.base_group.normarea.value
+        else:
+            self.normarea_group.update(bulknsld=self.contrast.rho.value)
+            if not hasattr(self.normarea_group, 'normarea'):
+                print(f'Warning: {self.normarea_group.name} does not have normarea and cannot be normarea_group. Ignoring.')
+            else:
+                normarea = self.normarea_group.normarea.value
+                if hasattr(self.base_group._molgroup, 'fnSetNormarea') & (self.base_group != self.normarea_group):
+                    self.base_group._molgroup.fnSetNormarea(normarea)                
+                self.base_group.normarea.value = normarea
+                self.base_group.update(bulknsld=self.contrast.rho.value)
 
         # 2. apply normarea to all remaining objects
         for group in self.add_groups + self.overlay_groups:
-            if hasattr(group._molgroup, 'fnSetNormarea'):
+            if hasattr(group._molgroup, 'fnSetNormarea') & (group != self.normarea_group):
                 group._molgroup.fnSetNormarea(normarea)
         
         # 3. update all remaining objects
         for group in self.add_groups + self.overlay_groups:
-            group.update(bulknsld=self.contrast.rho.value)
+            if group != self.normarea_group:
+                group.update(bulknsld=self.contrast.rho.value)
 
     def profile(self, z):
 

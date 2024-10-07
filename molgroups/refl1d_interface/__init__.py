@@ -14,4 +14,5 @@ from molgroups.refl1d_interface.groups import (SubstrateInterface,
                                                ComponentBoxInterface,
                                                BoxInterface,
                                                PolymerBrushInterface,
-                                               PolymerMushroomInterface)
+                                               PolymerMushroomInterface,
+                                               MonolayerInterface)
