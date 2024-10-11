@@ -61,11 +61,13 @@ def cvo_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: Fi
         plotly_color = ','.join(map(str, hex_to_rgb(color)))
         traces.append(go.Scatter(x=zaxis,
                                 y=area / normarea,
+                                legendgroup=lbl,
                                 mode='lines',
                                 name=lbl,
                                 line=dict(color=color)))
         traces.append(go.Scatter(x=zaxis,
                                 y=area / normarea,
+                                legendgroup=lbl,
                                 mode='lines',
                                 line=dict(width=0),
                                 fill='tozeroy',
@@ -82,17 +84,20 @@ def cvo_plot(layer: MolgroupsLayer, model: Experiment | None = None, problem: Fi
                                 y=sumarea / normarea,
                                 mode='lines',
                                 name='buffer',
+                                legendgroup='buffer',
                                 line=dict(color=color)))
     traces.append(go.Scatter(x=zaxis,
                                 y=sumarea / normarea,
                                 mode='lines',
                                 line=dict(width=0),
+                                legendgroup='buffer',
                                 fill='tonexty',
                                 fillcolor=f'rgba({plotly_color},0.3)',
                                 showlegend=False
                                 ))    
     traces.append(go.Scatter(x=zaxis,
                                 y=[1.0] * len(zaxis),
+                                legendgroup='buffer',
                                 mode='lines',
                                 line=dict(color=color, width=0),
                                 showlegend=False))
@@ -185,6 +190,7 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
             uncertainty_traces.append(go.Scatter(x=zaxis,
                                     y=lo, # * med_norm_area / normarea,
                                     mode='lines',
+                                    legendgroup=lbl,
                                     line=dict(color=color, width=1),
                                     hoverinfo="skip",
                                     fill='tonexty',
@@ -193,17 +199,19 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
                                     ))
             uncertainty_traces.append(go.Scatter(x=zaxis,
                                     y=hi, # * med_norm_area / normarea,
-                                    showlegend=False, 
+                                    showlegend=False,
+                                    legendgroup=lbl, 
                                     opacity=0.3,
                                     hoverinfo="skip",
                                     mode='lines',
                                     name=lbl,
                                     line=dict(color=color, width=1)))
-            uncertainty_traces.append(go.Scatter(x=zaxis,
-                                y=med_area, # * med_norm_area / normarea,
-                                mode='lines',
-                                name=lbl,
-                                line=dict(color=color)))
+        uncertainty_traces.append(go.Scatter(x=zaxis,
+                            y=med_area, # * med_norm_area / normarea,
+                            mode='lines',
+                            name=lbl,
+                            legendgroup=lbl,
+                            line=dict(color=color)))
 
         color_idx += 1
         sumarea += med_area * med_norm_area
@@ -245,6 +253,7 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
                                 y=sumarea / med_norm_area,
                                 mode='lines',
                                 name='buffer',
+                                legendgroup='buffer',
                                 line=dict(color=color)))
     buffer_traces.append(go.Scatter(x=zaxis,
                                 y=sumarea / med_norm_area,
@@ -252,12 +261,14 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
                                 line=dict(width=0),
                                 fill='tonexty',
                                 fillcolor=f'rgba({plotly_color},0.3)',
+                                legendgroup='buffer',
                                 showlegend=False
                                 ))    
     buffer_traces.append(go.Scatter(x=zaxis,
                                 y=[1.0] * len(zaxis),
                                 mode='lines',
                                 line=dict(color=color, width=0),
+                                legendgroup='buffer',
                                 showlegend=False))
 
     
