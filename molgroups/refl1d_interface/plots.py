@@ -168,6 +168,8 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
 
             imoldat.update(group._stored_profile)
 
+        normarea = layer.base_group._stored_profile['normarea']
+
         for lbl, item in group_names.items():
             area = 0
             for gp in item:
@@ -175,8 +177,8 @@ def cvo_uncertainty_plot(layer: MolgroupsLayer, model: Experiment | None = None,
                     zaxis = imoldat[gp]['zaxis']
                     newarea = imoldat[gp]['area'] / imoldat[gp]['frac_replacement']
                     area += np.maximum(0, newarea)
-            statdata[lbl].append(area / imoldat['normarea'])
-        statnormarea.append(imoldat['normarea'])
+            statdata[lbl].append(area / normarea)
+        statnormarea.append(normarea)
     print(f'CVO uncertainty calculation done after {time.time() - init_time} seconds')
 
     for lbl, statlist in statdata.items():
