@@ -29,6 +29,9 @@ class MolgroupsLayer(Layer):
                  thickness: float | Parameter = 0.0,
                  name=None) -> None:
 
+        if not isinstance(base_group, BaseGroupInterface):
+            raise TypeError(f'Base group {base_group} must be an instance of BaseGroupInterface')
+
         self.base_group = base_group
         self.normarea_group = normarea_group
         self.add_groups = add_groups
