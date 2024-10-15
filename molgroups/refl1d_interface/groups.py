@@ -185,6 +185,7 @@ class BLMInterface(MolgroupsInterface):
     """
 
     _molgroup: BLM | None = None
+    xray_wavelength: float | None = None
 
     lipids: List[Lipid] = field(default_factory=list)
     inner_lipid_nf: List[Parameter] = field(default_factory=list)
@@ -209,6 +210,7 @@ class BLMInterface(MolgroupsInterface):
                              outer_lipids=self.lipids,
                              inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
                              outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
+                             xray_wavelength=self.xray_wavelength,
                              name=self.name)
 
         n_lipids = len(self.lipids)
@@ -249,6 +251,7 @@ class MonolayerInterface(MolgroupsInterface):
     """
 
     _molgroup: Monolayer | None = None
+    xray_wavelength: float | None = None
 
     lipids: List[Lipid] = field(default_factory=list)
     lipid_nf: List[Parameter] = field(default_factory=list)
@@ -266,6 +269,7 @@ class MonolayerInterface(MolgroupsInterface):
     def __post_init__(self):
         self._molgroup = Monolayer(lipids=self.lipids,
                                    lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.lipid_nf],
+                                   xray_wavelength=self.xray_wavelength,
                                    name=self.name)
 
         n_lipids = len(self.lipids)
@@ -345,6 +349,7 @@ class ssBLMInterface(BaseGroupInterface):
     """
 
     _molgroup: ssBLM | None = None
+    xray_wavelength: float | None = None
 
     lipids: List[Lipid] = field(default_factory=list)
     inner_lipid_nf: List[Parameter] = field(default_factory=list)
@@ -374,6 +379,7 @@ class ssBLMInterface(BaseGroupInterface):
                                outer_lipids=self.lipids,
                              inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
                              outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
+                             xray_wavelength=self.xray_wavelength,
                              name=self.name)
 
         n_lipids = len(self.lipids)
@@ -424,6 +430,7 @@ class tBLMInterface(BaseGroupInterface):
     """
 
     _molgroup: tBLM | None = None
+    xray_wavelength: float | None = None
 
     tether: Tether = field(default_factory=Tether)
     filler: Component = field(default_factory=lambda: bme)
@@ -457,6 +464,7 @@ class tBLMInterface(BaseGroupInterface):
                               outer_lipids=self.lipids,
                               inner_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.inner_lipid_nf],
                               outer_lipid_nf=[p.value if hasattr(p, 'value') else p for p in self.outer_lipid_nf],
+                              xray_wavelength=self.xray_wavelength,
                               name=self.name)
 
         n_lipids = len(self.lipids)
